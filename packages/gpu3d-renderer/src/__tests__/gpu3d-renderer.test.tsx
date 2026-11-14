@@ -48,6 +48,7 @@ function fakeCtx() {
 			},
 		},
 		events: { on: () => () => {}, emit: () => {} },
+		shapes: { get: () => undefined, getAll: () => new Map() },
 		store: {
 			getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
 			onMutation: () => () => {},

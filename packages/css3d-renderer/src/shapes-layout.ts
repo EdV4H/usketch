@@ -8,18 +8,22 @@
 // bottom edge (`rotateX(-90deg)`), like a cliff wall; a floating one is lifted flat; a
 // box is lifted as a top with four walls folded down from it.
 import {
-	type BoundingBox,
-	type RenderMode,
-	resolveShapeView3d,
+	DEFAULT_VIEW3D_SHAPE_LIMITS,
+	GROUND_FLAT_VIEW3D,
 	type ShapeData,
-	type ShapeTypeView3d,
 	type ShapeView3d,
 	type ShapeView3dMode,
 	safeRotation,
-	shapeTypeModes,
+	selectView3dShapes,
 	shapeView3dAnchor,
 	shapeView3dFoot,
+	lerpAngle as sharedLerpAngle,
+	type View3dShapeEntry,
+	type View3dShapeLimits,
+	type View3dShapeTypes,
 	type Viewport,
+	view3dShapeHeading,
+	view3dShapeWallColor,
 	viewportRotation,
 	worldToScreen,
 	wrapDeg,
@@ -28,8 +32,8 @@ import {
 type Shape3dMode = ShapeView3dMode;
 type Shape3dParams = ShapeView3d;
 
-/** Each shape type's 3D (`ShapeTypeView3d`), by type. */
-export type Css3dShapeTypes = Readonly<Record<string, ShapeTypeView3d>>;
+/** Each shape type's 3D (`ShapeTypeView3d`), by type (shared's `View3dShapeTypes`). */
+export type Css3dShapeTypes = View3dShapeTypes;
 
 /** Screen px a shadow floats above its ground (no z-fighting with a raised terrain top). */
 export const SHADOW_LIFT_PX = 0.5;
@@ -40,10 +44,8 @@ export const standFoot = shapeView3dFoot;
 /** The point a shape is placed by: the foot for `stand`, the centre otherwise. World units. */
 export const shapeAnchor = shapeView3dAnchor;
 
-/** `a` turned toward `b` by `t` (0…1) the short way round, degrees. Pure. */
-export function lerpAngle(a: number, b: number, t: number): number {
-	return a + wrapDeg(b - a) * t;
-}
+/** `a` turned toward `b` by `t` (0…1) the short way round, degrees (shared's). */
+export const lerpAngle = sharedLerpAngle;
 
 export interface ShapePose {
 	mode: Shape3dMode;
@@ -82,7 +84,7 @@ export function shapePose(
 	const flat = safeRotation(shape.rotation) + viewportRotation(view.viewport);
 	const amount = clamp01(view.amount);
 	const stand = params.mode === "stand";
-	const face = stand && params.facing === "camera" ? lerpAngle(flat, -view.yaw, amount) : flat;
+	const face = view3dShapeHeading(params, flat, amount, view.yaw);
 	return {
 		mode: params.mode,
 		x: at.x,
@@ -224,17 +226,10 @@ export function boxWalls(p: Pick<ShapePose, "rise" | "width" | "height" | "zoom"
 }
 
 /**
- * A `box` shape's wall colour: its fill (`style.fill`, else `color`) — the walls darken
- * it with an overlay ({@link wallShade}) — or a neutral grey when it has none usable.
+ * A `box` shape's wall colour (shared's `view3dShapeWallColor`): the walls darken it with
+ * an overlay ({@link wallShade}).
  */
-export function wallColor(shape: ShapeData): string {
-	const color = (shape as { color?: unknown }).color;
-	const fill = shape.style?.fill ?? (typeof color === "string" ? color : undefined);
-	if (typeof fill !== "string") return "#9e9e9e";
-	const f = fill.trim().toLowerCase();
-	if (f === "" || f === "none" || f === "transparent") return "#9e9e9e";
-	return fill;
-}
+export const wallColor = view3dShapeWallColor;
 
 /** The darkening overlay of a wall: east/west a touch darker, as the map's cliffs. */
 export function wallShade(side: BoxSide): string {
@@ -267,113 +262,18 @@ export function shadowStyle(p: ShapePose): {
 	};
 }
 
-/** How many 3D shapes are drawn, and how. */
-export interface Css3dShapeLimits {
-	/** Shapes smaller than this on screen (px, longer side) stay flat. */
-	minPx: number;
-	/** At most this many shapes are drawn in 3D — the nearest (lowest on screen) win. */
-	maxCount: number;
-	/** Shapes holding no 3D parameters still lie on the terrain's height where it is
-	 *  raised (drawn here as a flat `float` of height 0), instead of on the board at 0.
-	 *  Default `true`. */
-	groundFlat: boolean;
-}
+/** How many 3D shapes are drawn, and how (shared's `View3dShapeLimits`). */
+export type Css3dShapeLimits = View3dShapeLimits;
 
-export const DEFAULT_CSS3D_SHAPE_LIMITS: Css3dShapeLimits = {
-	minPx: 8,
-	maxCount: 200,
-	groundFlat: true,
-};
+export const DEFAULT_CSS3D_SHAPE_LIMITS: Css3dShapeLimits = DEFAULT_VIEW3D_SHAPE_LIMITS;
 
-/** What a shape holding no 3D parameters is drawn as on raised ground: flat, at its height. */
-export const GROUND_FLAT_PARAMS: Shape3dParams = {
-	mode: "float",
-	height: 0,
-	facing: "camera",
-	ground: true,
-	shadow: false,
-	collision: "none",
-};
+/** What a shape holding no 3D parameters is drawn as on raised ground (shared's). */
+export const GROUND_FLAT_PARAMS: Shape3dParams = GROUND_FLAT_VIEW3D;
 
-export interface Shape3dEntry {
-	shape: ShapeData;
-	params: Shape3dParams;
-}
+export type Shape3dEntry = View3dShapeEntry;
 
-/**
- * The shapes to draw in 3D now (in z-order). Only while the view is (partly) 3D, never
- * in the global LOD mode, and only shapes whose anchor is on the drawn ground: the board
- * box grown by the 3D view's overscan. A depth layer isn't clipped by the draw distance,
- * so a shape farther out would stand in the sky past the ground's end. With
- * `limits.groundFlat` and a `heightAt`, a shape holding no 3D parameters whose centre is
- * on raised ground is drawn too, lying flat at that height ({@link GROUND_FLAT_PARAMS}).
- * Pure.
- */
-export function selectShapes3d(input: {
-	shapes: readonly ShapeData[];
-	types: Css3dShapeTypes;
-	viewport: Viewport;
-	viewportBounds: BoundingBox;
-	/** Screen px the 3D view shows past the board box (`bg-grid:set-overscan`). */
-	overscanPx: number;
-	renderMode: RenderMode;
-	amount: number;
-	limits: Css3dShapeLimits;
-	/** The terrain's height (world units) for `limits.groundFlat`; absent = no terrain. */
-	heightAt?: (x: number, y: number) => number;
-}): Shape3dEntry[] {
-	if (!(input.amount > 0) || input.renderMode === "lod") return [];
-	const zoom = input.viewport.zoom;
-	if (!(zoom > 0)) return [];
-	const pad = input.overscanPx > 0 ? input.overscanPx / zoom : 0;
-	const b = input.viewportBounds;
-	const x0 = b.x - pad;
-	const y0 = b.y - pad;
-	const x1 = b.x + b.width + pad;
-	const y1 = b.y + b.height + pad;
-	const found: (Shape3dEntry & { screenY: number })[] = [];
-	for (const shape of input.shapes) {
-		if (!shape || typeof shape.id !== "string") continue;
-		// Size and place first: they need no terrain, so a shape too small or off screen never
-		// samples `heightAt` (on a wide board that thrashes the terrain's chunk cache every frame).
-		if (Math.max(shape.width, shape.height) * zoom < input.limits.minPx) continue;
-		const own = resolveShapeView3d(shape, input.types[shape.type]);
-		const at = shapeAnchor(shape, own?.mode ?? GROUND_FLAT_PARAMS.mode);
-		if (at.x < x0 || at.x > x1 || at.y < y0 || at.y > y1) continue;
-		const params = own ?? groundFlatParams(shape, input);
-		if (!params) continue;
-		found.push({ shape, params, screenY: worldToScreen(at.x, at.y, input.viewport).y });
-	}
-	const max = Math.max(0, Math.floor(input.limits.maxCount));
-	if (found.length > max) {
-		const keep = new Set(
-			[...found]
-				.sort((a, b) => b.screenY - a.screenY)
-				.slice(0, max)
-				.map((e) => e.shape.id),
-		);
-		return found
-			.filter((e) => keep.has(e.shape.id))
-			.map(({ shape, params }) => ({ shape, params }));
-	}
-	return found.map(({ shape, params }) => ({ shape, params }));
-}
-
-/** {@link GROUND_FLAT_PARAMS} for a parameterless shape on raised ground, else `null`. */
-function groundFlatParams(
-	shape: ShapeData,
-	input: {
-		types: Css3dShapeTypes;
-		limits: Css3dShapeLimits;
-		heightAt?: (x: number, y: number) => number;
-	},
-): Shape3dParams | null {
-	if (!input.limits.groundFlat || !input.heightAt) return null;
-	if (!shapeTypeModes(input.types[shape.type]).includes("float")) return null;
-	const at = shapeAnchor(shape, "float");
-	const h = input.heightAt(at.x, at.y);
-	return Number.isFinite(h) && h > 0 ? GROUND_FLAT_PARAMS : null;
-}
+/** The shapes to draw in 3D now (shared's `selectView3dShapes`). */
+export const selectShapes3d = selectView3dShapes;
 
 function clamp01(n: number): number {
 	if (!Number.isFinite(n)) return 0;

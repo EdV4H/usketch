@@ -153,6 +153,21 @@ export {
 	storedShapeView3d,
 	VIEW_3D_COLLISIONS_BY_MODE,
 } from "./shape-view-3d.js";
+export {
+	DEFAULT_VIEW3D_SHAPE_LIMITS,
+	declaredView3dShapeTypes,
+	GROUND_FLAT_VIEW3D,
+	lerpAngle,
+	sanitizeView3dShapeLimits,
+	selectView3dShapes,
+	type View3dShapeEntry,
+	type View3dShapeLimits,
+	type View3dShapeSource,
+	type View3dShapeTypes,
+	view3dShapeHeading,
+	view3dShapeSourceService,
+	view3dShapeWallColor,
+} from "./shape-view-3d-layout.js";
 // Solid height (what stands on the ground, e.g. raised shapes)
 export { type SolidHeightApi, solidHeightService } from "./solid-height.js";
 // Geometry

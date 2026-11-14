@@ -10,12 +10,17 @@
 // nothing while the board is flat (the 2D renderers draw it then).
 import {
 	boardHeight,
+	createView3dTracker,
+	declaredView3dShapeTypes,
 	defineService,
 	type Layer,
 	type LayerRenderContext,
 	type LayerView3d,
 	type PluginContext,
 	type ProjectionCamera,
+	type ShapeView3d,
+	sanitizeView3dShapeLimits,
+	selectView3dShapes,
 	type UsketchPlugin,
 	type View3dCell,
 	type View3dGlApi,
@@ -24,7 +29,9 @@ import {
 	type View3dState,
 	view3dCellOf,
 	view3dGl,
+	view3dOverscanPx,
 	view3dRendererService,
+	view3dShapeSourceService,
 	viewMatrix,
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef } from "react";
@@ -206,7 +213,31 @@ export function setupGpu3dRenderer(
 	const height = ctx.height ?? boardHeight(ctx.services);
 	let rc: LayerRenderContext | null = null;
 
-	const shapeSource = (): ShapeSource | null => {
+	// Which shapes stand in 3D: as the CSS 3D renderer picks them (a plugin's source, else
+	// what the types declare).
+	const tracker = createView3dTracker(ctx.services, ctx.events);
+	const declaredTypes = declaredView3dShapeTypes(ctx.shapes, () => schedule());
+	const shapes3d = (
+		layerCtx: LayerRenderContext,
+		stageHeight: number,
+	): Map<string, ShapeView3d> => {
+		const state = cell.get();
+		const source = view3dShapeSourceService.get(ctx.services);
+		const entries = selectView3dShapes({
+			shapes: layerCtx.shapesSorted,
+			types: source?.types?.() ?? declaredTypes.get(),
+			viewport: layerCtx.viewport,
+			viewportBounds: layerCtx.viewportBounds,
+			overscanPx: view3dOverscanPx(state, layerCtx.viewport.zoom, stageHeight),
+			renderMode: layerCtx.renderMode,
+			amount: state.amount,
+			limits: sanitizeView3dShapeLimits(source?.limits?.()),
+			heightAt: (x, y) => height.groundAt(x, y),
+		});
+		return new Map(entries.map((e) => [e.shape.id, e.params]));
+	};
+
+	const shapeSource = (stageHeight: number): ShapeSource | null => {
 		if (!rc || !stage) return null;
 		const layer = stage.querySelector(`:scope > [data-layer-id="${DOM_SHAPES_LAYER_ID}"]`);
 		const nodes = new Map<string, Element>();
@@ -221,6 +252,8 @@ export function setupGpu3dRenderer(
 			registry: ctx.shapes,
 			node: (id) => nodes.get(id) ?? null,
 			groundAt: (x, y) => height.groundAt(x, y),
+			view3d: shapes3d(rc, stageHeight),
+			yaw: tracker.get().yaw,
 		};
 	};
 
@@ -290,7 +323,7 @@ export function setupGpu3dRenderer(
 			look(),
 			hook,
 			size,
-			options.shapes === false ? null : shapeSource(),
+			options.shapes === false ? null : shapeSource(size.height),
 		);
 		hook.setDrawing(true);
 		if (again) schedule();
@@ -326,6 +359,8 @@ export function setupGpu3dRenderer(
 		hook.onFrameRequest(schedule),
 		hook.subscribe(schedule),
 		height.subscribe(schedule),
+		// The camera's yaw, which stood-up shapes face.
+		tracker.subscribe(schedule),
 		ctx.events.on("layers:changed", schedule),
 	];
 	if (typeof window !== "undefined") window.addEventListener("resize", schedule);
@@ -364,6 +399,8 @@ export function setupGpu3dRenderer(
 			if (ctx.layers.getLayers().some((l) => l === layer)) ctx.layers.unregister(GPU3D_LAYER_ID);
 			attach(null);
 			for (const off of offs) off();
+			declaredTypes.dispose();
+			tracker.dispose();
 			if (typeof window !== "undefined") window.removeEventListener("resize", schedule);
 			styleEl?.remove();
 			styleEl = null;
