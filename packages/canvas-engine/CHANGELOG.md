@@ -1,5 +1,38 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.6.0
+
+### Minor Changes
+
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+
+### Patch Changes
+
+- 4a81786: Safari のピンチズームが指の開き具合より大きくズームしていたのを直す。ホイール・ジェスチャのリスナーを viewport が変わるたびに付け直していたため、ジェスチャの途中で前回の `scale` の記録が 1 に戻り、累積値の `scale` がそのまま掛かっていた（1.1 → 1.2 → 1.3 で 1.3 倍のはずが 1.716 倍）。リスナーは viewport を発火時に store から読むようにし、パン・ズームのたびに付け直さない。
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+  - @edv4h/usketch-core@2.6.0
+
 ## 1.5.12
 
 ### Patch Changes

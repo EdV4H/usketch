@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-sticky",
-	"version": "3.1.23",
+	"version": "3.1.24",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

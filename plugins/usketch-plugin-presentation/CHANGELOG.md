@@ -1,5 +1,34 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.6.0
+
+### Minor Changes
+
+- 3467f1e: マルチページ:
+  
+  - presentation: `pages` オプション（`hasPage` / `goToPage` / `pageLabel`）を追加。発表で最後のスライドの次は次のページの先頭へ、最初のスライドの前は前のページの最後へ移る。発表のバーに今のページ名を出す。ページをまたぐ処理は `stepPresentation` などの純関数として export する。
+  - export: `pages` オプション（`list` / `loadShapes`）を追加。HUD に「Export PNG / SVG / JSON（全ページ）」が出て、全ページを 1 枚の画像（ページを縦に並べ、ページ名の見出し付き）や、ページごとの JSON に書き出す。`buildPagesSvg` / `exportPagesCanvas` / `exportPagesJson` も export する。
+
+### Patch Changes
+
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+  - @edv4h/usketch-store@3.12.0
+
 ## 2.5.10
 
 ### Patch Changes
