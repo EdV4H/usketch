@@ -31,7 +31,24 @@ export interface LayerRenderContext {
 	 * canvas has been measured — treat non-positive size as "unknown / no filter".
 	 */
 	viewportBounds: BoundingBox;
+	/**
+	 * While the board is shown in 3D: how far past the stage box (px, every side) a
+	 * background should draw so it stays under the far ground the draw distance shows
+	 * (`view3dOverscanPx`). `0` (or absent, on an older canvas) on the flat board.
+	 */
+	view3dOverscan?: number;
 }
+
+/**
+ * How a layer is shown while the board is in 3D (see {@link Layer.view3d}):
+ *
+ * - `tilt`   … tilted with the ground, clipped to the draw distance.
+ * - `depth`  … tilted and keeps real depth (not clipped): things rising out of the
+ *              ground, such as cliffs, standing shapes and characters.
+ * - `screen` … not tilted: screen UI (HUD, panels).
+ * - `hidden` … not shown while in 3D.
+ */
+export type LayerView3d = "tilt" | "depth" | "screen" | "hidden";
 
 export type RenderTarget = "svg" | "html";
 
@@ -75,6 +92,13 @@ export interface Layer {
 	 * `overflow: visible`). Full-screen `<canvas>` drawings don't fit this model.
 	 */
 	worldOverlay?: boolean;
+	/**
+	 * How the layer is shown while the board is in 3D ({@link LayerView3d}). The canvas
+	 * marks its wrapper with `data-view3d`, and a 3D view tilts it accordingly. Unset is
+	 * `screen` for now (a 3D view may still tilt it by its own list, e.g. Mode 7's
+	 * `tiltLayerIds`); from the next major an unset layer is `tilt` unless `fixed`.
+	 */
+	view3d?: LayerView3d;
 	/**
 	 * When true, `order` is treated as a preference: if another layer already
 	 * occupies the same effective order, this one is bumped up until it finds a
@@ -151,6 +175,8 @@ export interface SelectionForeground {
 	 * Defaults to true — selection UI is anchored to the shapes it outlines.
 	 */
 	worldOverlay?: boolean;
+	/** How the selection UI is shown in 3D (see {@link Layer.view3d}). Defaults to `tilt`. */
+	view3d?: LayerView3d;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 }
 

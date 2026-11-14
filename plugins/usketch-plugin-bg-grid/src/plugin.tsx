@@ -22,8 +22,10 @@ import { rotatedGridFrame } from "./grid-frame.js";
 let visible = true;
 // How far BEYOND the viewport box (in CSS px, all sides) to render the grid. Normally
 // 0 (grid fills the viewport). A consumer that reveals off-screen area — e.g. the Mode
-// 7 tilt, which shows content past the box — drives this via the `bg-grid:set-overscan`
-// event so the grid extends under that far content instead of stopping at the box edge.
+// 7 tilt, which shows content past the box — extends it so the grid stays under that far
+// content instead of stopping at the box edge. The core passes it as
+// `LayerRenderContext.view3dOverscan`; the `bg-grid:set-overscan` event is the older way
+// (kept until the next major).
 let overscan = 0;
 const listeners: Set<() => void> = new Set();
 
@@ -79,9 +81,17 @@ function useBoxSize(ref: RefObject<HTMLDivElement | null>): { width: number; hei
 	return size;
 }
 
-function GridBackground({ viewport }: { viewport: LayerRenderContext["viewport"] }) {
+function GridBackground({
+	viewport,
+	view3dOverscan = 0,
+}: {
+	viewport: LayerRenderContext["viewport"];
+	/** The core's 3D overscan (`LayerRenderContext.view3dOverscan`). */
+	view3dOverscan?: number;
+}) {
 	const show = useSyncExternalStore(subscribe, getVisible);
-	const pad = useSyncExternalStore(subscribe, getOverscan);
+	// The larger of the core's value and the older `bg-grid:set-overscan` event's.
+	const pad = Math.max(useSyncExternalStore(subscribe, getOverscan), Math.ceil(view3dOverscan));
 	const patternId = useId();
 	// A stable, viewport-sized box: measured for the rotated case, and the positioning
 	// parent of whichever grid box is drawn.
@@ -181,9 +191,12 @@ export function createGridBgPlugin(): UsketchPlugin {
 
 			ctx.layers.register({
 				id: "bg-grid",
+				view3d: "tilt",
 				order: 10,
 				fixed: true,
-				render: (renderCtx) => <GridBackground viewport={renderCtx.viewport} />,
+				render: (renderCtx) => (
+					<GridBackground viewport={renderCtx.viewport} view3dOverscan={renderCtx.view3dOverscan} />
+				),
 				renderExportBackground: (exportCtx) =>
 					visible ? renderGridExportBackground(exportCtx) : null,
 			});

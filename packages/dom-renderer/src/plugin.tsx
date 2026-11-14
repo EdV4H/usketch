@@ -200,6 +200,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 
 			ctx.layers.register({
 				id: "dom-shapes",
+				view3d: "tilt",
 				order: 50,
 				render: (renderCtx) => (
 					<DomShapeLayer

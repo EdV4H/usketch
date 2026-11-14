@@ -80,6 +80,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				ctx.layers.unregister("follow-banner");
 				ctx.layers.register({
 					id: "follow-banner",
+					view3d: "tilt",
 					order: 95,
 					fixed: true,
 					render: () => {

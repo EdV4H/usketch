@@ -12,7 +12,11 @@ describe("Mode 7 store on the board's 3D view state", () => {
 		expect(cell.get()).toEqual({
 			camera: { pitch: 60, fov: 600, horizon: 0.45, height: 12 },
 			amount: 0,
+			drawDistance: 1500,
 		});
+		store.setDrawDistance(2400);
+		expect(cell.get().drawDistance).toBe(2400);
+		expect(store.getState().drawDistance).toBe(2400);
 		store.setPresentation({ active: true, progress: 0.5, amount: 0.25, transitioning: true });
 		expect(cell.get().amount).toBe(0.25);
 		store.setCamera({ pitch: 40, yaw: 10 });

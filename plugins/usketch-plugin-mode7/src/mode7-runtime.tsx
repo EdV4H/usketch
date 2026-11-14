@@ -103,10 +103,41 @@ export function setupMode7Runtime(
 		depthLayerIds?: readonly string[];
 		/** Turns the viewport by the yaw (default: one of its own on `ctx.store`). */
 		yaw?: YawTurner;
+		/**
+		 * Tilt layers that declare it (`Layer.view3d` `tilt` / `depth`) as well: each is
+		 * added to the tilted set the first time it is seen (so the picker can still take
+		 * it out). Off when the host gave its own `tiltLayerIds`.
+		 */
+		adoptDeclared?: boolean;
+		/** Layers never tilted, even when they declare it. */
+		excludedLayerIds?: readonly string[];
 	} = {},
 ): () => void {
 	const STAGE_ATTR = "data-mode7-stage";
-	const depthLayers = new Set(options.depthLayerIds ?? DEFAULT_DEPTH_LAYER_IDS);
+	const excluded = new Set(options.excludedLayerIds ?? []);
+	// Layers declared `depth` keep their depth unless the host listed the depth layers.
+	const depthLayers = (): ReadonlySet<string> => {
+		if (options.depthLayerIds) return new Set(options.depthLayerIds);
+		const ids = new Set(DEFAULT_DEPTH_LAYER_IDS);
+		for (const layer of ctx.layers.getLayers()) {
+			if (layer.view3d === "depth") ids.add(layer.id);
+		}
+		return ids;
+	};
+	// Layers declared `tilt` / `depth` join the tilted set once, when first seen.
+	const seenDeclared = new Set<string>();
+	const adoptDeclared = (): void => {
+		if (!options.adoptDeclared) return;
+		const current = store.getState().tiltLayers;
+		const add: string[] = [];
+		for (const layer of ctx.layers.getLayers()) {
+			if (layer.view3d !== "tilt" && layer.view3d !== "depth") continue;
+			if (seenDeclared.has(layer.id) || excluded.has(layer.id)) continue;
+			seenDeclared.add(layer.id);
+			if (!current.includes(layer.id)) add.push(layer.id);
+		}
+		if (add.length > 0) store.setTiltLayers([...current, ...add]);
+	};
 	let styleEl: HTMLStyleElement | null = null;
 	// The stylesheet text last written: rewriting a `<style>` with the same text still
 	// rebuilds the sheet and restyles the whole stage, so identical text is skipped.
@@ -181,13 +212,15 @@ export function setupMode7Runtime(
 		const clip = drawDistanceClip(drawDistance, zoom, heightPx, amount);
 		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
 		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
-		const css = tiltLayerRules(store.getState().tiltLayers, {
+		const rules = tiltLayerRules(store.getState().tiltLayers, {
 			stageAttr: STAGE_ATTR,
 			transform,
 			transformOrigin,
 			clip,
-			depthLayerIds: depthLayers,
+			depthLayerIds: depthLayers(),
 		});
+		// Layers declared `hidden` aren't shown in 3D.
+		const css = `${rules}[${STAGE_ATTR}="on"] [data-view3d="hidden"]{display:none !important;}`;
 		if (css === lastCss) return;
 		lastCss = css;
 		styleEl.textContent = css;
@@ -256,6 +289,8 @@ export function setupMode7Runtime(
 
 	const sync = (): void => {
 		const active = store.getState().active;
+		// Entering 3D: take in layers declared since setup.
+		if (active && !lastStage) adoptDeclared();
 		// Turn first: the tilt (and the draw-distance clip) read the viewport.
 		turnYaw();
 		if (active) applyTilt();
@@ -334,14 +369,23 @@ export function setupMode7Runtime(
 	const onResize = typeof window !== "undefined" ? reapplyIfActive : null;
 	if (onResize) window.addEventListener("resize", onResize);
 
+	adoptDeclared();
 	// Initial apply (honors enabledInitially). The stage may not be laid out yet: turn by
 	// the yaw once more on the next frame.
 	sync();
 	const retry =
-		typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => turnYaw()) : null;
+		typeof requestAnimationFrame === "function"
+			? requestAnimationFrame(() => {
+					adoptDeclared();
+					turnYaw();
+				})
+			: null;
+	// Layers registered later (plugins announce them with `layers:changed`).
+	const offLayers = ctx.events.on("layers:changed", () => adoptDeclared());
 
 	return () => {
 		if (retry !== null) cancelAnimationFrame(retry);
+		offLayers();
 		yaw.restore(pivot);
 		clearAll();
 		announceStage(false);

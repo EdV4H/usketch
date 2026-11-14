@@ -85,6 +85,7 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 
 			ctx.layers.register({
 				id: LAYER_ID,
+				view3d: "tilt",
 				order: 150,
 				fixed: true,
 				render: () => (

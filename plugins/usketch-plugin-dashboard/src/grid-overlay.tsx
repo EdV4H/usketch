@@ -3,7 +3,7 @@
 // following the same pattern as the bg-grid plugin. It reads the grid spec from
 // the config singleton in the render context's shapes, so it reacts to config
 // edits and disappears automatically on a non-dashboard board.
-import type { LayerRenderContext, ShapeData } from "@edv4h/usketch-shared";
+import type { Layer, LayerRenderContext, ShapeData } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import { getDragTarget, subscribeDragTarget } from "./drag-target-store.js";
@@ -136,8 +136,9 @@ function GridOverlay({ viewport, shapes }: Pick<LayerRenderContext, "viewport" |
 }
 
 /** The overlay layer descriptor. Registered in the plugin's setup. */
-export const gridOverlayLayer = {
+export const gridOverlayLayer: Layer = {
 	id: GRID_OVERLAY_LAYER_ID,
+	view3d: "tilt",
 	order: 20,
 	avoidCollision: true,
 	fixed: true,

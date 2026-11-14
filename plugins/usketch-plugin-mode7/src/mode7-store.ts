@@ -3,11 +3,17 @@
 // HUD mutate it; the layer React components subscribe via `useSyncExternalStore`.
 // Kept tiny and framework-agnostic (same pattern as bg-grid's visibility store).
 //
-// The camera (without its yaw) and the rendered amount live in the board's 3D view
+// The camera (without its yaw), the rendered amount and the draw distance live in the board's 3D view
 // state (`BoardStore.getView3d`, see `bindView3d`), so other plugins and renderers read
 // the same view; until bound, a local cell stands in. The yaw stays here: it is how far
 // the view turns the viewport while in 3D (see `mode7-yaw.ts`).
-import { type BoundingBox, createView3dCell, type View3dCell } from "@edv4h/usketch-shared";
+import {
+	type BoundingBox,
+	DEFAULT_DRAW_DISTANCE as CORE_DRAW_DISTANCE,
+	clampDrawDistance,
+	createView3dCell,
+	type View3dCell,
+} from "@edv4h/usketch-shared";
 import { type Camera, clampCamera, DEFAULT_CAMERA, updateCamera } from "./mode7-camera.js";
 
 /** Camera-height changes smaller than this (world units) are not applied. */
@@ -41,16 +47,15 @@ export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b102
 
 /** Default ground draw distance in canvas units: extends the ground a bit past the
  *  viewport so the 3D view opens on a proper receding plane (not just the box). */
-export const DEFAULT_DRAW_DISTANCE = 1500;
+export const DEFAULT_DRAW_DISTANCE = CORE_DRAW_DISTANCE;
 
 /** Clamp a draw distance (canvas units, `>= 0`; non-finite / negative → 0 = unlimited). */
-function clampDistance(n: number): number {
-	if (!Number.isFinite(n) || n < 0) return 0;
-	return n;
-}
+const clampDistance = clampDrawDistance;
 
 /**
- * Layers tilted by default: essentially everything on the board EXCEPT the persistent
+ * Layers tilted by default, for layers that don't declare `Layer.view3d` yet (layers that
+ * declare `tilt` / `depth` are added on their own; this list goes at the next major).
+ * Essentially everything on the board EXCEPT the persistent
  * UI chrome that must stay flat/readable (vim status line / which-key / help, the side
  * panel, the presentation overlay) — plus the plugin's own overlays + the HUD, which
  * are always excluded from the picker. The set is runtime-selectable via the HUD, so
@@ -188,8 +193,8 @@ export interface Mode7Store {
 	bindView3d(cell: View3dCell): () => void;
 }
 
-/** Mode 7's own fields: everything but the camera (minus yaw) and amount. */
-type Local = Omit<Mode7State, "camera" | "amount"> & { yaw: number };
+/** Mode 7's own fields: everything but the camera (minus yaw), amount and draw distance. */
+type Local = Omit<Mode7State, "camera" | "amount" | "drawDistance"> & { yaw: number };
 
 /** The view3d part of a camera (its yaw stays in Mode 7). */
 function cellCamera(c: Camera) {
@@ -207,11 +212,14 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		yaw: baseCamera.yaw,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
-		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
 		showCaptureFrame: init.showCaptureFrame ?? false,
 		captureRect: null,
 	};
-	let cell: View3dCell = createView3dCell({ camera: cellCamera(baseCamera), amount: startAmount });
+	let cell: View3dCell = createView3dCell({
+		camera: cellCamera(baseCamera),
+		amount: startAmount,
+		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
+	});
 	let offCell: () => void = () => {};
 
 	const build = (prev: Mode7State | null): Mode7State => {
@@ -226,7 +234,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 			prev.camera.horizon === c.horizon &&
 			(prev.camera.height ?? 0) === c.height;
 		const camera: Camera = same && prev ? prev.camera : { ...c, yaw };
-		return { ...rest, camera, amount: v.amount };
+		return { ...rest, camera, amount: v.amount, drawDistance: v.drawDistance };
 	};
 	let state: Mode7State = build(null);
 
@@ -326,8 +334,8 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		},
 		setDrawDistance(distance) {
 			const d = clampDistance(distance);
-			if (local.drawDistance === d) return;
-			commit({ drawDistance: d });
+			if (state.drawDistance === d) return;
+			commit({}, { drawDistance: d });
 		},
 		setCaptureFrame(show) {
 			if (local.showCaptureFrame === show) return;
@@ -344,12 +352,12 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		},
 		bindView3d(next) {
 			const take = (to: View3dCell): void => {
-				const { camera, amount } = state;
+				const { camera, amount, drawDistance } = state;
 				offCell();
 				cell = to;
 				muted = true;
 				try {
-					cell.set({ camera: cellCamera(camera), amount });
+					cell.set({ camera: cellCamera(camera), amount, drawDistance });
 				} finally {
 					muted = false;
 				}
