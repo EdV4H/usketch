@@ -1,6 +1,7 @@
 import { createValuesCardConfig, type ValuesCardState } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createCss3dRendererPlugin } from "@edv4h/usketch-css3d-renderer";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
@@ -262,6 +263,9 @@ function createBasePlugins(
 		// 標高（連続した高さの地形）。HUD「標高 → 無限地形を作る・変える」で opt-in。
 		// 地面の高さサービスを提供するので、キャラは坂を上り下りし、3D の Shape は丘に乗る。
 		createElevationPlugin(),
+		// 3D 表示の描画（CSS 3D）。層を CSS の 3D 変形で傾けて地面にする。Mode 7 などの
+		// 3D ビューはボードの 3D 表示の状態を変えるだけで、描くのはこのレンダラー。
+		createCss3dRendererPlugin(),
 		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。

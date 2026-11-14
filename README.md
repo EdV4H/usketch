@@ -82,6 +82,7 @@ packages/
   shared/         — 共有型 / shape data model / utilities
   ui/             — 共通 UI コンポーネント
   dom-renderer/ / gpu-renderer/ — 2 系統の描画バックエンド
+  css3d-renderer/ — 3D 表示の描画（層を CSS の 3D 変形で傾ける）
   server-core/    — サーバープラグイン基盤
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）
