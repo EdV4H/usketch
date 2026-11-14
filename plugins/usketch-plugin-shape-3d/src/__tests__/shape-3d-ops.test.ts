@@ -1,6 +1,13 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { clearShape3d, getShape3d, setShape3d } from "../shape-3d-ops.js";
+import {
+	clearShape3d,
+	clearShapeView3d,
+	getShape3d,
+	getShapeView3d,
+	setShape3d,
+	setShapeView3d,
+} from "../shape-3d-ops.js";
 import { DEFAULT_SHAPE_3D_TYPES, SHAPE_3D_KEY } from "../shape-3d-params.js";
 
 function fakeStore(shapes: ShapeData[]): BoardStore {
@@ -90,5 +97,27 @@ describe("view3d and the older key", () => {
 		// A patch merges over what the shape holds under view3d too.
 		setShape3d(store, ["b"], { facing: "fixed" });
 		expect(getShape3d(store, "b")).toMatchObject({ mode: "stand", facing: "fixed" });
+	});
+});
+
+describe("setShapeView3d", () => {
+	it("checks the modes through a lookup, e.g. the core's declared types", () => {
+		const store = fakeStore([shape("a", "rectangle"), shape("b", "ellipse")]);
+		const declared: Record<string, { modes: ("stand" | "box" | "float")[] }> = {
+			rectangle: { modes: ["stand", "box", "float"] },
+		};
+		const lookup = (type: string) => declared[type];
+		expect(setShapeView3d(store, ["a", "b"], { mode: "box" }, lookup)).toEqual(["a"]);
+		expect(getShapeView3d(store, "a")?.mode).toBe("box");
+		// A type declaring nothing gets the stand / float modes.
+		expect(setShapeView3d(store, ["b"], { mode: "float" }, lookup)).toEqual(["b"]);
+		expect(clearShapeView3d(store, ["a", "b"])).toEqual(["a", "b"]);
+		expect(getShapeView3d(store, "a")).toBeNull();
+	});
+
+	it("keeps the older names as the same functions", () => {
+		expect(setShape3d).toBe(setShapeView3d);
+		expect(getShape3d).toBe(getShapeView3d);
+		expect(clearShape3d).toBe(clearShapeView3d);
 	});
 });

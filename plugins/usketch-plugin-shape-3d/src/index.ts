@@ -38,7 +38,15 @@ export {
 	wallColor,
 	wallShade,
 } from "./shape-3d-layout.js";
-export { clearShape3d, getShape3d, setShape3d } from "./shape-3d-ops.js";
+export {
+	clearShape3d,
+	clearShapeView3d,
+	getShape3d,
+	getShapeView3d,
+	type ShapeView3dTypes,
+	setShape3d,
+	setShapeView3d,
+} from "./shape-3d-ops.js";
 export {
 	availableModes,
 	COLLISIONS_BY_MODE,

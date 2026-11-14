@@ -3,7 +3,7 @@
 // per-type settings.
 import { type BoardStore, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { Shape3dLimits } from "./shape-3d-layout.js";
-import { clearShape3d, getShape3d, setShape3d } from "./shape-3d-ops.js";
+import { clearShapeView3d, getShapeView3d, setShapeView3d } from "./shape-3d-ops.js";
 import {
 	availableModes,
 	resolveShape3d,
@@ -37,13 +37,13 @@ export const shape3dService = defineService<Shape3dApi>("usketch-plugin-shape-3d
 export function createShape3dApi(store: BoardStore, settings: Shape3dSettings): Shape3dApi {
 	const types = (): Shape3dTypes => settings.get().types;
 	return {
-		get: (id) => getShape3d(store, id),
+		get: (id) => getShapeView3d(store, id),
 		resolve: (id) => {
 			const shape = store.getShape(id);
 			return shape ? resolveShape3d(shape, types()) : null;
 		},
-		set: (ids, patch) => setShape3d(store, ids, patch, types()),
-		clear: (ids) => clearShape3d(store, ids),
+		set: (ids, patch) => setShapeView3d(store, ids, patch, types()),
+		clear: (ids) => clearShapeView3d(store, ids),
 		modesFor: (type) => availableModes(types(), type),
 		registerType: (type, config) => settings.registerType(type, config),
 		getLimits: () => settings.get().limits,
