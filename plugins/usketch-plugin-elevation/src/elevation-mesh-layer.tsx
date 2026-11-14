@@ -11,9 +11,9 @@ import {
 	type BoardStore,
 	type GroundDecalApi,
 	type View3dApi,
+	type View3dProjection,
 	type Viewport,
-	viewportRotation,
-	worldToScreen,
+	viewMatrix,
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -54,37 +54,19 @@ const DEPTH_RANGE = 200_000;
 
 const VERTEX = `#version 300 es
 in vec4 aVertex; // local x, local y, height, shade
-uniform vec2 uOrigin;  // the tile's corner on the flat stage (px)
-uniform vec2 uAxis;    // zoom·(cos, sin) of the board's rotation
-uniform float uZoom;
-uniform vec2 uPivot;   // the tilt's origin (px)
-uniform vec4 uCam;     // cos yaw, sin yaw, cos pitch, sin pitch
-uniform float uFov;
-uniform float uCameraHeight; // px the camera is raised (everything drawn this much lower)
-uniform vec2 uSize;    // stage px
+// The view (viewMatrix from @edv4h/usketch-shared) for this tile: takes world units
+// relative to the tile's corner and gives clip x / y, the depth toward the viewer, w.
+uniform mat4 uView;
 uniform float uWater;  // < 0: none
 out float vHeight;
 out float vShade;
 out vec2 vLocal;
 void main() {
-	vec2 s = uOrigin + vec2(aVertex.x * uAxis.x - aVertex.y * uAxis.y, aVertex.x * uAxis.y + aVertex.y * uAxis.x);
 	float h = uWater >= 0.0 ? max(aVertex.z, uWater) : aVertex.z;
-	float z = h * uZoom - uCameraHeight;
-	float x0 = s.x - uPivot.x;
-	float y0 = s.y - uPivot.y;
-	float x1 = x0 * uCam.x - y0 * uCam.y;
-	float y1 = x0 * uCam.y + y0 * uCam.x;
-	float y2 = y1 * uCam.z - z * uCam.w;
-	float z2 = y1 * uCam.w + z * uCam.z;
-	float w = 1.0 - z2 / uFov;
-	// Screen = pivot + (x1, y2) / w, left to the GPU's divide by w (so colours and
-	// heights are interpolated in perspective).
-	gl_Position = vec4(
-		(uPivot.x * w + x1) * 2.0 / uSize.x - w,
-		w - (uPivot.y * w + y2) * 2.0 / uSize.y,
-		clamp(-z2 / ${DEPTH_RANGE.toFixed(1)}, -1.0, 1.0) * w,
-		w
-	);
+	vec4 p = uView * vec4(aVertex.xy, h, 1.0);
+	// The divide by w is left to the GPU (so colours and heights are interpolated in
+	// perspective); p.z is the depth toward the viewer in px.
+	gl_Position = vec4(p.x, p.y, clamp(-p.z / ${DEPTH_RANGE.toFixed(1)}, -1.0, 1.0) * p.w, p.w);
 	vHeight = aVertex.z;
 	vShade = aVertex.w;
 	vLocal = aVertex.xy;
@@ -224,14 +206,7 @@ class MeshRenderer {
 		}
 		this.program = program;
 		for (const name of [
-			"uOrigin",
-			"uAxis",
-			"uZoom",
-			"uPivot",
-			"uCam",
-			"uFov",
-			"uCameraHeight",
-			"uSize",
+			"uView",
 			"uWater",
 			"uRamp",
 			"uRange",
@@ -325,21 +300,7 @@ class MeshRenderer {
 			this.rampKey = rampKey;
 		}
 
-		const r = Math.PI / 180;
-		const rot = viewportRotation(vp) * r;
-		gl.uniform2f(u.uAxis, vp.zoom * Math.cos(rot), vp.zoom * Math.sin(rot));
-		gl.uniform1f(u.uZoom, vp.zoom);
-		gl.uniform2f(u.uPivot, width / 2, height * camera.horizon);
-		gl.uniform4f(
-			u.uCam,
-			Math.cos(camera.yaw * r),
-			Math.sin(camera.yaw * r),
-			Math.cos(camera.pitch * r),
-			Math.sin(camera.pitch * r),
-		);
-		gl.uniform1f(u.uFov, camera.fov);
-		gl.uniform1f(u.uCameraHeight, camera.heightPx ?? 0);
-		gl.uniform2f(u.uSize, width, height);
+		const view: View3dProjection = { viewport: vp, camera, stage: { width, height } };
 		gl.uniform1f(u.uWater, field.waterLevel ?? -1);
 		gl.uniform1i(u.uRamp, 0);
 		gl.uniform1f(u.uRange, range);
@@ -382,8 +343,11 @@ class MeshRenderer {
 				gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer);
 				gl.enableVertexAttribArray(0);
 				gl.vertexAttribPointer(0, VERTEX_FLOATS, gl.FLOAT, false, VERTEX_FLOATS * 4, 0);
-				const o = worldToScreen(tx * plan.worldSize, ty * plan.worldSize, vp);
-				gl.uniform2f(u.uOrigin, o.x, o.y);
+				gl.uniformMatrix4fv(
+					u.uView,
+					false,
+					viewMatrix(view, { x: tx * plan.worldSize, y: ty * plan.worldSize }),
+				);
 				const decal = decals
 					? this.decalFor(decals, key, tx, ty, plan.worldSize, {
 							vp,
