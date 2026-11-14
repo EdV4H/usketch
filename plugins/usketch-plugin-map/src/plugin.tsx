@@ -8,13 +8,16 @@ import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
 import { resolveTerritoryStyle, type TerritoryStyle } from "./base/territory-style.js";
+import { REGION_SIZE_RANGE, regionSizeOf } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
 import {
 	disableInfiniteTerrain,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
+	setInfiniteRegion,
 } from "./infinite-terrain.js";
 import { GROUND_OVERSCAN_EVENT, MapTerrainLayer, STAGE_3D_EVENT } from "./map-layer.js";
 import { MapReliefLayer, RELIEF_LAYER_ID } from "./map-relief-layer.js";
@@ -258,6 +261,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					// space deterministically so the world can be panned forever.
 					{ name: "infinite", label: "無限地形", type: "boolean" },
 					{ name: "seed", label: "シード", type: "number", min: 0, max: 999999, step: 1 },
+					// How the world is generated (re-generates it): region size as a multiple
+					// of the default (2 ⇒ regions twice as wide) and the sea level (0–1).
+					{
+						name: "regionSize",
+						label: "領域の広さ",
+						type: "number",
+						min: REGION_SIZE_RANGE.min,
+						max: REGION_SIZE_RANGE.max,
+						step: 0.25,
+					},
+					{ name: "seaLevel", label: "海の割合", type: "number", min: 0, max: 1, step: 0.02 },
 					// Draw range in a 3D view (Mode 7) + level of detail (see MapRenderConfig).
 					{
 						name: "groundOverscanMaxPx",
@@ -291,6 +305,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					// app-local render config — so the generated world survives reload.
 					if (name === "infinite") return getInfiniteSeed(ctx.store) != null;
 					if (name === "seed") return getInfiniteSeed(ctx.store) ?? genStateStore.get().seed;
+					if (name === "regionSize" || name === "seaLevel") {
+						// The board's params while on, else the ones turning it on will use.
+						const gen = getInfiniteGen(ctx.store);
+						return name === "seaLevel" ? gen.seaLevel : Math.round(regionSizeOf(gen) * 100) / 100;
+					}
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
@@ -328,6 +347,10 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						// seed field shouldn't turn the infinite terrain on by itself).
 						genStateStore.set({ seed });
 						if (isInfiniteTerrainEnabled(ctx.store)) enableInfiniteTerrain(ctx.store, { seed });
+					} else if (name === "regionSize" || name === "seaLevel") {
+						// Recorded on the board (synced): re-generates now when on, else used
+						// when it's turned on.
+						setInfiniteRegion(ctx.store, { [name]: Number(value) });
 					}
 				},
 				// Re-read on look-and-feel changes (renderConfig) AND shape mutations (the
