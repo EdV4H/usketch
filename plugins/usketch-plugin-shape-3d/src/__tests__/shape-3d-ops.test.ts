@@ -69,5 +69,26 @@ describe("clearShape3d", () => {
 		expect(clearShape3d(store, ["a", "b"])).toEqual(["a"]);
 		expect(getShape3d(store, "a")).toBeNull();
 		expect(store.getShape("a")?.[SHAPE_3D_KEY]).toBeUndefined();
+		expect(store.getShape("a")?.view3d).toBeUndefined();
+	});
+
+	it("clears a shape that only has view3d", () => {
+		const store = fakeStore([shape("a", "rect", { view3d: { mode: "float" } })]);
+		expect(clearShape3d(store, ["a"])).toEqual(["a"]);
+		expect(getShape3d(store, "a")).toBeNull();
+	});
+});
+
+describe("view3d and the older key", () => {
+	it("writes both, and reads a shape that has only view3d", () => {
+		const store = fakeStore([shape("a"), shape("b", "rect", { view3d: { mode: "stand" } })]);
+		setShape3d(store, ["a"], { mode: "float", height: 30 });
+		const a = store.getShape("a");
+		expect(a?.view3d).toEqual(a?.[SHAPE_3D_KEY]);
+		expect(a?.view3d).toMatchObject({ mode: "float", height: 30 });
+		expect(getShape3d(store, "b")?.mode).toBe("stand");
+		// A patch merges over what the shape holds under view3d too.
+		setShape3d(store, ["b"], { facing: "fixed" });
+		expect(getShape3d(store, "b")).toMatchObject({ mode: "stand", facing: "fixed" });
 	});
 });

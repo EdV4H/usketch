@@ -12,6 +12,7 @@ import {
 	type GpuPrimitive,
 	generateId,
 	type PluginContext,
+	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
@@ -56,6 +57,9 @@ function arrowDirectionFields(shape: ShapeData): Record<string, unknown> {
 	// Mirror the renderer's default so legacy arrows show their implicit direction.
 	return { direction: (shape as ArrowShapeData).direction ?? "right" };
 }
+
+/** Types that fill their box, so they may also be a block (`box`) in 3D. */
+const BOX_3D_TYPES: ReadonlySet<string> = new Set(["rectangle", "rounded-rect"]);
 
 const SHAPE_RENDERERS: Record<
 	string,
@@ -136,6 +140,8 @@ export function createBasicShapePlugin(): UsketchPlugin {
 					hitTest: hitTestFn,
 					resize: createResize(1, 1),
 					createDefault: subtype.createDefault,
+					// Box-filling types may also be a block in 3D; the rest stand or float.
+					view3d: BOX_3D_TYPES.has(subtype.type) ? { modes: SHAPE_VIEW_3D_MODES } : undefined,
 					gpuPrimitive: gpuFn,
 					flip: isArrow ? flipArrow : undefined,
 					serializeForAi: isRectangle

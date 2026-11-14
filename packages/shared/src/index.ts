@@ -76,6 +76,33 @@ export {
 } from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+// A shape's 3D look (ShapeData.view3d) and a shape type's (ShapeDefinition.view3d)
+export {
+	DEFAULT_SHAPE_VIEW_3D,
+	DEFAULT_VIEW_3D_HEIGHT,
+	DEFAULT_VIEW_3D_TYPE_MODES,
+	LEGACY_SHAPE_VIEW_3D_KEY,
+	MAX_VIEW_3D_HEIGHT,
+	normalizeShapeView3d,
+	rawShapeView3d,
+	readShapeView3d,
+	resolveShapeView3d,
+	SHAPE_VIEW_3D_COLLISIONS,
+	SHAPE_VIEW_3D_MODES,
+	type ShapeTypeView3d,
+	type ShapeView3d,
+	type ShapeView3dCollision,
+	type ShapeView3dFacing,
+	type ShapeView3dInput,
+	type ShapeView3dMode,
+	type ShapeView3dRender,
+	type ShapeView3dRenderContext,
+	shapeTypeModes,
+	shapeView3dCollision,
+	shapeView3dPatch,
+	storedShapeView3d,
+	VIEW_3D_COLLISIONS_BY_MODE,
+} from "./shape-view-3d.js";
 // Solid height (what stands on the ground, e.g. raised shapes)
 export { type SolidHeightApi, solidHeightService } from "./solid-height.js";
 // Geometry

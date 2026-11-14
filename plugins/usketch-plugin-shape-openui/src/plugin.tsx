@@ -177,6 +177,8 @@ export function createOpenUIShapePlugin(): UsketchPlugin {
 
 		setup(ctx: PluginContext) {
 			ctx.shapes.register("openui", {
+				// Live HTML blurs or stutters under a 3D transform: stays flat in 3D.
+				view3d: { modes: [] },
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),

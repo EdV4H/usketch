@@ -6,6 +6,7 @@ import {
 	type PluginContext,
 	type Point,
 	type ResizeHandle,
+	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
@@ -217,6 +218,8 @@ export function createStickyPlugin(): UsketchPlugin {
 
 			// ── Shape registration ──
 			ctx.shapes.register("sticky", {
+				// Fills its box: may also be a block in 3D (stand / box / float).
+				view3d: { modes: SHAPE_VIEW_3D_MODES },
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),
