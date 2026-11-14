@@ -11,6 +11,8 @@ import {
 	type RenderMode,
 	type ShapeData,
 	safeRotation,
+	shapeView3dAnchor,
+	shapeView3dFoot,
 	type Viewport,
 	viewportRotation,
 	worldToScreen,
@@ -28,20 +30,10 @@ import {
 export const SHADOW_LIFT_PX = 0.5;
 
 /** The foot of a stood-up shape: the middle of its (rotated) bottom edge, world units. */
-export function standFoot(shape: ShapeData): { x: number; y: number } {
-	const rad = (safeRotation(shape.rotation) * Math.PI) / 180;
-	const half = shape.height / 2;
-	return {
-		x: shape.x + shape.width / 2 - Math.sin(rad) * half,
-		y: shape.y + shape.height / 2 + Math.cos(rad) * half,
-	};
-}
+export const standFoot = shapeView3dFoot;
 
 /** The point a shape is placed by: the foot for `stand`, the centre otherwise. World units. */
-export function shapeAnchor(shape: ShapeData, mode: Shape3dMode): { x: number; y: number } {
-	if (mode === "stand") return standFoot(shape);
-	return { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
-}
+export const shapeAnchor = shapeView3dAnchor;
 
 /** `a` turned toward `b` by `t` (0…1) the short way round, degrees. Pure. */
 export function lerpAngle(a: number, b: number, t: number): number {

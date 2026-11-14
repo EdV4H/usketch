@@ -1,4 +1,9 @@
-import { type BoardStore, boardHeight, type PluginContext } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	boardHeight,
+	type PluginContext,
+	shapeSolidsService,
+} from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../create-app.js";
 
@@ -58,5 +63,30 @@ describe("createApp: ctx.height", () => {
 		expect(seen[1].height?.groundAt(0, 0)).toBe(5);
 		app.destroy();
 		expect(app.height.groundAt(0, 0)).toBe(0);
+	});
+
+	it("registers the shapes' 3D solids, by the types' declared 3D", async () => {
+		const wall = {
+			id: "w",
+			type: "rect",
+			x: 0,
+			y: 0,
+			width: 100,
+			height: 100,
+			style: {},
+			view3d: { mode: "box", height: 40, collision: "solid" },
+		};
+		const store = createStubStore();
+		(store as unknown as { getShapes: () => Map<string, unknown> }).getShapes = () =>
+			new Map([["w", wall]]);
+		const app = await createApp({ store, plugins: [] });
+		// Undeclared type: box isn't one of its modes.
+		expect(app.height.solidAt(50, 50)).toBeNull();
+		app.shapes.register("rect", { view3d: { modes: ["box"] } } as never);
+		app.shapes.configureView3d?.("rect", { modes: ["box", "stand"] });
+		expect(app.height.solidAt(50, 50)).toBe(Infinity);
+		expect(shapeSolidsService.get(app.services)).toBeDefined();
+		app.destroy();
+		expect(app.height.solidAt(50, 50)).toBeNull();
 	});
 });
