@@ -9,6 +9,12 @@ export {
 	stageRectWorld,
 } from "./gpu3d-ground.js";
 export {
+	type Gpu3dLayerInfo,
+	type Gpu3dLayerSplit,
+	SHAPE_LAYER_IDS,
+	splitView3dLayers,
+} from "./gpu3d-layers.js";
+export {
 	createGpu3dRendererPlugin,
 	drawnCamera,
 	GPU_STAGE_ATTR,
