@@ -339,6 +339,17 @@ export {
 	view3dService,
 } from "./view-3d.js";
 export {
+	createView3dGl,
+	VIEW3D_DEPTH_GLSL,
+	VIEW3D_DEPTH_RANGE_PX,
+	type View3dGlApi,
+	type View3dGlDrawable,
+	type View3dGlFrame,
+	view3dGl,
+	view3dGlService,
+} from "./view-3d-gl.js";
+export { type View3dRendererApi, view3dRendererService } from "./view-3d-renderer.js";
+export {
 	CAMERA_3D_LIMITS,
 	type Camera3d,
 	clampCamera3d,

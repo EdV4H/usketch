@@ -9,7 +9,9 @@ import {
 	createView3dCell,
 	type PluginContext,
 	type UsketchPlugin,
+	type View3dRendererApi,
 	view3dCellOf,
+	view3dRendererService,
 	view3dService,
 } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
@@ -125,16 +127,19 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			// it had one keeps them in the plugin).
 			const view3d = view3dCellOf(ctx.store) ?? createView3dCell();
 			const unbindView3d = store.bindView3d(view3d);
-			// The tilt is drawn by the CSS 3D renderer: the host's, or one of our own when
-			// the host didn't add one (until the next major).
-			let renderer = css3dRendererService.get(ctx.services);
+			// The 3D view is drawn by the board's 3D renderer: the host's (CSS 3D or GPU), or
+			// a CSS 3D one of our own when the host didn't add one (until the next major).
+			let renderer: View3dRendererApi | undefined =
+				view3dRendererService.get(ctx.services) ?? css3dRendererService.get(ctx.services);
 			let stopOwnRenderer = (): void => {};
 			if (!renderer) {
 				const own = setupCss3dRenderer(ctx, { view3d });
 				if (own) {
 					renderer = own.api;
 					const unprovide = css3dRendererService.provide(ctx.services, own.api);
+					const unprovideGeneric = view3dRendererService.provide(ctx.services, own.api);
 					stopOwnRenderer = () => {
+						unprovideGeneric();
 						unprovide();
 						own.dispose();
 					};

@@ -11,8 +11,11 @@ import {
 	type BoardStore,
 	type GroundDecalApi,
 	type View3dApi,
+	type View3dGlApi,
+	type View3dGlDrawable,
 	type View3dProjection,
 	type Viewport,
+	view3dOverscanPx,
 	viewMatrix,
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
@@ -177,6 +180,11 @@ class MeshRenderer {
 	static create(canvas: HTMLCanvasElement): MeshRenderer | null {
 		const gl = canvas.getContext("webgl2", { antialias: true, premultipliedAlpha: true });
 		if (!gl) return null;
+		return MeshRenderer.fromGl(gl);
+	}
+
+	/** On a context someone else owns (a GPU 3D renderer's): see {@link draw}'s `external`. */
+	static fromGl(gl: WebGL2RenderingContext): MeshRenderer | null {
 		try {
 			return new MeshRenderer(gl);
 		} catch {
@@ -246,22 +254,26 @@ class MeshRenderer {
 		store: BoardStore;
 		/** Ground decals painted onto the surface (their `"3d"` view). */
 		decals?: GroundDecalApi;
+		/** Drawing into someone else's frame: leave its canvas size, viewport and buffers. */
+		external?: boolean;
 	}): boolean {
 		let pending = false;
 		const { gl, u } = this;
 		const { model, viewport: vp, camera, width, height, display } = opts;
 		const field = model.field;
-		const canvas = gl.canvas as HTMLCanvasElement;
-		const pw = Math.max(1, Math.round(width * opts.dpr));
-		const ph = Math.max(1, Math.round(height * opts.dpr));
-		if (canvas.width !== pw || canvas.height !== ph) {
-			canvas.width = pw;
-			canvas.height = ph;
+		if (!opts.external) {
+			const canvas = gl.canvas as HTMLCanvasElement;
+			const pw = Math.max(1, Math.round(width * opts.dpr));
+			const ph = Math.max(1, Math.round(height * opts.dpr));
+			if (canvas.width !== pw || canvas.height !== ph) {
+				canvas.width = pw;
+				canvas.height = ph;
+			}
+			gl.viewport(0, 0, pw, ph);
+			gl.clearColor(0, 0, 0, 0);
+			gl.clearDepth(1);
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		}
-		gl.viewport(0, 0, pw, ph);
-		gl.clearColor(0, 0, 0, 0);
-		gl.clearDepth(1);
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		const rect = visibleWorldRect(opts.store, opts.overscanPx);
 		const plan = rect ? planTiles(field, rect, vp.zoom) : null;
 		if (!plan) return false;
@@ -517,6 +529,7 @@ export function ElevationMeshLayer({
 	view3d,
 	state,
 	decals,
+	gpu,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
@@ -525,19 +538,22 @@ export function ElevationMeshLayer({
 	state: ReactiveStore<MeshState>;
 	/** Ground decals to paint onto the surface. */
 	decals?: GroundDecalApi;
+	/** The board's GPU drawing hook: while a GPU 3D renderer draws, it draws the mesh. */
+	gpu?: View3dGlApi;
 }) {
-	const isOn = () => (view3d()?.amount() ?? 0) > 0 && boardElevation(store) !== null;
+	const isOn = () =>
+		(view3d()?.amount() ?? 0) > 0 && boardElevation(store) !== null && !gpu?.isDrawing();
 	const [on, setOn] = useState(isOn);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: isOn reads only these
 	useEffect(() => {
 		// Only whether to draw at all re-renders here; the canvas redraws on its own.
 		const check = () => setOn(isOn());
 		check();
-		const offs = [view3d()?.subscribe(check), store.subscribe(check)];
+		const offs = [view3d()?.subscribe(check), store.subscribe(check), gpu?.subscribe(check)];
 		return () => {
 			for (const off of offs) off?.();
 		};
-	}, [store, view3d]);
+	}, [store, view3d, gpu]);
 
 	useEffect(() => {
 		if (!on) state.set({ drawing: false });
@@ -635,4 +651,85 @@ function MeshCanvas({
 			}}
 		/>
 	);
+}
+
+/**
+ * The mesh as a drawable of a GPU 3D renderer (`view3dGl` in shared): drawn into its
+ * canvas and depth buffer, so what stands on the hills sorts against them. Asks for a
+ * frame when the field, the look or the decals change while the renderer draws.
+ * Returns its removal.
+ */
+export function registerElevationGlDrawable(opts: {
+	gpu: View3dGlApi;
+	store: BoardStore;
+	display: ReactiveStore<ElevationDisplay>;
+	overscan: ReactiveStore<{ px: number }>;
+	state: ReactiveStore<MeshState>;
+	decals?: GroundDecalApi;
+}): () => void {
+	const { gpu, store, display, overscan, state, decals } = opts;
+	const renderers = new Map<WebGL2RenderingContext, MeshRenderer | null>();
+	const drawable: View3dGlDrawable = {
+		id: MESH_LAYER_ID,
+		order: 0,
+		draw(frame) {
+			const model = boardElevation(store);
+			if (!model) return false;
+			let renderer = renderers.get(frame.gl);
+			if (renderer === undefined) {
+				renderer = MeshRenderer.fromGl(frame.gl);
+				renderers.set(frame.gl, renderer);
+			}
+			if (!renderer) return false;
+			const { viewport, camera, stage } = frame.view;
+			const far = view3dOverscanPx(
+				{
+					camera: { pitch: camera.pitch, fov: camera.fov, horizon: camera.horizon, height: 0 },
+					amount: frame.amount,
+					drawDistance: frame.drawDistance,
+				},
+				viewport.zoom,
+				stage.height,
+			);
+			return renderer.draw({
+				model,
+				viewport,
+				camera,
+				width: stage.width,
+				height: stage.height,
+				dpr: frame.pixelRatio,
+				overscanPx: Math.max(overscan.get().px, far),
+				display: display.get(),
+				store,
+				decals,
+				external: true,
+			});
+		},
+		release(gl) {
+			renderers.get(gl)?.dispose();
+			renderers.delete(gl);
+		},
+	};
+	const unregister = gpu.register(drawable);
+	let gpuDrawing = gpu.isDrawing();
+	const redraw = (): void => {
+		if (gpu.isDrawing()) gpu.requestFrame();
+	};
+	const offs = [
+		store.subscribe(redraw),
+		display.subscribe(redraw),
+		overscan.subscribe(redraw),
+		decals?.subscribe(redraw),
+		// While the GPU renderer draws the mesh, the flat ground layer hides as with ours.
+		gpu.subscribe(() => {
+			const now = gpu.isDrawing();
+			if (now === gpuDrawing) return;
+			gpuDrawing = now;
+			state.set({ drawing: now && boardElevation(store) !== null });
+		}),
+	];
+	return () => {
+		for (const off of offs) off?.();
+		unregister();
+	};
 }
