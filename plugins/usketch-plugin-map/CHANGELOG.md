@@ -1,5 +1,45 @@
 # @edv4h/usketch-plugin-map
 
+## 0.17.0
+
+### Minor Changes
+
+- 4a0ff52: 地面と固体の高さを、ボードの高さの窓口（`ctx.height` / `boardHeight`）から読み書きするようにしました（3D 標準対応 P3b、#1469）。今の動きは変わりません。
+  
+  - **map**: 地形を地面の提供元（優先度 0、`heightEnabled` のときだけ）として登録します。崖は「地面の持ち主が map のとき」だけ描きます
+  - **elevation**: 標高を地面の提供元（優先度 `ELEVATION_GROUND_PRIORITY` = 10、場があるときだけ）として登録します。map を包む処理をやめたので、プラグインの並び順によりません。古い map のために `setHeightEnabled` での切り替えは次のメジャーまで続けます
+  - **shape-3d**: 当たり判定を固体の提供元として登録し、地面の高さを窓口から読みます
+  - **character**: 地面と固体の高さを窓口から読みます
+  - `groundHeightService` / `solidHeightService` は窓口が答え続けるので、これらを読む・provide する古いプラグインとも組めます
+- a35be12: Let hosts and the HUD choose how the infinite terrain is generated: `enableInfiniteTerrain({ gen: { scale, seaLevel } })` (smaller `scale` ⇒ wider land / forest / mountain regions at the same tile size; larger `seaLevel` ⇒ more sea), plus `getInfiniteGen` / `setInfiniteGen` / `setInfiniteRegion` (also on `getMapApi`) and the `regionSizeOf` / `scaleForRegionSize` / `REGION_SIZE_RANGE` helpers. The params are recorded on the board's tilemap (synced), so setting them while the terrain is off is kept for turning it on. The RPG マップ settings gain 「領域の広さ」 (a multiple of the default, 0.5–4) and 「海の割合」. Out-of-range values throw `RangeError` without touching the board; boards keep their recorded params unless a host passes `gen`. The territory cache is now keyed by the generation params too, and keeps only the last few results per map.
+
+### Patch Changes
+
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+  - @edv4h/usketch-store@3.12.0
+
 ## 0.16.3
 
 ### Patch Changes

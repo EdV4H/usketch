@@ -1,5 +1,47 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.5.0
+
+### Minor Changes
+
+- 7b1ec3c: Plugins can add their own handles to the select tool. `ctx.ui.selectionHandles` (`SelectionHandleProvider`, `app.selectionHandles`) takes a provider that lists handles for the current selection / hover, draws them, and runs a drag when one is pressed. The select tool hit-tests them after its own rotation / resize handles (which always win; a handle sitting on one is not shown), draws them in one layer above the selection frame (`SELECT_TOOL_LAYER_IDS.handles`, order 81), sets their cursor through its own cursor override, passes them its overlay colors, and hides them while it moves, resizes or rotates shapes or draws a marquee. A press on a handle that does nothing selects the handle's shape.
+  
+  The connector's end handles and anchor dots now use it (`CONNECTOR_HANDLE_IDS`), instead of their own layers. This fixes: a dot drawn on top of a resize handle stealing the press; a click on a hovered shape's edge dot doing nothing; the shape under the pointer showing its dots during an end drag; handles drawn in a fixed blue instead of the selection color; and drag state shared between two boards on one page. The `connector-endpoints` and `connector-anchor-handles` layers are gone (`CONNECTOR_LAYER_IDS.endpoints` / `.anchorHandles` are deprecated); to turn the dots off at runtime, use `app.selectionHandles.unregister(CONNECTOR_HANDLE_IDS.anchors)`. The handles need a select tool from this release.
+  
+  mode7 tilts the new handles layer with the board.
+
+### Patch Changes
+
+- 3633a47: Dragging a connector end now lands where the pointer is when the canvas does not start at the page's top-left (e.g. a side panel pushes it right). The drag read `window` client coordinates as canvas coordinates; it now reads the canvas `canvas:pointermove` / `canvas:pointerup` events, so it also follows a zoom made mid-drag. A release off the canvas ends at the last point the canvas reported. The anchor handles of the shape under the pointer are no longer shown during an endpoint drag, since the drop never snaps to them.
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [4a81786]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+  - @edv4h/usketch-core@2.6.0
+  - @edv4h/usketch-canvas-engine@1.6.0
+  - @edv4h/usketch-store@3.12.0
+  - @edv4h/usketch-connector-anchor@0.5.7
+
 ## 3.4.8
 
 ### Patch Changes

@@ -1,5 +1,46 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.4.0
+
+### Minor Changes
+
+- 2f8aab7: 3D の Shape を CSS 3D レンダラーが描くようにしました（3D 標準対応 P4c、#1473）。絵は変わりません。
+  
+  - **shared**: `shapeClaims(services)` を足しました。3D などで別に描く Shape を、2D のレンダラーが飛ばすための宣言です（`claim(source, ids)`）。shape-3d の `createView3dTracker` / `STAGE_3D_EVENT` もここへ移しました
+  - **dom-renderer**: `shapeClaims` で宣言された Shape を描きません。`renderer:hide-shapes` イベントも次のメジャーまで聞きます
+  - **css3d-renderer**: stand / box / float と種別ごとの `render3d` を描く層（`shape-3d`）を持つようになりました。種別の 3D は `ShapeDefinition.view3d`（と `ctx.shapes.configureView3d`）から読むので、shape-3d プラグインが無くても 3D の Shape が立ちます。起伏のある地形の上の平らな Shape を地形の高さに乗せる処理も既定で行います。React と dom-renderer に依存するようになりました
+  - **shape-3d**: 自分では描かず、種別の表と描画の上限を `css3dShapeSourceService` でレンダラーに渡します。配置の関数（`shapePose` など）と `SHAPE_3D_LAYER_ID` はレンダラーからの再 export として次のメジャーまで残します
+
+### Patch Changes
+
+- 711ee35: GPU 3D レンダラー（実験中）で、比べて見つかった 2 つのずれを直しました（3D 標準対応 P6c、#1304）。
+  
+  - **dom-renderer**: 3D 表示で画面の外まで見えている Shape を、簡略表示（LOD）ではなく普通に描くようにしました。間引く範囲・簡略にする範囲の広げ方を、`bg-grid:set-overscan` イベントに加えて描画コンテキストの `view3dOverscan` からも読みます。GPU 3D レンダラーで遠くの Shape が出なかったのはこのためです（CSS 3D レンダラーの見た目は変わりません）
+  - **gpu3d-renderer**: Shape の中の画像を絵に入れるようにしました。ページが中身を読める画像（読み込み済みで、同じオリジンか CORS 付き）は `data:` URL にして入れます。読めない画像は今までどおり入りません。`imageDataUrl` を追加
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+
 ## 2.3.4
 
 ### Patch Changes

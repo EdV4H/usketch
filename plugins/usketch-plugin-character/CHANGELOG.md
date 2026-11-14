@@ -1,5 +1,58 @@
 # @edv4h/usketch-plugin-character
 
+## 0.12.0
+
+### Minor Changes
+
+- 4a0ff52: 地面と固体の高さを、ボードの高さの窓口（`ctx.height` / `boardHeight`）から読み書きするようにしました（3D 標準対応 P3b、#1469）。今の動きは変わりません。
+  
+  - **map**: 地形を地面の提供元（優先度 0、`heightEnabled` のときだけ）として登録します。崖は「地面の持ち主が map のとき」だけ描きます
+  - **elevation**: 標高を地面の提供元（優先度 `ELEVATION_GROUND_PRIORITY` = 10、場があるときだけ）として登録します。map を包む処理をやめたので、プラグインの並び順によりません。古い map のために `setHeightEnabled` での切り替えは次のメジャーまで続けます
+  - **shape-3d**: 当たり判定を固体の提供元として登録し、地面の高さを窓口から読みます
+  - **character**: 地面と固体の高さを窓口から読みます
+  - `groundHeightService` / `solidHeightService` は窓口が答え続けるので、これらを読む・provide する古いプラグインとも組めます
+- 1db8c0c: 3D 表示で、丘や崖の陰に入った看板やキャラクターを薄くするようにしました（3D 標準対応 P6b）。これまでは標高の丘の向こうにあるものが丘の手前に描かれていました。
+  
+  - **shared**: 視点の位置 `cameraEye(view)` と、地面が点を隠すかを調べる `isOccluded(point, view, heightAt)` を追加しました。レンダラーが「地形の陰」を答える `view3dOcclusionService`（`hidden` / `look` / `subscribe`）と `occludedStyle`・`OCCLUDED_OPACITY` も追加しました
+  - **css3d-renderer**: `view3dOcclusionService` を出し、3D の Shape は上端が陰に入ると薄くします（箱は面ごと、自前の 3D 表現は隠す）。オプション `occlusion`（`"fade"` 既定 / `"hide"` / `"none"`）、`setOcclusion` / `getOcclusion`、HUD の「地形の陰」を追加しました。答えは 100ms 使い回し、1 フレームで調べ直すのは 40 個までです
+  - **character**: 体の中ほどが陰に入ると、描き手に `occluded`（`"fade"` / `"hide"`）を渡します。`"hide"` のときはプラグインが隠し、影も一緒に薄く／隠します
+- 34232b1: 追従カメラをコア（shared）に置きました（3D 標準対応 P5、#1478）。動きは変わりません。
+  
+  - **shared**: `follow-view` を足しました。動くものを画面の決まった位置に置き続け（`fixed` / 向きに合わせて回す `rotate`）、3D 表示中はカメラの高さを足元の地面に合わせます。自分でフレームを回す呼び手向けの `createFollowView({ store, services })`（`step` / `reset` / `releaseHeight` / `onPan` / `viewTurn`）と、目標だけ渡せば自分のループで追う `followView(board, target, options)` があります。計算は純関数（`followRotation` / `easeFollowFocus` / `followCameraHeight` / `followViewport` / `smoothingAlpha` ほか）でも使えます
+  - **character**: 追従カメラを shared の `createFollowView` で動かすようになりました。`character-camera` の export（`targetRotation` / `easeFocus` / `CameraFocus` など）は次のメジャーまで残します
+
+### Patch Changes
+
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- b41ea96: 3D 表示の状態（カメラと 3D の度合い）をコアの状態にしました（3D 標準対応 P1、#1304）。
+  
+  - **shared**: `Camera3d`（pitch / fov / horizon / height）と `View3dState`（camera ＋ amount）、範囲 `CAMERA_3D_LIMITS`、`createView3dCell` / `view3dCellOf` を追加。`BoardStore` に `getView3d` / `setView3d` / `subscribeView3d` を追加（次のメジャーまでは省略可）。`View3dApi` に `turn()`（3D 表示が viewport を回した角度）を追加
+  - **store**: `createBoardStore` が 3D 表示の状態を持ちます。viewport と同じく見る人ごとで同期しません。通知は `subscribe` とは別です
+  - **mode7**: カメラと遷移量をコアの状態に置きます。yaw は傾ける層を回すのをやめ、3D の間は viewport の回転（`Viewport.rotation`）として地平線の中央を軸に回し、平らに戻るときに回した分だけ戻します。絵は変わりません。`getRenderedCamera()` と `view3dService` の `camera().yaw` は常に `0` になります
+  - **character**: 追従カメラが 3D 表示の回転（`turn()`）を足して追従するので、3D 中に yaw を変えても追従が止まらず、yaw が保たれます
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+
 ## 0.11.0
 
 ### Minor Changes

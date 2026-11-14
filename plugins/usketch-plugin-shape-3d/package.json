@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-3d",
-	"version": "0.3.3",
+	"version": "0.4.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
