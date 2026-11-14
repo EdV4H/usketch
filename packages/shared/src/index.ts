@@ -7,6 +7,25 @@ export {
 	type HeightKind,
 	type HeightProvider,
 } from "./board-height.js";
+export {
+	anchorPx,
+	createFollowView,
+	easeFollowFocus,
+	FOLLOW_CAMERA_HEIGHT_SMOOTHING,
+	type FollowFocus,
+	type FollowTarget,
+	type FollowViewDriver,
+	type FollowViewMode,
+	type FollowViewOptions,
+	type FollowViewStep,
+	followCameraHeight,
+	followRotation,
+	followView,
+	followViewport,
+	sameViewport,
+	smoothingAlpha,
+	turnedByView,
+} from "./follow-view.js";
 // Ground decals (things painted onto the ground surface, e.g. by a terrain renderer)
 export {
 	ALL_GROUND_DECAL_VIEWS,

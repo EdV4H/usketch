@@ -2,27 +2,17 @@
 // plus smoothing of remote characters. One rAF loop that runs only while the local
 // character is enabled or a remote one is still easing into place.
 import {
+	anchorPx,
 	boardHeight,
+	createFollowView,
 	type PluginContext,
 	type Point,
 	screenToWorld,
 	shortestAngleDelta,
-	type Viewport,
+	smoothingAlpha,
 	view3dService,
 	viewportRotation,
-	wrapDeg,
 } from "@edv4h/usketch-shared";
-import {
-	anchorPx,
-	type CameraFocus,
-	easeFocus,
-	followCameraHeight,
-	followViewport,
-	sameViewport,
-	smoothingAlpha,
-	targetRotation,
-	turnedByView,
-} from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
@@ -73,11 +63,6 @@ const CHARACTER_LAYER_ORDER = 700;
 export const CHARACTER_VIEWPORT_PRIORITY = 20;
 /** Remote pose smoothing (see `smoothingAlpha`). */
 const REMOTE_SMOOTHING = 0.75;
-/**
- * Camera-height smoothing (see `smoothingAlpha`): the 3D view's camera follows the ground
- * under the character at its own, never-rigid pace, so a step up a cliff glides.
- */
-const CAMERA_HEIGHT_SMOOTHING = 0.9;
 /** Largest simulated step, so a background-tab pause doesn't teleport the character. */
 const MAX_DT = 0.05;
 /** How long a measured canvas size is reused (a window resize re-measures at once). */
@@ -172,27 +157,12 @@ export function setupCharacterRuntime(
 	// Virtual button presses since the last frame (a tap may press and release in between).
 	let virtualJumpPressed = false;
 	let virtualDriftPressed = false;
-	let cam: CameraFocus | null = null;
-	// The camera height we last gave the 3D view (world units), eased toward the ground
-	// under the character; `null` while we aren't driving it.
-	let cameraHeight: number | null = null;
-	// The unsmoothed height it follows (see `followCameraHeight`); `null` while not driving.
-	let cameraBase: number | null = null;
-	const setCameraHeight = (height: number | null): void => {
-		if (height === null) cameraBase = null;
-		// While following, the height is re-sent every frame even when unchanged (Mode 7
-		// skips a no-op write): that is how the view knows a follower drives it, so its own
-		// height keys (Shift / Space) yield instead of tugging the camera every frame.
-		// Letting go (`null`) is sent once.
-		if (height === cameraHeight && height === null) return;
-		cameraHeight = height;
-		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
-	};
+	// The follow camera (shared): eases the viewport after the character and raises the
+	// 3D view's camera with the ground under it.
+	const follow = createFollowView({ store: ctx.store, services: ctx.services });
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
 	let lastFrame: number | null = null;
-	// Set while WE write the viewport, so our own writes don't read as a user pan.
-	let writing = false;
 
 	// The anchor is read every frame while following; measuring the canvas walks the layer
 	// wrappers and forces a layout, so the size is cached and refreshed on resize or after
@@ -227,12 +197,6 @@ export function setupCharacterRuntime(
 		amount: () => view3dService.get(ctx.services)?.amount() ?? 0,
 		subscribe: (listener) => view3dService.get(ctx.services)?.subscribe(listener) ?? (() => {}),
 	};
-	// How far the 3D view has turned the viewport by its heading: the follow keeps it.
-	const viewTurn = (): number => {
-		const t = view3dService.get(ctx.services)?.turn?.() ?? 0;
-		return Number.isFinite(t) ? t : 0;
-	};
-
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
 		: null;
@@ -242,16 +206,7 @@ export function setupCharacterRuntime(
 		const a = anchorPoint();
 		store.setPosition(screenToWorld(a.x, a.y, vp));
 		jumpTimers = IDLE_JUMP;
-		cam = null;
-	};
-
-	const writeViewport = (vp: Viewport): void => {
-		writing = true;
-		try {
-			ctx.store.setViewport(vp);
-		} finally {
-			writing = false;
-		}
+		follow.reset();
 	};
 
 	// A hoisted declaration: the awareness sync (created above) can request a frame
@@ -336,34 +291,18 @@ export function setupCharacterRuntime(
 			s = store.getState();
 
 			if (s.cameraMode !== "free" && !s.followSuspended) {
-				const target: CameraFocus = {
-					focus: { x: pose.x, y: pose.y },
-					rotation: wrapDeg(targetRotation(s.cameraMode, pose.heading) + viewTurn()),
-				};
-				const anchor = anchorPoint();
-				// (Re)seed from what's on screen now, so resuming/switching eases instead of jumping.
-				const from = cam ?? {
-					focus: screenToWorld(anchor.x, anchor.y, vp),
-					rotation: viewportRotation(vp),
-				};
-				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
-				const next = followViewport(cam, anchor, vp.zoom);
-				if (!sameViewport(vp, next)) writeViewport(next);
 				// Raise the 3D view's camera with the character: on a mountain it stays in view.
 				// In the air it holds the take-off height (a jump still rises on screen, a pit
 				// below doesn't dip the view) until a hover climbs past the margin or a fall
 				// drops below it (see `followCameraHeight`).
-				// Only while the view is (partly) 3D: the flat board has no camera to raise.
-				if (view3d.amount() > 0) {
-					cameraBase = followCameraHeight(cameraBase, pose, cameraHeightMarginOf(s));
-					const to = cameraBase;
-					const at = cameraHeight ?? 0;
-					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
-				} else {
-					setCameraHeight(null);
-				}
+				follow.step(pose, dt, {
+					mode: s.cameraMode,
+					anchor: anchorPoint(),
+					smoothing: s.followSmoothing,
+					heightMargin: cameraHeightMarginOf(s),
+				});
 			} else if (s.cameraMode === "free") {
-				setCameraHeight(null);
+				follow.releaseHeight();
 			}
 			sync?.publish();
 		}
@@ -392,20 +331,20 @@ export function setupCharacterRuntime(
 		const s = store.getState();
 		if (s.enabled !== prev.enabled) {
 			if (s.enabled) {
-				cam = null;
+				follow.reset();
 				// Tell load-time camera plugins (start-position, …) to stand down.
 				ctx.events.emit("viewport:claimed", {
 					source: "character",
 					priority: CHARACTER_VIEWPORT_PRIORITY,
 				});
 			} else {
-				cam = null;
-				setCameraHeight(null);
+				follow.reset();
+				follow.releaseHeight();
 				virtual = null;
 				virtualJumpPressed = false;
 				virtualDriftPressed = false;
 				// Hand the camera back upright (as turned by the 3D view's heading).
-				const upright = viewTurn();
+				const upright = follow.viewTurn();
 				if (shortestAngleDelta(viewportRotation(ctx.store.getViewport()), upright) !== 0) {
 					ctx.store.rotateTo(upright, anchorPoint(), { animate: true });
 				}
@@ -414,37 +353,15 @@ export function setupCharacterRuntime(
 		}
 		if (s.cameraMode !== prev.cameraMode || s.followSuspended !== prev.followSuspended) {
 			// Re-seed the smoothed camera from the live viewport so resuming never jumps.
-			cam = null;
+			follow.reset();
 		}
 		prev = s;
 		if (s.enabled) ensureLoop();
 	});
 
-	// A viewport change we didn't make: zoom (wheel / keys) is welcome — the follow
-	// keeps the character on its anchor at the new zoom. So is the 3D view turning the
-	// viewport by its heading: the follow turns with it. A pan means the user wants to
-	// look around, so pause following until a movement key (or the virtual control) is
-	// pressed.
-	let lastZoom = ctx.store.getViewport().zoom;
-	let lastRotation = viewportRotation(ctx.store.getViewport());
-	let lastTurn = viewTurn();
-	const offViewport = ctx.store.onMutation((e) => {
-		if (e.type !== "viewport:changed") return;
-		const vp = ctx.store.getViewport();
-		const zoomChanged = Math.abs(vp.zoom - lastZoom) > 1e-9;
-		lastZoom = vp.zoom;
-		const rotation = viewportRotation(vp);
-		const turned = shortestAngleDelta(lastRotation, rotation);
-		lastRotation = rotation;
-		const turn = viewTurn();
-		const viewTurned = shortestAngleDelta(lastTurn, turn);
-		lastTurn = turn;
-		if (writing || zoomChanged) return;
-		if (turnedByView(turned, viewTurned)) {
-			// Carry on from the turned view (the target already includes the turn).
-			if (cam) cam = { ...cam, rotation: wrapDeg(cam.rotation + turned) };
-			return;
-		}
+	// The user panned (not a zoom, nor the 3D view turning): pause following until a
+	// movement key (or the virtual control) is pressed.
+	const offPan = follow.onPan(() => {
 		const s = store.getState();
 		if (s.enabled && s.cameraMode !== "free") store.setFollowSuspended(true);
 	});
@@ -490,8 +407,9 @@ export function setupCharacterRuntime(
 			if (rafId !== null) cancelFrame(rafId);
 			rafId = null;
 			unsubscribe();
-			offViewport();
-			setCameraHeight(null);
+			offPan();
+			follow.releaseHeight();
+			follow.dispose();
 			keys.dispose();
 			sync?.dispose();
 			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);
