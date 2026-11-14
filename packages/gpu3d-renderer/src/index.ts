@@ -34,6 +34,7 @@ export {
 	shape3dGeometry,
 } from "./gpu3d-shapes.js";
 export {
+	imageDataUrl,
 	loadSvgImage,
 	MAX_PICTURE_PX,
 	nodePictureSvg,
