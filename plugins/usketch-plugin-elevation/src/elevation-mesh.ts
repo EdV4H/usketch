@@ -3,25 +3,20 @@
 // CSS tilt applies to its layers — so the hills line up with the tilted board, the
 // characters standing on them and the map. Pure helpers (no WebGL here): the
 // projection, a tile's vertices, the colour ramp.
+import { type ProjectionCamera, projectStagePoint } from "@edv4h/usketch-shared";
 import { DEFAULT_GEN, type ElevationFieldConfig } from "./elevation-field.js";
 import type { ElevationSampler } from "./elevation-model.js";
 import { heightColor, shadeFactor } from "./elevation-shade.js";
 
 /** The 3D view's camera as drawn (see `View3dCamera` in shared). Degrees / px. */
-export interface MeshCamera {
-	pitch: number;
-	yaw: number;
-	fov: number;
-	horizon: number;
-	/** Px the camera is raised above the board: everything is drawn this much lower. Default 0. */
-	heightPx?: number;
-}
+export type MeshCamera = ProjectionCamera;
 
 /**
  * A point of the flat stage (px, before the tilt) raised `z` px toward the viewer, as
  * the Mode 7 tilt `perspective(fov) rotateX(pitch) rotateZ(yaw)` about
  * `(width/2, height·horizon)` shows it (`translateZ(z)` inside a depth layer). The
- * vertex shader computes exactly this. `null` at or behind the eye. Pure.
+ * vertex shader uses the same projection (`viewMatrix`). `null` at or behind the eye.
+ * Pure. Same as `projectStagePoint` in `@edv4h/usketch-shared` (argument order kept).
  */
 export function projectLifted(
 	x: number,
@@ -30,23 +25,8 @@ export function projectLifted(
 	cam: MeshCamera,
 	size: { width: number; height: number },
 ): { x: number; y: number; depth: number } | null {
-	const ox = size.width / 2;
-	const oy = size.height * cam.horizon;
-	const r = Math.PI / 180;
-	const cy = Math.cos(cam.yaw * r);
-	const sy = Math.sin(cam.yaw * r);
-	const cp = Math.cos(cam.pitch * r);
-	const sp = Math.sin(cam.pitch * r);
-	const x0 = x - ox;
-	const y0 = y - oy;
-	const x1 = x0 * cy - y0 * sy;
-	const y1 = x0 * sy + y0 * cy;
-	const h = z - (cam.heightPx ?? 0);
-	const y2 = y1 * cp - h * sp;
-	const z2 = y1 * sp + h * cp;
-	const w = 1 - z2 / cam.fov;
-	if (w <= 0) return null;
-	return { x: ox + x1 / w, y: oy + y2 / w, depth: z2 };
+	const p = projectStagePoint(x, y, cam, size, z);
+	return p ? { x: p.x, y: p.y, depth: p.depth } : null;
 }
 
 /** Floats per vertex: local x, local y (world units from the tile's corner), height, shade. */

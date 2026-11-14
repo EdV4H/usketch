@@ -11,6 +11,7 @@
 // back into a ground plane. The pivot is a horizontal line at `horizon` (origin Y),
 // so content above it recedes toward the vanishing line and below comes toward the
 // viewer.
+import { tiltCss } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 
 export interface TiltTransform {
@@ -20,7 +21,6 @@ export interface TiltTransform {
 	transformOrigin: string;
 }
 
-/** The full CSS transform (perspective + rotate) for a tilted layer wrapper. */
 /**
  * The camera as rendered at transition `amount` (0 = flat, 1 = the stored camera):
  * pitch and yaw scale toward 0 so the ground rises from (and settles back to) the
@@ -32,11 +32,12 @@ export function transitionCamera(cam: Camera, amount: number): Camera {
 	return { ...cam, pitch: cam.pitch * a, yaw: cam.yaw * a };
 }
 
+/**
+ * The full CSS transform (perspective + rotate) for a tilted layer wrapper. Built by
+ * `tiltCss` in `@edv4h/usketch-shared`, the same projection shaders and hit tests use.
+ */
 export function tiltTransform(cam: Camera): TiltTransform {
-	return {
-		transform: `perspective(${round(cam.fov)}px) rotateX(${round(cam.pitch)}deg) rotateZ(${round(cam.yaw)}deg)`,
-		transformOrigin: `50% ${round(cam.horizon * 100)}%`,
-	};
+	return tiltCss(cam);
 }
 
 /**
