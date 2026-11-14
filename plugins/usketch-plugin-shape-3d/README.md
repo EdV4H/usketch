@@ -1,38 +1,31 @@
 # @edv4h/usketch-plugin-shape-3d
 
-Mode 7（`@edv4h/usketch-plugin-mode7`）などの 3D ビュー中に、**3D パラメーターを持つ Shape を地面から立ち上げて描く**プラグイン（立てる・箱・浮かせるの 3 種）。パラメーターを持たない Shape は今まで通り地面に貼り付いたまま。2D 表示・書き出し・編集には一切影響しない（3D ビューでないときは何も描かない）。
+Shape に **3D の見た目**（立てる・箱・浮かせる）と**キャラクターとの当たり判定**を付ける HUD と、その操作の純関数のプラグイン。
 
-- 描画は map の崖やキャラクターと同じ **CSS 3D だけ**（`translateZ` / `rotateX(-90deg)` / `rotateY(90deg)` の折り曲げ）。3D ライブラリには依存しない。
-- 各 Shape プラグインの既存の `render` をそのまま立てるので、全 Shape 種別で使える。
-- Mode 7 にも map にも依存しない。3D ビューの状態は shared の `view3dService`、地面の高さはボードの高さの窓口（shared の `boardHeight` / `ctx.height`）から読み、DOM の Shape 層には `renderer:hide-shapes` で「この Shape は描かない」を伝える。
-- 当たり判定（`collision`）を持つ Shape は、同じ窓口に固体の提供元として「ここに立体がある」を答える。キャラクター（`@edv4h/usketch-plugin-character`）はそれを見て壁で止まり、乗れる箱に乗る。
+- データはコアの `ShapeData.view3d`。次のメジャーまでは旧キー `x-shape-3d` にも同じものを書き、読むときは `x-shape-3d` があればそちらを先に読む（古いクライアントはそちらにしか書かないため）。
+- 描くのは CSS 3D レンダラー（`@edv4h/usketch-css3d-renderer`）、当たり判定の固体をボードの高さ（`ctx.height`）に登録するのはコア。どちらもこのプラグインが無くても動く（Shape が `view3d` を持っていれば立つし、キャラは当たる）。
+- このプラグインは、HUD と、種別の表・描画の上限・「当たり判定は 3D 表示中だけ」の設定を持ち、それをレンダラー（`css3dShapeSourceService`）とコアの固体（`shapeSolidsService`）に渡す。古いコアでは固体を自分で登録する。
 
 ## 使い方
 
 ```ts
+import { createCss3dRendererPlugin } from "@edv4h/usketch-css3d-renderer";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
 import { createShape3dPlugin } from "@edv4h/usketch-plugin-shape-3d";
 
-createApp({
+const app = await createApp({
   plugins: [
-    // …
-    createMode7Plugin({ transition: { durationMs: 900 } }),
-    createShape3dPlugin({
-      // 種別ごとの設定（任意）。既定は下の「種別ごとの設定」を参照
-      types: {
-        "board-portal": { default: { mode: "stand" } }, // ポータルは常に立てる
-      },
-    }),
     createDomRendererPlugin(),
+    createCss3dRendererPlugin(),
+    createMode7Plugin({ transition: { durationMs: 900 } }),
+    createShape3dPlugin(),
   ],
 });
+// 種別ごとの 3D はコアで上書きする（例: ポータルは常に立てる）
+app.shapes.configureView3d?.("board-portal", { default: { mode: "stand" } });
 ```
 
-Mode 7 の既定の tilt / depth レイヤー（`DEFAULT_TILT_LAYER_IDS` / `DEFAULT_DEPTH_LAYER_IDS`）には、このプラグインの層 `shape-3d` が入っている。`tiltLayerIds` / `depthLayerIds` を上書きしている場合は `shape-3d` を両方に足すこと（depth に入っていないと平面に潰れる）。
-
-## パラメーター（`x-shape-3d`）
-
-Shape データの拡張キー `x-shape-3d`（`SHAPE_3D_KEY`）に置く。コアの `ShapeData` の型は変えていない。同期でそのまま全員に配られる。
+## パラメーター（`ShapeData.view3d`）
 
 ```ts
 {
@@ -51,35 +44,30 @@ Shape データの拡張キー `x-shape-3d`（`SHAPE_3D_KEY`）に置く。コ�
 | `box` | Shape の面を `height` だけ持ち上げて天面にし、四辺に壁を下ろす。壁の色は `style.fill`（なければ灰色）を暗くしたもの |
 | `float` | 面をそのまま `height` だけ持ち上げる。下に影 |
 
-足りない項目は既定値で埋まり、不正な値は捨てられる（`normalizeShape3d`）。`height` の既定は box 16 / float 24 で、0…2000 にクランプする。保存されるのは指定した `height` だけなので、box と float を切り替えるとそれぞれの既定の高さになる（`storedShape3d`）。
+足りない項目は既定値で埋まり、不正な値は捨てられる（shared の `normalizeShapeView3d`）。`height` の既定は box 16 / float 24 で、0…2000 にクランプする。保存されるのは指定した `height` だけなので、box と float を切り替えるとそれぞれの既定の高さになる（`storedShapeView3d`）。
 
 ### 種別ごとの設定
 
-`createShape3dPlugin({ types })` で種別ごとに使える mode と既定を渡せる（`DEFAULT_SHAPE_3D_TYPES` に上書きでマージ）。
+種別は自分の 3D を `ShapeDefinition.view3d`（`modes` / `default` / `render3d`）で宣言し、ホストは `ctx.shapes.configureView3d(type, view3d)` で上書きする。
 
-- 何も指定しない種別は `stand` / `float` だけ（`DEFAULT_TYPE_MODES`）。楕円や手描き線を箱にすると不自然なため、`box` は箱の形に合う種別だけ。
-- 既定で 3 種すべて使える: `rectangle` / `rounded-rect` / `sticky` / `card` / `frame` / `image`。
+- 何も宣言しない種別は `stand` / `float` だけ。楕円や手描き線を箱にすると不自然なため、`box` は箱の形に合う種別だけ。
+- 3 種すべて使える: `rectangle` / `rounded-rect` / `sticky` / `card` / `frame` / `image`。
 - 対象外（`modes: []`）: `embed` / `openui`。
-
-種別ごとに渡せるもの（`Shape3dTypeConfig`）:
-
-- `modes`: 使える mode。`[]` で対象外。
-- `default`: Shape が `x-shape-3d` を持たないときの既定（関数で Shape ごとに決めてもよい）。例: `{ "board-portal": { default: { mode: "stand" } } }` でポータルを常に立てる（web の community ページはこの設定）。
+- `default`: Shape が `view3d` を持たないときの既定（関数で Shape ごとに決めてもよい）。例: `{ default: { mode: "stand" } }` でポータルを常に立てる。
 - `render3d`: 種別の自前の 3D 表現。あれば汎用の stand / box / float の代わりに使う（`null` を返すとその Shape は汎用の描画）。
+
+`createShape3dPlugin({ types })`・`registerType`・組み込みの表 `DEFAULT_SHAPE_3D_TYPES` も次のメジャーまで使える（宣言の上に重なる。重なり順: 組み込みの表 → 宣言＋上書き → `types` → `registerType`）。
 
 ### `render3d`（種別の自前の 3D 表現）
 
 ```ts
-import { crossRender3d, type Shape3dRender } from "@edv4h/usketch-plugin-shape-3d";
+import { crossRender3d } from "@edv4h/usketch-plugin-shape-3d";
 
-createShape3dPlugin({
-  types: {
-    image: { render3d: crossRender3d }, // 立てた画像を十字の 2 枚板で描く（木・草のスプライト）
-  },
-});
+// 立てた画像を十字の 2 枚板で描く（木・草のスプライト）
+app.shapes.configureView3d?.("image", { render3d: crossRender3d });
 ```
 
-レイヤーは Shape の大きさのノードを足元（stand）または中心に置き、地形の高さまで持ち上げて Shape 自身の向きに回し（`preserve-3d`）、その中に `render3d` の戻り値を描く。ノードの地面は z = 0。`render3d(shape, ctx)` の `ctx`（`Shape3dRenderContext`）:
+レンダラーの層は Shape の大きさのノードを足元（stand）または中心に置き、地形の高さまで持ち上げて Shape 自身の向きに回し（`preserve-3d`）、その中に `render3d` の戻り値を描く。ノードの地面は z = 0。`render3d(shape, ctx)` の `ctx`（shared の `ShapeView3dRenderContext`）:
 
 | 項目 | 内容 |
 |---|---|
@@ -104,9 +92,9 @@ three.js を使う場合は依存をその Shape プラグイン側に持ち、`
 
 - 既定では 2D 表示中も当たる（キャラは 2D でも歩けるので）。HUD の「当たり判定は 3D 表示中だけ」（`limits.collisionIn3dOnly`）で 3D ビュー中だけにできる。
 - 当たり判定は描画の制限（最大数・最小サイズ・描画距離）とは無関係に、全 Shape に効く。Shape は 256 単位のグリッドに振り分けて引くので、数が多くても 1 点の問い合わせは軽い。
-- 判定の本体は純関数（`colliderFor` / `buildColliderIndex` / `solidHeightAt`）として export している。
+- 判定の本体は shared の純関数（`colliderFor` / `buildColliderIndex` / `solidHeightAt`）で、コアが `createShapeSolids` でボードの高さに登録する。
 
-## 見え方
+## 見え方（CSS 3D レンダラー）
 
 - 3D ビューのせり上がり（遷移量 0…1）に合わせて、stand は足元（下辺の中点）を軸に起き上がり、box / float は中心を基準に `height` までせり上がる。OFF にすると平面に戻り、平面の描画に切り替わる。
 - `facing: "camera"` はカメラの旋回（yaw）を打ち消して常に正面を向く。`"fixed"` は Shape 自身の回転のまま。box / float は常に Shape 自身の回転。
@@ -131,9 +119,9 @@ api?.registerType("sticky", { modes: [] }); // 実行時に種別の設定を足
 
 `Shape3dApi`: `get` / `resolve` / `set` / `clear` / `modesFor` / `registerType` / `getLimits` / `setLimits`。
 
-操作の本体は `BoardStore` を受け取る純関数（`setShape3d` / `clearShape3d` / `getShape3d`）としても export している。
+操作の本体は `BoardStore` を受け取る純関数（`setShapeView3d` / `clearShapeView3d` / `getShapeView3d`）としても export している。`setShapeView3d` の第 4 引数は種別の表か `(type) => ctx.shapes.getView3d?.(type)` のような引き当て（既定は組み込みの表）。旧名 `setShape3d` などは次のメジャーまで残す。
 
 ## 既知の制約
 
-- Mode 7 はレイヤーごとに別の 3D 空間で描くので、重なりはレイヤー順になる（崖 ＜ 3D Shape ＜ キャラ）。看板の後ろを歩くキャラも看板より手前に見える。
+- CSS 3D レンダラーはレイヤーごとに別の 3D 空間で描くので、重なりはレイヤー順になる（崖 ＜ 3D Shape ＜ キャラ）。看板の後ろを歩くキャラも看板より手前に見える。
 - ズームアウトで map が崖を描かない表示でも、`ground: true` の Shape は地形の高さに乗るので浮いて見えることがある。
