@@ -93,20 +93,25 @@ uniform vec4 uBackground;
 uniform vec4 uLine;
 uniform float uGrid;
 uniform float uGridSize;
-uniform float uPixelRatio;
+uniform float uLineWidth;
 out vec4 outColor;
 void main() {
 	vec4 color = uBackground;
 	if (uGrid > 0.5) {
 		vec2 c = vWorld / uGridSize;
 		vec2 fw = max(fwidth(c), vec2(1e-6));
-		// Distance to the nearest line in CSS px; lines are 1 CSS px wide.
-		vec2 d = abs(fract(c - 0.5) - 0.5) / (fw * uPixelRatio);
-		float on = 1.0 - clamp(min(d.x, d.y) - 0.5, 0.0, 1.0);
-		// Fade lines out where cells get a few px small (no moire at the horizon).
-		float cellPx = 1.0 / (max(fw.x, fw.y) * uPixelRatio);
-		on *= clamp((cellPx - 3.0) / 6.0, 0.0, 1.0);
-		color = mix(color, uLine, on);
+		// Distance to the nearest line and the line's half width, in cells.
+		vec2 d = abs(fract(c - 0.5) - 0.5);
+		float hw = 0.5 * uLineWidth / uGridSize;
+		// At least a device px wide; thinner lines get fainter instead.
+		vec2 w = max(vec2(2.0 * hw), fw);
+		vec2 cover = clamp((0.5 * w + 0.5 * fw - d) / fw, 0.0, 1.0) * (2.0 * hw / w);
+		float on = 1.0 - (1.0 - cover.x) * (1.0 - cover.y);
+		// Where cells get a few px small, fade to the lines' average cover (no moire).
+		float cellPx = 1.0 / max(fw.x, fw.y);
+		float avg = 1.0 - (1.0 - 2.0 * hw) * (1.0 - 2.0 * hw);
+		on = mix(avg, on, clamp((cellPx - 3.0) / 6.0, 0.0, 1.0));
+		color = uLine * on + color * (1.0 - uLine.a * on);
 	}
 	outColor = color;
 }`;
@@ -146,6 +151,8 @@ export interface GroundLook {
 	background: [number, number, number, number];
 	line: [number, number, number, number];
 	grid: boolean;
+	/** Grid line width, world units (the flat grid's 1 px at the view's zoom). */
+	lineWidth: number;
 }
 
 /** Draws the ground in one GL context. */
@@ -157,7 +164,7 @@ export class GroundPainter {
 
 	constructor(private readonly gl: WebGL2RenderingContext) {
 		this.program = linkProgram(gl, VERTEX, FRAGMENT);
-		for (const name of ["uView", "uBackground", "uLine", "uGrid", "uGridSize", "uPixelRatio"]) {
+		for (const name of ["uView", "uBackground", "uLine", "uGrid", "uGridSize", "uLineWidth"]) {
 			this.u[name] = gl.getUniformLocation(this.program, name);
 		}
 		const vao = gl.createVertexArray();
@@ -207,7 +214,7 @@ export class GroundPainter {
 		gl.uniform4fv(u.uLine, look.line);
 		gl.uniform1f(u.uGrid, look.grid ? 1 : 0);
 		gl.uniform1f(u.uGridSize, GROUND_GRID_SIZE);
-		gl.uniform1f(u.uPixelRatio, frame.pixelRatio);
+		gl.uniform1f(u.uLineWidth, look.lineWidth);
 		gl.depthMask(false);
 		gl.drawArrays(gl.TRIANGLES, 0, 6);
 		gl.depthMask(true);
