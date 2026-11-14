@@ -19,29 +19,53 @@ export interface Shape3dSettings {
 	setLimits(limits: Partial<Shape3dLimits>): void;
 }
 
+/** The shape types' own 3D, as declared by their plugins and overridden by the host. */
+export interface DeclaredShape3dTypes {
+	/** Every type that has some (`ShapeDefinition.view3d` + `ctx.shapes.configureView3d`). */
+	read(): Shape3dTypes;
+	/** Changes whenever `read` would answer differently (a type registered, an override). */
+	version(): string;
+}
+
 export function createShape3dSettings(init: {
 	types?: Shape3dTypes;
 	limits?: Partial<Shape3dLimits>;
+	declared?: DeclaredShape3dTypes;
 }): Shape3dSettings {
-	const base = mergeShape3dTypes(DEFAULT_SHAPE_3D_TYPES, init.types);
+	// Per type, from lowest to highest: the built-in table (types that declare nothing
+	// yet), what the type declares, the `types` option, then runtime registrations.
+	const baseTypes = (): Shape3dTypes =>
+		mergeShape3dTypes(mergeShape3dTypes(DEFAULT_SHAPE_3D_TYPES, init.declared?.read()), init.types);
 	// Runtime registrations, in order (a later one for the same type wins).
 	const runtime: { type: string; config: Shape3dTypeConfig }[] = [];
 	const listeners = new Set<() => void>();
+	let declaredVersion = init.declared?.version() ?? "";
 	let state: Shape3dSettingsState = {
-		types: base,
+		types: baseTypes(),
 		limits: sanitizeLimits({ ...DEFAULT_SHAPE_3D_LIMITS, ...init.limits }),
 	};
 	const notify = () => {
 		for (const l of [...listeners]) l();
 	};
-	const rebuildTypes = () => {
-		let types = base;
+	const buildTypes = (): Shape3dTypes => {
+		let types = baseTypes();
 		for (const r of runtime) types = mergeShape3dTypes(types, { [r.type]: r.config });
-		state = { ...state, types };
+		return types;
+	};
+	const rebuildTypes = () => {
+		state = { ...state, types: buildTypes() };
 		notify();
 	};
 	return {
-		get: () => state,
+		get: () => {
+			// A shape type registered (or overridden) after setup: pick it up on next read.
+			const version = init.declared?.version() ?? "";
+			if (version !== declaredVersion) {
+				declaredVersion = version;
+				state = { ...state, types: buildTypes() };
+			}
+			return state;
+		},
 		subscribe(listener) {
 			listeners.add(listener);
 			return () => listeners.delete(listener);

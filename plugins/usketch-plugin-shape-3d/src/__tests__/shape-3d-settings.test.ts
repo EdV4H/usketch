@@ -14,6 +14,24 @@ describe("createShape3dSettings", () => {
 		expect(s.get().types.sticky?.modes).toEqual([]);
 		expect(listener).toHaveBeenCalledTimes(2);
 	});
+	it("reads what the shape types declare, between the built-ins and the host's types", () => {
+		let declared: Record<string, { modes: ("stand" | "box" | "float")[] }> = {
+			embed: { modes: ["stand"] },
+			sticky: { modes: ["box"] },
+		};
+		let version = 1;
+		const s = createShape3dSettings({
+			types: { sticky: { modes: [] } },
+			declared: { read: () => declared, version: () => String(version) },
+		});
+		expect(s.get().types.embed?.modes).toEqual(["stand"]);
+		expect(s.get().types.sticky?.modes).toEqual([]);
+		// A type registered (or overridden) later is picked up on the next read.
+		declared = { ...declared, portal: { modes: ["stand"] } };
+		expect(s.get().types.portal).toBeUndefined();
+		version = 2;
+		expect(s.get().types.portal?.modes).toEqual(["stand"]);
+	});
 	it("sanitizes limits and skips no-op updates", () => {
 		const s = createShape3dSettings({ limits: { maxCount: -1 } });
 		expect(s.get().limits.maxCount).toBe(200);

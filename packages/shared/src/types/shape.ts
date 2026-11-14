@@ -1,3 +1,5 @@
+import type { ShapeView3dInput } from "../shape-view-3d.js";
+
 export interface ShapeStyle {
 	fill: string;
 	stroke: string;
@@ -89,6 +91,12 @@ export interface ShapeData<TMeta = Record<string, unknown>> {
 	 * full-subtree lock — they can only over-lock, never under-lock.
 	 */
 	lockScope?: "self";
+	/**
+	 * How the shape stands out of the ground while the board is shown in 3D (see
+	 * `ShapeView3d`); absent = it lies flat. Read it with `readShapeView3d`, which also
+	 * reads the older `x-shape-3d` key.
+	 */
+	view3d?: ShapeView3dInput;
 	/**
 	 * Application/domain-specific metadata — the **preferred** place for data
 	 * that is not intrinsic to the shape's geometry (e.g. external references,

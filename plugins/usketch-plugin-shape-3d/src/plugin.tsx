@@ -1,4 +1,4 @@
-// Shape 3D plugin: shapes that hold 3D parameters (`x-shape-3d`) stand out of the ground
+// Shape 3D plugin: shapes that hold 3D parameters (`ShapeData.view3d`) stand out of the ground
 // while the board is shown in 3D (Mode 7), instead of lying flat on it. Pure CSS 3D,
 // like the map's cliffs — no 3D library. The 2D board, export and editing are untouched:
 // outside a 3D view this plugin draws nothing.
@@ -19,16 +19,18 @@ import { registerShape3dHud } from "./register-shape-3d-hud.js";
 import { buildColliderIndex, type ColliderIndex, solidHeightAt } from "./shape-3d-collision.js";
 import { SHAPE_3D_LAYER_ID, type Shape3dCameraSource, Shape3dLayer } from "./shape-3d-layer.js";
 import type { Shape3dLimits } from "./shape-3d-layout.js";
-import type { Shape3dTypes } from "./shape-3d-params.js";
+import type { Shape3dTypeConfig, Shape3dTypes } from "./shape-3d-params.js";
 import { createShape3dApi, shape3dService } from "./shape-3d-service.js";
-import { createShape3dSettings } from "./shape-3d-settings.js";
+import { createShape3dSettings, type DeclaredShape3dTypes } from "./shape-3d-settings.js";
 import { createView3dTracker } from "./view-3d-tracker.js";
 
 export interface Shape3dPluginOptions {
 	/**
 	 * Per shape type: which 3D modes it may use and a default for shapes holding no
 	 * parameters of their own (e.g. `{ "board-portal": { default: { mode: "stand" } } }`).
-	 * Merged over the built-in `DEFAULT_SHAPE_3D_TYPES`. Unlisted types may use every mode.
+	 * Merged over what the type declares (`ShapeDefinition.view3d`, with the host's
+	 * `ctx.shapes.configureView3d`) and the built-in `DEFAULT_SHAPE_3D_TYPES`.
+	 * @deprecated Use `ctx.shapes.configureView3d(type, view3d)`; removed at the next major.
 	 */
 	types?: Shape3dTypes;
 	/** Draw limits (min on-screen size, max count) and whether collision is 3D-only. */
@@ -42,7 +44,28 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 		id: "usketch-plugin-shape-3d",
 		name: "Shape 3D",
 		setup(ctx: PluginContext) {
-			const settings = createShape3dSettings({ types: options.types, limits: options.limits });
+			// The shape types' own 3D: declared by their plugins, overridden by the host.
+			let overrideVersion = 0;
+			const offOverrides = ctx.shapes.subscribeView3d?.(() => {
+				overrideVersion++;
+				ctx.events.emit("layers:changed", {});
+			});
+			const declared: DeclaredShape3dTypes = {
+				read() {
+					const out: Record<string, Shape3dTypeConfig> = {};
+					for (const [type, def] of ctx.shapes.getAll()) {
+						const view3d = ctx.shapes.getView3d ? ctx.shapes.getView3d(type) : def.view3d;
+						if (view3d) out[type] = view3d;
+					}
+					return out;
+				},
+				version: () => `${ctx.shapes.getAll().size}:${overrideVersion}`,
+			};
+			const settings = createShape3dSettings({
+				types: options.types,
+				limits: options.limits,
+				declared,
+			});
 			const tracker = createView3dTracker(ctx.services, ctx.events);
 			const api = createShape3dApi(ctx.store, settings);
 
@@ -126,6 +149,7 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			return () => {
 				unprovide();
 				unregisterSolid();
+				offOverrides?.();
 				colliders = null;
 				stopHud();
 				ctx.layers.unregister(SHAPE_3D_LAYER_ID);

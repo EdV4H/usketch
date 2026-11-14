@@ -245,6 +245,8 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 			});
 
 			ctx.shapes.register(EMBED_TYPE, {
+				// Live HTML blurs or stutters under a 3D transform: stays flat in 3D.
+				view3d: { modes: [] },
 				render: (shape) => <EmbedView data={shape as EmbedShapeData} rt={rt} />,
 				getBounds,
 				hitTest: withRotation(hitTest),

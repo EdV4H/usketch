@@ -1,5 +1,6 @@
 import type { ComponentType, ReactElement } from "react";
 import type { BoardHeightApi } from "../board-height.js";
+import type { ShapeTypeView3d } from "../shape-view-3d.js";
 import type { View3dPatch, View3dState } from "../view-3d-state.js";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
 import type { LodController, RenderMode } from "./lod.js";
@@ -453,6 +454,13 @@ export interface ShapeDefinition {
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	renderTarget?: RenderTarget;
 	/**
+	 * How shapes of this type may show in 3D: the modes they may use, a default for
+	 * shapes holding no 3D parameters of their own, and an own 3D drawing (see
+	 * `ShapeTypeView3d`). Absent = the stand and float modes. A host overrides it with
+	 * `ctx.shapes.configureView3d`.
+	 */
+	view3d?: ShapeTypeView3d;
+	/**
 	 * 書き出し（exportRegion / buildRegionSvg）専用の描画。あれば `render` の代わりに使う。
 	 * `renderTarget: "html"` では Satori に渡されるため、インライン style のみ・フック/memo なし・同期の
 	 * 純粋な要素を返すこと（className のスタイルは解釈されない）。
@@ -645,6 +653,16 @@ export interface ShapeRegistry {
 	register(type: string, definition: ShapeDefinition): void;
 	get(type: string): ShapeDefinition | undefined;
 	getAll(): ReadonlyMap<string, ShapeDefinition>;
+	/**
+	 * Override a shape type's 3D (its `ShapeDefinition.view3d`) field by field, e.g. to
+	 * stand every portal up. Later calls merge over earlier ones; returns the removal.
+	 * Optional until the next major (a registry from an older core has none).
+	 */
+	configureView3d?(type: string, view3d: ShapeTypeView3d): () => void;
+	/** A shape type's 3D: its definition's `view3d` with the overrides merged over it. */
+	getView3d?(type: string): ShapeTypeView3d | undefined;
+	/** Notified when a type's 3D override changes. */
+	subscribeView3d?(listener: () => void): () => void;
 }
 
 // ── Tool System ──
