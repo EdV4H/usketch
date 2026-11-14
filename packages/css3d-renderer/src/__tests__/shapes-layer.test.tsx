@@ -12,7 +12,7 @@ import {
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Css3dShapesLayer as Shape3dLayer } from "../shapes-layer.js";
+import { createOcclusionCache, Css3dShapesLayer as Shape3dLayer } from "../shapes-layer.js";
 import { DEFAULT_CSS3D_SHAPE_LIMITS as DEFAULT_SHAPE_3D_LIMITS } from "../shapes-layout.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -115,6 +115,76 @@ describe("Css3dShapesLayer", () => {
 		expect(onDrawn).toHaveBeenLastCalledWith(new Set(["a", "flat"]));
 	});
 
+	it("fades a shape whose top the ground hides, a box face by face, and re-renders on a change", () => {
+		const t = tracker({ amount: 1, yaw: 0 });
+		let hiddenIds = new Set(["a", "b"]);
+		let look: "fade" | "hide" = "fade";
+		const listeners = new Set<() => void>();
+		let version = 0;
+		const asked: number[] = [];
+		const occlusion = {
+			hidden: (x: number, _y: number, h: number) => {
+				asked.push(h);
+				return hiddenIds.has(x === 20 ? "a" : "b");
+			},
+			look: () => look,
+			subscribe: (l: () => void) => {
+				listeners.add(l);
+				return () => listeners.delete(l);
+			},
+		};
+		const changes = {
+			get: () => version,
+			subscribe: (l: () => void) =>
+				occlusion.subscribe(() => {
+					version++;
+					l();
+				}),
+		};
+		const shapes = [
+			shape("a"),
+			shape("b", { x: 100, [SHAPE_3D_KEY]: { mode: "box", height: 30 } }),
+		];
+		act(() =>
+			root.render(
+				<Shape3dLayer
+					rc={rc(shapes)}
+					shapes={registry}
+					tracker={t}
+					types={{ rect: { modes: ["stand", "box", "float"] } }}
+					limits={DEFAULT_SHAPE_3D_LIMITS}
+					overscanPx={0}
+					heightAt={() => 10}
+					onDrawn={() => {}}
+					occlusion={occlusion}
+					occlusionChanges={changes}
+				/>,
+			),
+		);
+		// Asked at the top: a stood-up shape's height, a box's height, on the ground.
+		expect(asked).toEqual([30, 40]);
+		const a = host.querySelector<HTMLElement>('[data-shape-3d-id="a"]');
+		const b = host.querySelector<HTMLElement>('[data-shape-3d-id="b"]');
+		expect(a?.style.opacity).toBe("0.3");
+		expect(a?.hasAttribute("data-shape-3d-hidden")).toBe(true);
+		expect(host.querySelector<HTMLElement>('[data-shape-3d-shadow="a"]')?.style.visibility).toBe(
+			"hidden",
+		);
+		// The box keeps its 3D: its faces fade, not the node.
+		expect(b?.style.opacity).toBe("");
+		expect(b?.querySelector<HTMLElement>("[data-shape-3d-top]")?.style.opacity).toBe("0.3");
+		expect(b?.querySelector<HTMLElement>("[data-shape-3d-wall]")?.style.opacity).toBe("0.3");
+
+		act(() => {
+			hiddenIds = new Set(["b"]);
+			look = "hide";
+			for (const l of listeners) l();
+		});
+		expect(a?.style.opacity).toBe("");
+		expect(a?.hasAttribute("data-shape-3d-hidden")).toBe(false);
+		expect(b?.style.visibility).toBe("hidden");
+	});
+
 	it("leaves out the shadow when it is off", () => {
 		const t = tracker({ amount: 1, yaw: 0 });
 		act(() =>
@@ -173,5 +243,30 @@ describe("Css3dShapesLayer", () => {
 		const ctx = seen[0];
 		expect(ctx).toMatchObject({ amount: 1, zoom: 1, width: 40, height: 20, faceCamera: -90 });
 		expect(ctx?.camera()?.pitch).toBe(60);
+	});
+});
+
+describe("occlusion cache", () => {
+	it("reuses an answer while fresh, asks again when stale or moved, within a budget per frame", () => {
+		const cache = createOcclusionCache(100, 2);
+		const ask = vi.fn(() => true);
+		cache.frame(0);
+		expect(cache.get("a", "k", ask)).toBe(true);
+		expect(cache.get("b", "k", ask)).toBe(true);
+		// Over the budget: a shape not asked yet counts as in view.
+		expect(cache.get("c", "k", ask)).toBe(false);
+		expect(ask).toHaveBeenCalledTimes(2);
+		cache.frame(50);
+		expect(cache.get("a", "k", ask)).toBe(true);
+		expect(ask).toHaveBeenCalledTimes(2);
+		// Moved: asked again even though fresh.
+		cache.get("a", "moved", () => false);
+		expect(cache.get("a", "moved", ask)).toBe(false);
+		cache.frame(200);
+		cache.get("b", "k", ask);
+		expect(ask).toHaveBeenCalledTimes(3);
+		cache.clear();
+		cache.frame(210);
+		expect(cache.get("b", "k", () => false)).toBe(false);
 	});
 });

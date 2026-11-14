@@ -38,9 +38,15 @@ createCharacterPlugin({
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
   `drifting`, `zoom`, `size`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
   `depth` (how 3D the view is, 0 = flat … 1 = Mode 7), `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
-  off). Each character is placed centered on its screen position
+  off), `occluded` (see below). Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
+- **Behind the ground** (3D view with terrain): when the board's 3D renderer reports what
+  the ground hides (`view3dOcclusionService` in shared, provided by the CSS 3D
+  renderer), a character whose middle is behind a hill or a cliff gets `occluded` in its
+  render props: `"fade"` (draw it faint; set the opacity on the sprite's faces, since
+  opacity on a CSS 3D container flattens it) or `"hide"` (the plugin hides the spot). Its
+  flat shadow fades or hides with it. Without a provider it is always `null`.
 - **Size** (`size` option / `setSize`, only the look): `size` in the render props is the
   screen px to draw the body at. `{ scale: "screen", value: 36 }` (the default) keeps it
   the same on screen at every zoom, like a map pin. `{ scale: "world", value: 24 }`

@@ -10,11 +10,16 @@ import {
 	screenToWorld,
 	shortestAngleDelta,
 	smoothingAlpha,
+	view3dOcclusionService,
 	view3dService,
 	viewportRotation,
 } from "@edv4h/usketch-shared";
 import { createKeyInput } from "./character-input.js";
-import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
+import {
+	CharacterLayer,
+	type CharacterOcclusion,
+	type CharacterView3d,
+} from "./character-layer.js";
 import {
 	blockingHeight,
 	DEFAULT_JUMP,
@@ -197,6 +202,19 @@ export function setupCharacterRuntime(
 		amount: () => view3dService.get(ctx.services)?.amount() ?? 0,
 		subscribe: (listener) => view3dService.get(ctx.services)?.subscribe(listener) ?? (() => {}),
 	};
+	// What the ground hides (a CSS 3D renderer provides it), also looked up per call.
+	let occlusionVersion = 0;
+	const occlusion: CharacterOcclusion = {
+		api: () => view3dOcclusionService.get(ctx.services) ?? null,
+		version: () => occlusionVersion,
+		subscribe: (listener) => {
+			const off = view3dOcclusionService.get(ctx.services)?.subscribe(() => {
+				occlusionVersion++;
+				listener();
+			});
+			return () => off?.();
+		},
+	};
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
 		: null;
@@ -372,7 +390,13 @@ export function setupCharacterRuntime(
 		order: CHARACTER_LAYER_ORDER,
 		fixed: true,
 		render: (rc) => (
-			<CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} view3d={view3d} />
+			<CharacterLayer
+				store={store}
+				viewport={rc.viewport}
+				heightAt={heightAt}
+				view3d={view3d}
+				occlusion={occlusion}
+			/>
 		),
 	});
 

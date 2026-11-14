@@ -77,9 +77,12 @@ export {
 } from "./history/restore.js";
 // 3D view state (Mode 7 etc.) shared across plugins
 export {
+	cameraEye,
 	type GroundProjection,
 	type GroundRayOptions,
+	isOccluded,
 	type Mat4,
+	type OcclusionOptions,
 	type ProjectionCamera,
 	projectStagePoint,
 	projectWorld,
@@ -92,6 +95,7 @@ export {
 	unprojectWorld,
 	type View3dProjection,
 	viewMatrix,
+	type WorldPoint3d,
 } from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
@@ -324,7 +328,16 @@ export {
 	zIndexBeforeAll,
 	zIndexBetween,
 } from "./utils/z-order.js";
-export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";
+export {
+	OCCLUDED_OPACITY,
+	occludedStyle,
+	type View3dApi,
+	type View3dCamera,
+	type View3dOcclusionApi,
+	type View3dOcclusionLook,
+	view3dOcclusionService,
+	view3dService,
+} from "./view-3d.js";
 export {
 	CAMERA_3D_LIMITS,
 	type Camera3d,

@@ -10,6 +10,7 @@ export {
 } from "./css3d-css.js";
 export {
 	CAMERA_HEIGHT_VAR,
+	type Css3dOcclusionMode,
 	type Css3dRendererApi,
 	type Css3dRendererOptions,
 	cameraHeightPx,
@@ -18,20 +19,27 @@ export {
 	DEPTH_STAGE_FIELD,
 	LEGACY_STAGE_ATTR,
 	layerTransform,
+	OCCLUSION_FIELD,
+	projectionCamera,
 	STAGE_ATTR,
 	setupCss3dRenderer,
 } from "./css3d-renderer.js";
 export {
 	type Css3dShapeSource,
+	type Css3dShapesOptions,
 	css3dShapeSourceService,
 	sanitizeCss3dShapeLimits,
 	setupCss3dShapes,
 } from "./css3d-shapes.js";
 export {
 	type Css3dCameraSource,
+	type Css3dChangeSource,
 	Css3dShapesLayer,
 	type Css3dShapesLayerProps,
+	createOcclusionCache,
+	type OcclusionCache,
 	SHAPE_3D_LAYER_ID,
+	shapeTop3d,
 } from "./shapes-layer.js";
 export {
 	type BoxSide,

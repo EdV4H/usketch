@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+	cameraEye,
+	isOccluded,
 	type ProjectionCamera,
 	projectStagePoint,
 	projectWorld,
@@ -200,5 +202,63 @@ describe("tiltCss", () => {
 			transform: "perspective(600px) rotateX(55deg) rotateZ(-12.346deg)",
 			transformOrigin: "50% 45%",
 		});
+	});
+});
+
+describe("the eye and what the ground hides", () => {
+	it("puts the eye on every line of sight: points toward it draw on the same pixel", () => {
+		for (const camera of CAMS) {
+			for (const viewport of VIEWPORTS) {
+				const view: View3dProjection = { viewport, camera, stage: STAGE };
+				const eye = cameraEye(view);
+				for (const p of POINTS.slice(0, 12)) {
+					const s = worldToScreen(p.x, p.y, viewport);
+					const at = unprojectWorld(s.x, s.y, view, 10);
+					if (!at) continue;
+					const a = projectWorld(at.x, at.y, view, 10);
+					// A third of the way to the eye.
+					const t = 1 / 3;
+					const b = projectWorld(
+						at.x + (eye.x - at.x) * t,
+						at.y + (eye.y - at.y) * t,
+						view,
+						10 + (eye.height - 10) * t,
+					);
+					if (!a || !b) continue;
+					expect(b.x).toBeCloseTo(a.x, 3);
+					expect(b.y).toBeCloseTo(a.y, 3);
+				}
+			}
+		}
+	});
+
+	const view: View3dProjection = {
+		viewport: { x: 0, y: 0, zoom: 1 },
+		camera: { pitch: 60, yaw: 0, fov: 600, horizon: 0.45 },
+		stage: STAGE,
+	};
+	// The eye is toward screen-down (+y) from the pivot: a ridge at y = 300 lies between
+	// the eye and a point behind it (smaller y).
+	const ridge = (h: number) => (_x: number, y: number) => (Math.abs(y - 300) < 40 ? h : 0);
+
+	it("hides a point behind a ridge, and not one in front of it or above it", () => {
+		const eye = cameraEye(view);
+		expect(eye.y).toBeGreaterThan(300);
+		expect(isOccluded({ x: 640, y: -200, height: 0 }, view, ridge(200))).toBe(true);
+		expect(isOccluded({ x: 640, y: -200, height: 0 }, view, ridge(0))).toBe(false);
+		expect(isOccluded({ x: 640, y: 380, height: 0 }, view, ridge(200))).toBe(false);
+		expect(isOccluded({ x: 640, y: -200, height: 400 }, view, ridge(200))).toBe(false);
+	});
+
+	it("ignores the ground under the point itself, and stops above the highest ground", () => {
+		const step = (_x: number, y: number) => (y > -202 && y < -198 ? 50 : 0);
+		expect(isOccluded({ x: 640, y: -200, height: 0 }, view, step)).toBe(false);
+		let calls = 0;
+		const counting = (x: number, y: number) => {
+			calls++;
+			return ridge(200)(x, y);
+		};
+		isOccluded({ x: 640, y: -200, height: 100 }, view, counting, { maxHeight: 0 });
+		expect(calls).toBeLessThan(5);
 	});
 });

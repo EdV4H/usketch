@@ -16,9 +16,15 @@ import {
 	type PluginContext,
 	type ShapeTypeView3d,
 	shapeClaims,
+	type View3dOcclusionApi,
 	view3dService,
 } from "@edv4h/usketch-shared";
-import { type Css3dCameraSource, Css3dShapesLayer, SHAPE_3D_LAYER_ID } from "./shapes-layer.js";
+import {
+	type Css3dCameraSource,
+	type Css3dChangeSource,
+	Css3dShapesLayer,
+	SHAPE_3D_LAYER_ID,
+} from "./shapes-layer.js";
 import {
 	type Css3dShapeLimits,
 	type Css3dShapeTypes,
@@ -54,11 +60,16 @@ export function sanitizeCss3dShapeLimits(l: Partial<Css3dShapeLimits> = {}): Css
 	};
 }
 
+export interface Css3dShapesOptions {
+	/** What the ground hides (the renderer's), read on every draw. */
+	occlusion?: () => View3dOcclusionApi | null;
+}
+
 /**
  * Register the 3D shape layer on `ctx` (the CSS 3D renderer does it on setup). Returns its
  * teardown.
  */
-export function setupCss3dShapes(ctx: PluginContext): () => void {
+export function setupCss3dShapes(ctx: PluginContext, options: Css3dShapesOptions = {}): () => void {
 	const tracker = createView3dTracker(ctx.services, ctx.events);
 	const claims = shapeClaims(ctx.services);
 	const claimSource = `usketch-css3d-renderer:shapes#${nextClaimSource++}`;
@@ -101,6 +112,19 @@ export function setupCss3dShapes(ctx: PluginContext): () => void {
 		subscribe: (listener) => tracker.subscribeCamera(listener),
 	};
 
+	// One subscription to the occlusion's changes for every mounted layer.
+	let occlusionVersion = 0;
+	const occlusionChanges: Css3dChangeSource = {
+		get: () => occlusionVersion,
+		subscribe(listener) {
+			const off = options.occlusion?.()?.subscribe(() => {
+				occlusionVersion++;
+				listener();
+			});
+			return () => off?.();
+		},
+	};
+
 	const layer: Layer = {
 		id: SHAPE_3D_LAYER_ID,
 		view3d: "depth",
@@ -121,6 +145,8 @@ export function setupCss3dShapes(ctx: PluginContext): () => void {
 					heightAt={heightAt}
 					onDrawn={onDrawn}
 					camera={camera}
+					occlusion={options.occlusion?.() ?? null}
+					occlusionChanges={occlusionChanges}
 				/>
 			);
 		},
