@@ -4,6 +4,8 @@ import {
 	type HudSettingsDescriptor,
 	type Layer,
 	type PluginContext,
+	type ServiceRegistry,
+	view3dOcclusionService,
 } from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { depthStageRules } from "../css3d-css.js";
@@ -13,6 +15,7 @@ import {
 	DEPTH_STAGE_FIELD,
 	LEGACY_STAGE_ATTR,
 	layerTransform,
+	OCCLUSION_FIELD,
 	STAGE_ATTR,
 	setupCss3dRenderer,
 } from "../css3d-renderer.js";
@@ -22,6 +25,18 @@ const LAYERS: Layer[] = [
 	{ id: "cliffs", order: 1, view3d: "depth", render: () => null },
 	{ id: "hud", order: 2, fixed: true, render: () => null },
 ];
+
+function services(): ServiceRegistry {
+	const map = new Map<string, unknown>();
+	return {
+		provide(key, value) {
+			map.set(key, value);
+			return () => map.delete(key);
+		},
+		get: <T>(key: string) => map.get(key) as T | undefined,
+		has: (key) => map.has(key),
+	};
+}
 
 function fakeCtx(viewport = { x: 0, y: 0, zoom: 1 }) {
 	const handlers = new Map<string, () => void>();
@@ -36,7 +51,7 @@ function fakeCtx(viewport = { x: 0, y: 0, zoom: 1 }) {
 			emit: (name: string, data: unknown) => emitted.push([name, data]),
 		},
 		store: { getViewport: () => viewport, onMutation: () => () => {} },
-		services: {},
+		services: services(),
 	} as unknown as PluginContext;
 	return { ctx, emitted, handlers };
 }
@@ -170,7 +185,10 @@ describe("CSS 3D renderer", () => {
 		};
 		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
 		const d = descriptor as HudSettingsDescriptor | null;
-		expect(d?.fields.map((f) => f.name)).toEqual([DEPTH_STAGE_FIELD]);
+		expect(d?.fields.map((f) => f.name)).toEqual([OCCLUSION_FIELD, DEPTH_STAGE_FIELD]);
+		d?.set(OCCLUSION_FIELD, "hide");
+		expect(r?.api.getOcclusion()).toBe("hide");
+		expect(d?.get(OCCLUSION_FIELD)).toBe("hide");
 		const seen = vi.fn();
 		d?.subscribe(seen);
 		d?.set(DEPTH_STAGE_FIELD, true);
@@ -179,6 +197,81 @@ describe("CSS 3D renderer", () => {
 		expect(seen).toHaveBeenCalledTimes(1);
 		r?.dispose();
 		expect(unregister).toHaveBeenCalled();
+	});
+});
+
+describe("what the ground hides", () => {
+	let container: HTMLDivElement;
+
+	beforeEach(() => {
+		container = document.createElement("div");
+		for (const l of LAYERS) {
+			const el = document.createElement("div");
+			el.setAttribute("data-layer-id", l.id);
+			container.appendChild(el);
+		}
+		document.body.appendChild(container);
+		vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+			width: 1280,
+			height: 800,
+		} as DOMRect);
+	});
+
+	afterEach(() => {
+		container.remove();
+		vi.restoreAllMocks();
+	});
+
+	// A ridge 200 high across y = 300: the eye is toward +y, so it hides points behind it.
+	const ridge = {
+		groundAt: (_x: number, y: number) => (Math.abs(y - 300) < 40 ? 200 : 0),
+		subscribe: () => () => {},
+	};
+
+	it("provides the occlusion while set up, answering from the camera and the ground", () => {
+		const view3d = createView3dCell();
+		const { ctx } = fakeCtx();
+		(ctx as { height: unknown }).height = ridge;
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
+		const occlusion = view3dOcclusionService.get(ctx.services);
+		expect(occlusion).toBeDefined();
+		// Flat: nothing is hidden.
+		expect(occlusion?.hidden(640, -200, 0)).toBe(false);
+		view3d.set({ amount: 1, camera: { pitch: 60, fov: 600, horizon: 0.45 } });
+		expect(occlusion?.hidden(640, -200, 0)).toBe(true);
+		expect(occlusion?.hidden(640, 380, 0)).toBe(false);
+		expect(occlusion?.look()).toBe("fade");
+		r?.api.setOcclusion("hide");
+		expect(occlusion?.look()).toBe("hide");
+		r?.api.setOcclusion("none");
+		expect(occlusion?.hidden(640, -200, 0)).toBe(false);
+		r?.dispose();
+		expect(view3dOcclusionService.get(ctx.services)).toBeUndefined();
+	});
+
+	it("tells its listeners when the setting or the camera changes", () => {
+		const view3d = createView3dCell({ amount: 1 });
+		const { ctx } = fakeCtx();
+		(ctx as { height: unknown }).height = ridge;
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
+		const seen = vi.fn();
+		const off = view3dOcclusionService.get(ctx.services)?.subscribe(seen);
+		r?.api.setOcclusion("hide");
+		view3d.set({ camera: { pitch: 40 } });
+		expect(seen).toHaveBeenCalledTimes(2);
+		off?.();
+		r?.dispose();
+	});
+
+	it("leaves an existing provider alone", () => {
+		const view3d = createView3dCell({ amount: 1 });
+		const { ctx } = fakeCtx();
+		const other = { hidden: () => true, look: () => "hide" as const, subscribe: () => () => {} };
+		view3dOcclusionService.provide(ctx.services, other);
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
+		expect(view3dOcclusionService.get(ctx.services)).toBe(other);
+		r?.dispose();
+		expect(view3dOcclusionService.get(ctx.services)).toBe(other);
 	});
 });
 

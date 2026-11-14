@@ -6,7 +6,14 @@
 // of its own on the GROUND under each character, while the body stands at its feet
 // height — under a 3D view (Mode 7) a jump lifts the body off its shadow; on the flat
 // board (where height can't be seen) it lifts the body up the screen instead.
-import { type Viewport, viewportRotation, worldToScreen, wrapDeg } from "@edv4h/usketch-shared";
+import {
+	OCCLUDED_OPACITY,
+	type View3dOcclusionApi,
+	type Viewport,
+	viewportRotation,
+	worldToScreen,
+	wrapDeg,
+} from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { groundSlope, type HeightAt } from "./character-physics.js";
 import { characterSizePx } from "./character-size.js";
@@ -23,6 +30,21 @@ export interface CharacterView3d {
 }
 
 const NO_VIEW3D: CharacterView3d = { amount: () => 0, subscribe: () => () => {} };
+
+/** What the ground hides in a 3D view (see `view3dOcclusionService` in shared). */
+export interface CharacterOcclusion {
+	/** The provider now, `null` = nothing is hidden. */
+	api(): View3dOcclusionApi | null;
+	/** A counter that moves when the answers may change, and its notifications. */
+	version(): number;
+	subscribe(listener: () => void): () => void;
+}
+
+const NO_OCCLUSION: CharacterOcclusion = {
+	api: () => null,
+	version: () => 0,
+	subscribe: () => () => {},
+};
 
 /**
  * CSS that lays a flat (top-down) sprite along ground whose gradient on screen is
@@ -152,6 +174,13 @@ function Spot({
 				height: 0,
 				pointerEvents: "none",
 				transform: spotTransform(lift, flat),
+				// Behind the ground: not shown, or (a flat shadow only; a body fades its own
+				// faces, as opacity here would flatten it) faint.
+				...(props.occluded === "hide"
+					? { visibility: "hidden" as const }
+					: shadow && props.occluded === "fade"
+						? { opacity: OCCLUDED_OPACITY }
+						: null),
 				// Keep the 3D context down to the renderer's content, so under a 3D view
 				// (Mode 7) a renderer can stand its sprite up out of the ground (e.g.
 				// `rotateX(-pitch)` with the pitch from `view3dService`) instead of having it
@@ -181,15 +210,20 @@ export function CharacterLayer({
 	viewport,
 	heightAt,
 	view3d = NO_VIEW3D,
+	occlusion = NO_OCCLUSION,
 }: {
 	store: CharacterStore;
 	viewport: Viewport;
 	heightAt?: HeightAt;
 	/** The 3D view: characters lean with the slope only while it is (partly) 3D. */
 	view3d?: CharacterView3d;
+	/** What the ground hides: a character behind a hill fades (or isn't shown). */
+	occlusion?: CharacterOcclusion;
 }) {
 	const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
 	const amount = useSyncExternalStore(view3d.subscribe, view3d.amount, view3d.amount);
+	useSyncExternalStore(occlusion.subscribe, occlusion.version, occlusion.version);
+	const occluder = occlusion.api();
 	const renderer = store.getRenderer();
 	if (!renderer) return null; // headless: no look supplied → draw nothing
 	const shadowRenderer = store.getShadowRenderer();
@@ -197,6 +231,10 @@ export function CharacterLayer({
 	const depth = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 0));
 	const rot = viewportRotation(viewport);
 	const size = characterSizePx(state.size, viewport.zoom);
+	// Hidden when the middle of the body is behind the ground.
+	const middle = size / 2 / (viewport.zoom > 0 ? viewport.zoom : 1);
+	const occludedAt = (x: number, y: number, z: number) =>
+		occluder?.hidden(x, y, z + middle) ? occluder.look() : null;
 	// Lean on screen: the world gradient turned with the camera (zoom scales the ground
 	// and the height alike, so it stays a rise per px), scaled by the tuning and the 3D
 	// transition (a lean on the flat board would only squash the sprite).
@@ -254,6 +292,7 @@ export function CharacterLayer({
 				verticalSpeed: r.vz,
 				hovering: r.hovering,
 				hoverGauge: r.hoverGauge,
+				occluded: occludedAt(r.x, r.y, z),
 			},
 		});
 	}
@@ -291,6 +330,7 @@ export function CharacterLayer({
 				verticalSpeed: pose.vz,
 				hovering: pose.hovering,
 				hoverGauge: hoverGaugeOf(state),
+				occluded: occludedAt(pose.x, pose.y, z),
 			},
 		});
 	}

@@ -53,7 +53,17 @@ HUD の「3D の描き方（CSS 3D）」→「奥行きで重ねる（実験）�
 - 傾けない層は邪魔にならない位置へ動かす: 最初の傾けた層より前の層（空）と `ground` の層は奥へ、それ以外（霧・HUD）は手前へ。それぞれの中では層の順を保つ
 - `ground` の層が何かを描いている間は、その下に重なる層（傾けた層も）をさらに奥へ置く。平らなボードでも隠れていたものなので見た目は変わらない
 - キャンバスの背景は一番奥に描き直す。ステージ自身は切り取れない（Chrome では `overflow: clip` で 3D が平らになる）ので、親要素で切り取る
-- 地形（崖・丘）の陰に入った Shape を隠す処理は別（P6b）
+- 標高のメッシュ（canvas）は奥行きで並ばないので、その陰に入ったものは下の「地形の陰」で扱う
+
+## 地形の陰
+
+標高のメッシュは canvas なので、ブラウザは「丘の向こうの看板」を丘の後ろに回せない（丘の上に描いてしまう）。そこで、カメラから見て地面の陰に入ったものを薄くする（既定）か隠す。
+
+- 判定は shared の純関数 `isOccluded(point, view, heightAt)`: 点から目（`cameraEye(view)`、CSS の `perspective()` の視点）までの視線に沿って地面の高さ（`ctx.height` の `groundAt`）を調べ、視線より高い地面があれば陰
+- レンダラーはこの答えを `view3dOcclusionService`（shared）で出す。3D の Shape は上端が陰に入ったら、キャラクターは体の中ほどが入ったら薄くなる。キャラクターの体は描き手（ホスト）が `occluded` を見て面ごとに薄くする（3D の入れ物に opacity を付けると平らになるため）
+- 箱（`box`）は壁と天面を 1 枚ずつ薄くする。種別の自前の 3D 表現（`render3d`）は薄くすると平らになるので、陰では隠す
+- 毎フレームすべてを調べると重いので、答えは 100ms 使い回し、1 フレームで調べ直すのは 40 個まで（`createOcclusionCache`）
+- HUD の「地形の陰」（薄くする / 隠す / そのまま）か `setOcclusion(mode)` で切り替える
 
 ## 3D の Shape
 
@@ -85,7 +95,8 @@ HUD の「3D の描き方（CSS 3D）」→「奥行きで重ねる（実験）�
 | `view3d` | 3D 表示の状態の置き場所。既定はボードのストア（`BoardStore.getView3d`）。古いストアのホストは自前のセルを渡す |
 | `shapes` | 3D の Shape を描くか。既定 `true` |
 | `depthStage` | 奥行きステージをオンで始める。既定 `false` |
-| `hud` | 奥行きステージの切り替えを HUD に出す。既定 `true` |
+| `hud` | 設定（地形の陰・奥行きステージ）を HUD に出す。既定 `true` |
+| `occlusion` | 地形の陰に入ったもの: `"fade"`（既定）/ `"hide"` / `"none"` |
 
 ### `css3dRendererService`
 
@@ -98,6 +109,7 @@ HUD の「3D の描き方（CSS 3D）」→「奥行きで重ねる（実験）�
 | `setDepthLayers(ids \| null)` | 奥行きを持たせる層を決める |
 | `getTiltLayers()` / `getDepthLayers()` | いまの一覧 |
 | `setDepthStage(on)` / `isDepthStage()` | 奥行きステージ（実験）の切り替え |
+| `setOcclusion(mode)` / `getOcclusion()` | 地形の陰に入ったものの見せ方 |
 
 ### `setupCss3dRenderer(ctx, options?)`
 
@@ -110,6 +122,7 @@ HUD の「3D の描き方（CSS 3D）」→「奥行きで重ねる（実験）�
 - `drawDistanceClip(...)` / `drawDistanceOverscanPx(...)`: 描画距離の切り取りと、背景を奥まで敷く幅
 - `tiltLayerRules(ids, options)`: 層を傾ける CSS
 - `depthStageRules(options)`: 奥行きステージの CSS
+- `projectionCamera(state, zoom)`: 描いているカメラを shared の射影関数の形で
 - 3D の Shape の配置: `selectShapes3d` / `shapePose` / `poseBox` / `poseTransform` / `render3dFrame` / `boxWalls` / `shadowStyle` など
 
 ## 描画の仕組み

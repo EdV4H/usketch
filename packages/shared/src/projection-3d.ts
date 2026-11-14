@@ -311,3 +311,71 @@ export function viewMatrix(view: View3dProjection, origin: Point = { x: 0, y: 0 
 	]);
 	return new Float32Array(mul(clip, mul(pitchM, mul(yawM, toStage))));
 }
+
+/** A world point with its height (world units). */
+export interface WorldPoint3d {
+	x: number;
+	y: number;
+	height: number;
+}
+
+/**
+ * Where the eye of a view is, as a world point and height: the CSS `perspective()` eye,
+ * `fov` px in front of the pivot along the view. Every point on the line from it to a
+ * world point is drawn on the same screen pixel. Pure.
+ */
+export function cameraEye(view: View3dProjection): WorldPoint3d {
+	const { camera: cam, stage, viewport } = view;
+	const o = tiltOrigin(cam, stage);
+	// The eye in the tilted frame is (0, 0, fov): back through rotateX(pitch) and the yaw.
+	const y1 = cam.fov * Math.sin(rad(cam.pitch));
+	const h = cam.fov * Math.cos(rad(cam.pitch));
+	const cosYaw = Math.cos(rad(cam.yaw));
+	const sinYaw = Math.sin(rad(cam.yaw));
+	const p = screenToWorld(o.x + y1 * sinYaw, o.y + y1 * cosYaw, viewport);
+	return { x: p.x, y: p.y, height: (h + (cam.heightPx ?? 0)) / viewport.zoom };
+}
+
+/** Options for {@link isOccluded}. */
+export interface OcclusionOptions {
+	/** Ground samples along the line of sight (default 48), denser near the point. */
+	samples?: number;
+	/** How far (world units) the ground must rise above the line to hide it. Default 1. */
+	clearance?: number;
+	/** Ignore the ground this close to the point (world units, default 4): its own foot. */
+	near?: number;
+	/** Highest ground there is (world units), if known: the search stops above it. */
+	maxHeight?: number;
+}
+
+/**
+ * Whether the ground (`heightAt(x, y)` in world units, e.g. `BoardHeightApi.groundAt`)
+ * hides a world point `height` units up from the view's eye: the line of sight from the
+ * point to {@link cameraEye} passes under the ground somewhere. Pure.
+ */
+export function isOccluded(
+	point: WorldPoint3d,
+	view: View3dProjection,
+	heightAt: (x: number, y: number) => number,
+	opts: OcclusionOptions = {},
+): boolean {
+	const eye = cameraEye(view);
+	const dx = eye.x - point.x;
+	const dy = eye.y - point.y;
+	const dh = eye.height - point.height;
+	const run = Math.hypot(dx, dy);
+	if (!(run > 0) || !Number.isFinite(run)) return false;
+	const samples = Math.max(1, Math.floor(opts.samples ?? 48));
+	const clearance = opts.clearance ?? 1;
+	const near = opts.near ?? 4;
+	const ceiling = opts.maxHeight ?? Number.POSITIVE_INFINITY;
+	for (let i = 1; i <= samples; i++) {
+		const f = i / samples;
+		const t = f * f;
+		if (t * run < near) continue;
+		const lineHeight = point.height + dh * t;
+		if (dh > 0 && lineHeight > ceiling) return false;
+		if (heightAt(point.x + dx * t, point.y + dy * t) > lineHeight + clearance) return true;
+	}
+	return false;
+}

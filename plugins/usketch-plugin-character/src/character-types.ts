@@ -1,5 +1,6 @@
 // Public types. The plugin owns NO visuals: it computes where each character is
 // and which way it faces, then hands those props to a host-supplied renderer.
+import type { View3dOcclusionLook } from "@edv4h/usketch-shared";
 import type { ReactNode } from "react";
 import type { ControlScheme } from "./character-physics.js";
 
@@ -77,6 +78,13 @@ export interface CharacterRenderProps {
 	 * `null` while hovering is off (also from clients that don't send it).
 	 */
 	hoverGauge: number | null;
+	/**
+	 * Behind the ground in a 3D view (a hill or a cliff between it and the camera):
+	 * `"fade"` = draw it faint (apply the opacity to the sprite's faces, not to a 3D
+	 * container, which it would flatten), `"hide"` = the plugin doesn't show it. Absent /
+	 * `null` = in view.
+	 */
+	occluded?: View3dOcclusionLook | null;
 }
 
 /**

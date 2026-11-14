@@ -15,14 +15,21 @@
 // that mount later. The camera height lowers every tilted layer through one CSS variable,
 // so a follower can move it every frame without rewriting the sheet.
 import {
+	boardHeight,
 	defineService,
+	isOccluded,
 	type LayerView3d,
 	type PluginContext,
+	type ProjectionCamera,
+	type StageSize,
 	tiltCss,
 	type UsketchPlugin,
 	type View3dCell,
+	type View3dOcclusionApi,
+	type View3dProjection,
 	type View3dState,
 	view3dCellOf,
+	view3dOcclusionService,
 } from "@edv4h/usketch-shared";
 import {
 	depthStageRules,
@@ -61,7 +68,18 @@ export interface Css3dRendererApi {
 	 */
 	setDepthStage(on: boolean): void;
 	isDepthStage(): boolean;
+	/**
+	 * How standing things (3D shapes, characters) behind the ground (a hill, a cliff) are
+	 * drawn: faded (default), not drawn, or as if nothing hid them (`none`).
+	 */
+	setOcclusion(mode: Css3dOcclusionMode): void;
+	getOcclusion(): Css3dOcclusionMode;
 }
+
+/** See {@link Css3dRendererApi.setOcclusion}. */
+export type Css3dOcclusionMode = "fade" | "hide" | "none";
+
+const OCCLUSION_MODES: readonly Css3dOcclusionMode[] = ["fade", "hide", "none"];
 
 /** The renderer on `ctx.services` (one per board). */
 export const css3dRendererService = defineService<Css3dRendererApi>("usketch-css3d-renderer");
@@ -80,8 +98,17 @@ export interface Css3dRendererOptions {
 	shapes?: boolean;
 	/** Start with the depth stage on (see {@link Css3dRendererApi.setDepthStage}). Default `false`. */
 	depthStage?: boolean;
-	/** Offer the depth stage as a HUD setting. Default `true`. */
+	/** Offer the renderer's settings on the HUD. Default `true`. */
 	hud?: boolean;
+	/** How things behind the ground are drawn (see {@link Css3dRendererApi.setOcclusion}). Default `"fade"`. */
+	occlusion?: Css3dOcclusionMode;
+}
+
+/** The camera a tilted layer is drawn with, as the projection functions take it. Pure. */
+export function projectionCamera(state: View3dState, zoom: number): ProjectionCamera {
+	const a = Math.min(1, Math.max(0, state.amount));
+	const { pitch, fov, horizon } = state.camera;
+	return { pitch: pitch * a, yaw: 0, fov, horizon, heightPx: cameraHeightPx(state, zoom) };
 }
 
 /** The layer ids that declare one of `kinds`, in drawing order. */
@@ -146,7 +173,15 @@ export function setupCss3dRenderer(
 	if (!cell) return null;
 	let tiltOverride: readonly string[] | null = options.tiltLayerIds ?? null;
 	let depthStage = options.depthStage === true;
-	const depthStageListeners = new Set<() => void>();
+	// Notified when a HUD setting changes.
+	const settingsListeners = new Set<() => void>();
+	let occlusionMode: Css3dOcclusionMode = OCCLUSION_MODES.includes(
+		options.occlusion as Css3dOcclusionMode,
+	)
+		? (options.occlusion as Css3dOcclusionMode)
+		: "fade";
+	// The stage's size as last measured (by `draw`), for the occlusion's projection.
+	let stageSize: StageSize | null = null;
 	// The stage's parent clips while the depth stage leaves the stage unclipped: its own
 	// inline `overflow`, to put back.
 	let clippedParent: { el: HTMLElement; overflow: string } | null = null;
@@ -241,7 +276,9 @@ export function setupCss3dRenderer(
 		const { transform, transformOrigin } = layerTransform(state);
 		// The clip is in world units → px through the zoom and the stage height.
 		const zoom = ctx.store.getViewport().zoom;
-		const heightPx = container.getBoundingClientRect().height;
+		const rect = container.getBoundingClientRect();
+		const heightPx = rect.height;
+		stageSize = { width: rect.width, height: rect.height };
 		const clip = drawDistanceClip(state.drawDistance, zoom, heightPx, state.amount);
 		const overscan = drawDistanceOverscanPx(state.drawDistance, zoom, heightPx);
 		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
@@ -335,7 +372,41 @@ export function setupCss3dRenderer(
 	const offLayers = ctx.events.on("layers:changed", onResize);
 
 	sync();
-	const disposeShapes = options.shapes === false ? null : setupCss3dShapes(ctx);
+
+	// What the ground hides: the terrain mesh is a canvas the browser can't sort against
+	// the standing things, so they ask (see `View3dOcclusionApi`).
+	const height = () => ctx.height ?? boardHeight(ctx.services);
+	const groundAt = (x: number, y: number): number => height().groundAt(x, y);
+	const projection = (): View3dProjection | null => {
+		const state = cell.get();
+		if (!(state.amount > 0) || !stageSize || !(stageSize.width > 0)) return null;
+		const viewport = ctx.store.getViewport();
+		return { viewport, camera: projectionCamera(state, viewport.zoom), stage: stageSize };
+	};
+	const occlusion: View3dOcclusionApi = {
+		hidden(x, y, h) {
+			if (occlusionMode === "none") return false;
+			const view = projection();
+			if (!view || !(view.camera.pitch > 0)) return false;
+			return isOccluded({ x, y, height: h }, view, groundAt);
+		},
+		look: () => (occlusionMode === "hide" ? "hide" : "fade"),
+		subscribe(listener) {
+			settingsListeners.add(listener);
+			const offState = cell.subscribe(listener);
+			const offHeight = height().subscribe(listener);
+			return () => {
+				settingsListeners.delete(listener);
+				offState();
+				offHeight();
+			};
+		},
+	};
+	const unprovideOcclusion = view3dOcclusionService.get(ctx.services)
+		? null
+		: view3dOcclusionService.provide(ctx.services, occlusion);
+	const disposeShapes =
+		options.shapes === false ? null : setupCss3dShapes(ctx, { occlusion: () => occlusion });
 
 	const api: Css3dRendererApi = {
 		isDrawing: drawing,
@@ -353,21 +424,28 @@ export function setupCss3dRenderer(
 			if (on === depthStage) return;
 			depthStage = on;
 			sync();
-			for (const fn of [...depthStageListeners]) fn();
+			for (const fn of [...settingsListeners]) fn();
 		},
 		isDepthStage: () => depthStage,
+		setOcclusion(mode) {
+			if (!OCCLUSION_MODES.includes(mode) || mode === occlusionMode) return;
+			occlusionMode = mode;
+			for (const fn of [...settingsListeners]) fn();
+		},
+		getOcclusion: () => occlusionMode,
 	};
 
 	const unregisterHud =
 		options.hud === false || !ctx.hud
 			? null
-			: registerCss3dRendererHud(ctx, api, depthStageListeners);
+			: registerCss3dRendererHud(ctx, api, settingsListeners);
 
 	return {
 		api,
 		dispose: () => {
 			unregisterHud?.();
-			depthStageListeners.clear();
+			unprovideOcclusion?.();
+			settingsListeners.clear();
 			disposeShapes?.();
 			clear();
 			styleEl?.remove();
@@ -382,8 +460,10 @@ export function setupCss3dRenderer(
 
 /** HUD field name of the depth stage toggle. */
 export const DEPTH_STAGE_FIELD = "depthStage";
+/** HUD field name of the occlusion choice. */
+export const OCCLUSION_FIELD = "occlusion";
 
-/** The renderer's HUD settings (the depth stage toggle). Returns the unregister. */
+/** The renderer's HUD settings. Returns the unregister. */
 function registerCss3dRendererHud(
 	ctx: PluginContext,
 	api: Css3dRendererApi,
@@ -393,10 +473,27 @@ function registerCss3dRendererHud(
 		id: "usketch-css3d-renderer:settings",
 		label: "3D の描き方（CSS 3D）",
 		order: 15,
-		fields: [{ name: DEPTH_STAGE_FIELD, label: "奥行きで重ねる（実験）", type: "boolean" }],
-		get: (name) => (name === DEPTH_STAGE_FIELD ? api.isDepthStage() : undefined),
+		fields: [
+			{
+				name: OCCLUSION_FIELD,
+				label: "地形の陰",
+				type: "enum",
+				options: [
+					{ value: "fade", label: "薄くする" },
+					{ value: "hide", label: "隠す" },
+					{ value: "none", label: "そのまま" },
+				],
+			},
+			{ name: DEPTH_STAGE_FIELD, label: "奥行きで重ねる（実験）", type: "boolean" },
+		],
+		get: (name) => {
+			if (name === DEPTH_STAGE_FIELD) return api.isDepthStage();
+			if (name === OCCLUSION_FIELD) return api.getOcclusion();
+			return undefined;
+		},
 		set: (name, value) => {
 			if (name === DEPTH_STAGE_FIELD) api.setDepthStage(value === true);
+			if (name === OCCLUSION_FIELD) api.setOcclusion(value as Css3dOcclusionMode);
 		},
 		subscribe: (listener) => {
 			listeners.add(listener);

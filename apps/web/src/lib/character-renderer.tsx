@@ -8,6 +8,7 @@
 // a small ring beside the body shows the hover gauge (only while hovering or refilling).
 // `renderCharacterShadow` is the round shadow left on the ground under a jumping character.
 import type { CharacterAppearance, CharacterRenderProps } from "@edv4h/usketch-plugin-character";
+import { OCCLUDED_OPACITY } from "@edv4h/usketch-shared";
 
 /** Stable hue per user so each player keeps a recognizable color. */
 export function characterColor(seed: string): string {
@@ -171,11 +172,14 @@ function CarBox({
 	size,
 	pitch,
 	roll,
+	opacity,
 }: {
 	color: string;
 	size: number;
 	pitch: number;
 	roll: number;
+	/** Set on each face (opacity on the box would flatten it). */
+	opacity?: number;
 }) {
 	const w = size * CAR_WIDTH;
 	const l = size * CAR_LENGTH;
@@ -210,6 +214,7 @@ function CarBox({
 						background: color,
 						boxShadow: `inset 0 0 0 9999px rgba(0,0,0,${WALL_SHADE[wall.side]})`,
 						backfaceVisibility: "hidden",
+						opacity,
 					}}
 				>
 					<WallDetail side={wall.side} h={h} />
@@ -225,6 +230,7 @@ function CarBox({
 					borderRadius: size * 0.06,
 					background: color,
 					transform: `translateZ(${h}px)`,
+					opacity,
 				}}
 			>
 				{/* Windshield (front) and rear window. */}
@@ -318,6 +324,7 @@ export function renderCharacter(props: CharacterRenderProps) {
 	const size = props.size;
 	const car = isCar(props);
 	// The gauge only while it matters: hovering, or refilling after a hover.
+	const faded = props.occluded === "fade";
 	const gauge =
 		props.hoverGauge !== null && (props.hovering || props.hoverGauge < 1) ? props.hoverGauge : null;
 	return (
@@ -330,6 +337,8 @@ export function renderCharacter(props: CharacterRenderProps) {
 				// (its shadow is the ground shadow's).
 				filter: car ? undefined : "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
 				transformStyle: car ? "preserve-3d" : undefined,
+				// Behind a hill: the flat pawn fades whole, the car box face by face.
+				opacity: !car && faded ? OCCLUDED_OPACITY : undefined,
 			}}
 		>
 			{props.hovering && <HoverGlow size={size} />}
@@ -342,7 +351,13 @@ export function renderCharacter(props: CharacterRenderProps) {
 						transformStyle: "preserve-3d",
 					}}
 				>
-					<CarBox color={color} size={size} pitch={props.pitch} roll={props.roll} />
+					<CarBox
+						color={color}
+						size={size}
+						pitch={props.pitch}
+						roll={props.roll}
+						opacity={faded ? OCCLUDED_OPACITY : undefined}
+					/>
 				</div>
 			) : (
 				<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>
