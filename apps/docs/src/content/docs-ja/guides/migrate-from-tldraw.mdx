@@ -16,7 +16,7 @@ tldraw v2 は 2024 年に非自由ライセンス層を導入し、寛容なラ�
 - カスタム tool のための `class MyTool extends StateNode`
 - `editor.createShape(...)` / `editor.updateShapes(...)` を呼ぶコード
 
-入門チュートリアルではない — uSketch を初めて書く人は [Shape プラグイン作成ガイド](./shape-plugin) と [Tool プラグイン作成ガイド](./tool-plugin) から始めてほしい。両ライブラリで共有されない機能（tldraw の共同編集 presence / AI agent / 独自 `.tldr` フォーマット import 等）もスコープ外。
+入門チュートリアルではない — uSketch を初めて書く人は [Shape プラグイン作成ガイド](../shape-plugin/) と [Tool プラグイン作成ガイド](../tool-plugin/) から始めてほしい。両ライブラリで共有されない機能（tldraw の共同編集 presence / AI agent / 独自 `.tldr` フォーマット import 等）もスコープ外。
 
 ## 概念の対応
 
@@ -176,7 +176,7 @@ export const cardPlugin: UsketchPlugin = {
 2 つのパターンを抑えておく:
 
 - **ラッパークラスがない。** `ShapeDefinition` はオブジェクトリテラル、`this` も無い。state（キャッシュ・タイマー）は `setup()` クロージャに置く。
-- **`ShapeData` を extension interface にキャストする** （`render` / `hitTest` / `resize` の中で）。プラグイン固有フィールドを型安全に扱える。[Shape プラグイン作成ガイド](./shape-plugin) の `as RectangleShapeData` パターンと同じ。
+- **`ShapeData` を extension interface にキャストする** （`render` / `hitTest` / `resize` の中で）。プラグイン固有フィールドを型安全に扱える。[Shape プラグイン作成ガイド](../shape-plugin/) の `as RectangleShapeData` パターンと同じ。
 
 ### 手順 2. TLBaseShape の props → フラットな ShapeData
 
@@ -211,7 +211,7 @@ interface CardShapeData extends ShapeData {
 | `meta` | `TMeta` | アプリケーションデータ（後述） |
 | `createdAt`、`updatedAt` | `number?` | ミリ秒タイムスタンプ |
 
-ジオメトリでない値（`employeeId`、外部の `versionId` 等）は `meta` に入れる。レガシー移行用の `x-*` エスケープハッチもあるが、新規コードでは `meta` を使う。詳しくは [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-shapes) を参照。
+ジオメトリでない値（`employeeId`、外部の `versionId` 等）は `meta` に入れる。レガシー移行用の `x-*` エスケープハッチもあるが、新規コードでは `meta` を使う。詳しくは [Shape System → Extending shapes](../../../concepts/shape-system/#extending-shapes) を参照。
 
 ### 手順 3. createShapes → store.addShape + commands
 
@@ -374,7 +374,7 @@ function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 }
 ```
 
-複雑な遷移がある場合、あるいはビルトイン select tool と drag / resize / rotate 挙動を共有したい場合は `@edv4h/usketch-tool-helpers` を使う。`startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` は tldraw `StateNode` ライブラリの提供する大部分をカバーする。詳しくは Tool プラグイン作成ガイドの [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) を参照。
+複雑な遷移がある場合、あるいはビルトイン select tool と drag / resize / rotate 挙動を共有したい場合は `@edv4h/usketch-tool-helpers` を使う。`startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` は tldraw `StateNode` ライブラリの提供する大部分をカバーする。詳しくは Tool プラグイン作成ガイドの [Reusable Session Helpers](../tool-plugin/#再利用可能な-session-ヘルパー) を参照。
 
 ### 手順 3. Inputs API
 
@@ -699,7 +699,7 @@ export const youtubeEmbedPlugin: UsketchPlugin = {
 };
 ```
 
-解決は single-winner ルール（`order` 最大が勝ち、同値は last-registered が勝つ）。詳しくは [External Content](./external-content) を参照。
+解決は single-winner ルール（`order` 最大が勝ち、同値は last-registered が勝つ）。詳しくは [External Content](../external-content/) を参照。
 
 ## Selection UI の差し替え
 
@@ -717,7 +717,7 @@ const app = await createApp({
 });
 ```
 
-プラグインも `ctx.ui.registerSelectionForeground({ id, priority, render })` で opt-in できる。registry は priority 最大のエントリを選び、同値は last-registered が勝つ。`@edv4h/usketch-plugin-tool-select` が priority 0 でデフォルトを自己登録する。詳しくは [Selection Foreground](./selection-foreground) を参照。
+プラグインも `ctx.ui.registerSelectionForeground({ id, priority, render })` で opt-in できる。registry は priority 最大のエントリを選び、同値は last-registered が勝つ。`@edv4h/usketch-plugin-tool-select` が priority 0 でデフォルトを自己登録する。詳しくは [Selection Foreground](../selection-foreground/) を参照。
 
 ## よくある落とし穴
 
@@ -821,10 +821,11 @@ group 化された shape の親 / 子 / connector cleanup はすでに `@edv4h/u
 
 ## 次に読むもの
 
-- [Shape プラグイン作成ガイド](./shape-plugin) — `ShapeDefinition` と描画 tool パターンの正典リファレンス
-- [Tool プラグイン作成ガイド](./tool-plugin) — phase 変数、ライフサイクル、`@edv4h/usketch-tool-helpers` セッション
-- [Selection Foreground](./selection-foreground) — selection chrome を独自 React コンポーネントで差し替え
-- [External Content](./external-content) — drop / paste / URL ハンドラを priority 解決で登録
-- [Third-Party Plugin Authoring](./third-party-plugin) — uSketch plugin を独立 npm パッケージとして配布
+- [Shape プラグイン作成ガイド](../shape-plugin/) — `ShapeDefinition` と描画 tool パターンの正典リファレンス
+- [Tool プラグイン作成ガイド](../tool-plugin/) — phase 変数、ライフサイクル、`@edv4h/usketch-tool-helpers` セッション
+- [Selection Foreground](../selection-foreground/) — selection chrome を独自 React コンポーネントで差し替え
+- [External Content](../external-content/) — drop / paste / URL ハンドラを priority 解決で登録
+- [Third-Party Plugin Authoring](../third-party-plugin/) — uSketch plugin を独立 npm パッケージとして配布
+- [Domain Design プラグイン](../domain-design-plugin/) — これらのパターンを一通り使った組み込みプラグイン
 
 このガイドでカバーしていない tldraw 概念があれば issue / pull request を歓迎する — 読者からの移行ノートがこのドキュメントを精度高く保つ最良の手段。

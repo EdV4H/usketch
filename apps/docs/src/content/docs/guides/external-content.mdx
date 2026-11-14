@@ -4,7 +4,7 @@ description: Plug into how the canvas reacts to dropped files, pasted URLs, and 
 order: 24
 ---
 
-When users drop a file onto the canvas, paste a URL, or paste an SVG snippet, your app usually wants to do something domain-specific: turn a YouTube URL into an embed shape, turn an image file into an image shape, turn an SVG paste into a vector asset, and so on. The **external content** API lets plugins and apps register handlers for each kind of incoming content, with the same priority + last-wins resolution used by the [selection foreground API](./selection-foreground).
+When users drop a file onto the canvas, paste a URL, or paste an SVG snippet, your app usually wants to do something domain-specific: turn a YouTube URL into an embed shape, turn an image file into an image shape, turn an SVG paste into a vector asset, and so on. The **external content** API lets plugins and apps register handlers for each kind of incoming content, with the same priority + last-wins resolution used by the [selection foreground API](../selection-foreground/).
 
 ## When to use this API
 

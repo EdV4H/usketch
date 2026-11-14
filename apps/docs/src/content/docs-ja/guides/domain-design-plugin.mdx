@@ -1,0 +1,135 @@
+---
+title: Domain Design プラグイン
+description: 組み込みの DDD プラグインで、戦略・戦術レベルのドメインモデルを uSketch のボードに描く。
+order: 35
+---
+
+`@edv4h/usketch-plugin-domain-design` は、uSketch のボード上に **DDD（ドメイン駆動設計）** の図を描くための公式プラグインです。**戦略レベル**（Bounded Context、Context Map）と**戦術レベル**（Aggregate、ClassBox、関係の矢印）の両方を 1 つのプラグインで扱えます。
+
+このページでは、プラグインで何が描けるか、どう使うか、そしてコアの uSketch モデルをきれいに保つためにドメイン固有のデータをどこに置いているかを説明します。
+
+## 描けるもの
+
+プラグインは **4 種類の Shape** と **描画ツール**（`domain-draw`、ショートカット **d**）を登録します。
+
+### 戦略レベル
+
+| Shape type | 用途 |
+|---|---|
+| `domain-bounded-context` | Bounded Context の境界。名前、担当チーム、Core / Supporting / Generic の分類を持つ。 |
+
+### 戦術レベル
+
+| Shape type | 用途 |
+|---|---|
+| `domain-aggregate` | Aggregate Root のコンテナ（ステレオタイプのラベルとルートエンティティ名を持つ角丸の楕円）。 |
+| `domain-class-box` | ステレオタイプ（Entity / ValueObject / Service / Repository / DomainEvent / Factory）、クラス名、属性、メソッドを持つクラスボックス。 |
+
+### コネクタ
+
+`domain-connector` は**1 つの Shape type** で、2 つの Shape（BoundedContext / Aggregate / ClassBox）にアンカーし、見た目は `meta.domainKind` + `meta.relation` で決まります。
+
+| `domainKind` | relation の選択肢 | 用途 |
+|---|---|---|
+| `context-map` | Customer/Supplier, Conformist, ACL, Shared Kernel, OHS, Partnership, Published Language, Separate Ways | 戦略レベルの Context Map の関係 |
+| `tactical` | inheritance, realization, composition, aggregation, association, dependency | 戦術レベルのクラス間の関係 |
+
+コネクタは**アンカー対応**です。始点・終点の Shape に吸着し、Shape を動かすと追従します。カスケード削除も自動で、つながった Shape を消すとコネクタも消えます。
+
+> **注意:** コネクタの始点・終点は描いた時点で固定されます。端点ハンドルによる付け替え（端点を別の Shape へドラッグする）は `domain-connector` ではまだ使えません。端点を変えたいときはコネクタを消して描き直してください。下の「制限事項」にも挙げています。
+
+## インストール
+
+プラグインを `plugins` 配列に足します。
+
+```tsx
+import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createApp } from "@edv4h/usketch-core";
+
+createApp({
+  plugins: [
+    /* ...既存のプラグイン... */
+    createDomainDesignPlugin(),
+  ],
+});
+```
+
+ツールバーに `domain-draw` ツールが出ます。選ぶと、いま選んでいるサブタイプを canvas 上のドラッグで描けます。
+
+## サブタイプの切り替え
+
+複数の Shape サブタイプをまとめたツールは、**サブタイプ選択イベント**を使います。プラグインは Control HUD に `domain-design:subtype` アクションを登録しており、これがイベントを emit します。独自のツールバーやピッカー UI からは直接 emit できます。
+
+```ts
+ctx.events.emit("domain-design:select-subtype", {
+  type: "domain-class-box", // DOMAIN_TYPES.* のいずれか
+});
+```
+
+## インライン編集
+
+ドメインの Shape は**その場で編集**できます。Shape をダブルクリックします。
+
+- `domain-bounded-context` — コンテキスト名を 1 行で編集。
+- `domain-aggregate` — Aggregate Root 名を 1 行で編集。
+- `domain-class-box` — 3 つのセクション（クラス名 / 属性 / メソッド）を編集し、ドロップダウンからステレオタイプを選ぶ。
+
+**Enter** か外側のクリックで確定、**Escape** で取り消します。確定はコマンドシステムを通るので、Undo / Redo できます。
+
+## ドメインデータの置き場所
+
+固有のフィールドを `ShapeData` に直接置く古いプラグイン（`text`、`connector` など）と違い、このプラグインはドメイン固有の状態をすべて **`ShapeData<TMeta>` の `meta`** フィールドに保存します。これは [Shape システムのドキュメント](../../concepts/shape-system/)が推奨している契約です。
+
+```ts
+import type { ShapeData } from "@edv4h/usketch-shared";
+
+export interface ClassBoxMeta {
+  className: string;
+  stereotype: "Entity" | "ValueObject" | "Service" | "Repository" | "DomainEvent" | "Factory";
+  attributes: string[];
+  methods: string[];
+}
+
+export type ClassBoxShape = ShapeData<ClassBoxMeta>;
+```
+
+これにより次の状態が保たれます。
+
+- **コアの `ShapeData`** はきれいなまま — `id`、`type`、`x/y/width/height`、`style`、`rotation`、`zIndex` など。
+- **プラグインの型**は分離される — `ClassBoxMeta` は `domain-design` のもの。他のプラグイン・シリアライザ・インスペクタは、必要なら `shape.meta` から読める。
+
+このプラグインは汎用の `meta` パターンを全面的に使った**最初の公式プラグイン**で、新しいプラグインの参考実装になることを意図しています。
+
+### 自分のコードから meta を読む
+
+Shape の meta を型付きで安全に読むには、export されている `readMeta` ヘルパーを使います。
+
+```ts
+import { type ClassBoxMeta, readMeta } from "@edv4h/usketch-plugin-domain-design";
+
+const meta = readMeta<ClassBoxMeta>(shape);
+console.log(meta.className, meta.attributes);
+```
+
+このヘルパーは `shape.meta` を型安全に包んだだけのもので、`undefined` / `Partial` の境界を扱うので、呼び出し側でキャストを書かずに済みます。
+
+## プラグインを拡張する
+
+よくある拡張:
+
+- **ステレオタイプを足す** — `ClassStereotype` の union を広げ、`class-box.tsx` の色マップを更新する。
+- **Context Map の関係を足す** — `ContextMapRelation` と `RELATION_LABEL` テーブルを広げる。
+- **自動レイアウト** — すべての `domain-bounded-context` Shape を読んでグリッドに詰める（別プラグインとして）。
+
+## 制限事項（MVP）
+
+- インライン編集は Shape 単位のフィールドだけが対象です。relation / 多重度 / upstream は、`domain-connector` を選んだときに出るコネクタのプロパティバーで編集します。
+- **コネクタ上でのラベルの直接編集**は今後の対応です。今はプロパティバーのラベル入力を使ってください。
+- `domain-connector` の**端点ハンドルによる付け替え**は未実装です。始点・終点を変えるにはコネクタを作り直してください。
+- Control HUD の `domain-design:subtype` アクション以外の専用ツールバーピッカーはホストアプリ側の担当です。サブタイプは `domain-design:select-subtype` を emit して切り替えます。
+
+## 関連ページ
+
+- [Shape システム概要](../../concepts/shape-system/) — `meta` を含む契約。
+- [シェイププラグインを作る](../shape-plugin/) — 独自のドメイン記法を作る。
+- [ツールプラグインを作る](../tool-plugin/) — 独自の描画ツールを作る。
