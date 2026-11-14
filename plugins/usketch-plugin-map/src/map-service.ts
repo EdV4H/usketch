@@ -20,8 +20,10 @@ import {
 	enableInfiniteTerrain,
 	getInfiniteGen,
 	getInfiniteSeed,
+	type InfiniteRegionOptions,
 	isInfiniteTerrainEnabled,
 	setInfiniteGen,
+	setInfiniteRegion,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 import type { ReactiveStore } from "./reactive-store.js";
@@ -41,13 +43,19 @@ export interface MapApi {
 	disableInfiniteTerrain(): void;
 	/** Current effective seed, or `null` when disabled. */
 	getInfiniteSeed(): number | null;
-	/** The board's generation params (scale, seaLevel…), or `null` when disabled. */
-	getInfiniteGen(): BaseGenParams | null;
 	/**
-	 * Change the generation params (`scale` / `seaLevel`) of the enabled terrain —
-	 * re-generates the world. Returns `false` (no-op) while the terrain is off.
+	 * The board's generation params (scale, seaLevel…): in use while enabled, else
+	 * the ones turning it on will use.
+	 */
+	getInfiniteGen(): BaseGenParams;
+	/**
+	 * Change the generation params (`scale` / `seaLevel`). Re-generates the world
+	 * while on, else records them for turning it on. `false` on a board with no
+	 * tilemap yet.
 	 */
 	setInfiniteGen(gen: BaseGenOptions): boolean;
+	/** {@link setInfiniteGen} by region size + sea level, clamped (see setInfiniteRegion). */
+	setInfiniteRegion(opts: InfiniteRegionOptions): boolean;
 	isInfiniteTerrainEnabled(): boolean;
 	/** A number enables/re-seeds, `null` disables. */
 	setInfiniteSeed(seed: number | null): void;
@@ -99,6 +107,7 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 		getInfiniteSeed: () => getInfiniteSeed(store),
 		getInfiniteGen: () => getInfiniteGen(store),
 		setInfiniteGen: (gen) => setInfiniteGen(store, gen),
+		setInfiniteRegion: (opts) => setInfiniteRegion(store, opts),
 		isInfiniteTerrainEnabled: () => isInfiniteTerrainEnabled(store),
 		setInfiniteSeed: (seed) => setInfiniteSeed(store, seed),
 		getTerritory: () => snapshot().territory,

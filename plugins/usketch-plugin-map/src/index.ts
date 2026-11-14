@@ -41,6 +41,7 @@ export {
 	type BaseGenParams,
 	baseTerrainAt,
 	DEFAULT_BASE_GEN,
+	REGION_SIZE_RANGE,
 	regionSizeOf,
 	scaleForRegionSize,
 } from "./base-terrain.js";
@@ -69,8 +70,10 @@ export {
 	enableInfiniteTerrain,
 	getInfiniteGen,
 	getInfiniteSeed,
+	type InfiniteRegionOptions,
 	isInfiniteTerrainEnabled,
 	setInfiniteGen,
+	setInfiniteRegion,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 export { RELIEF_LAYER_ID, reliefCellRange } from "./map-relief-layer.js";

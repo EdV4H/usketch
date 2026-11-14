@@ -32,6 +32,8 @@ interface Beacon {
 const EMPTY_CELLS: Cells = {};
 const EMPTY_HAND_PAINT: Record<string, true> = {};
 const cache = new WeakMap<Cells, Map<string, Territory>>();
+/** Results kept per `cells` object (see computeTerritory). */
+const MAX_SIGS_PER_CELLS = 8;
 
 function findBaseMap(store: BoardStore): BaseMapShapeData | undefined {
 	for (const [, s] of store.getShapes()) if (isBaseMap(s)) return s;
@@ -182,6 +184,9 @@ export function computeTerritory(
 	const cached = bySig.get(sig);
 	if (cached) return cached;
 	const result = build(beacons, handPaint, t, exclude, sampler);
+	// The same `cells` can outlive many seed / gen / beacon changes (e.g. an unpainted
+	// infinite board while its sliders move), so keep only the last few results.
+	if (bySig.size >= MAX_SIGS_PER_CELLS) bySig.delete(bySig.keys().next().value as string);
 	bySig.set(sig, result);
 	return result;
 }

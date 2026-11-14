@@ -2,7 +2,6 @@
 // between the palette and the map tool. Module-scoped, app-local (not synced).
 import { useSyncExternalStore } from "react";
 import type { CellBox } from "./autotile.js";
-import type { BaseGenOptions } from "./base-terrain.js";
 import { defaultParams, GENERATORS } from "./generators/index.js";
 import { createReactiveStore } from "./reactive-store.js";
 
@@ -22,11 +21,6 @@ export interface GenState {
 	pendingRect: WorldRect | null;
 	/** Last box generated into, for the "再生成" (regenerate) button. */
 	lastBox: CellBox | null;
-	/**
-	 * Infinite-terrain generation params chosen in the HUD (領域の広さ / 海の割合) while
-	 * the terrain is off: applied when it's turned on. `undefined` = the defaults.
-	 */
-	baseGen?: BaseGenOptions;
 }
 
 export const genStateStore = createReactiveStore<GenState>({

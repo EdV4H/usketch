@@ -9,6 +9,7 @@ import {
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
 	setInfiniteGen,
+	setInfiniteRegion,
 	setInfiniteSeed,
 } from "../infinite-terrain.js";
 import { makeTileMap, type TileMapShapeData } from "../tilemap-shape.js";
@@ -120,6 +121,9 @@ describe("infinite-terrain public API", () => {
 		for (const gen of [
 			{ scale: 0 },
 			{ scale: Number.NaN },
+			{ scale: Number.POSITIVE_INFINITY },
+			{ scale: scaleForRegionSize(8) },
+			{ scale: scaleForRegionSize(0.25) },
 			{ seaLevel: -0.1 },
 			{ seaLevel: 1.5 },
 		]) {
@@ -129,20 +133,42 @@ describe("infinite-terrain public API", () => {
 		}
 	});
 
-	it("getInfiniteGen is null while disabled", () => {
-		expect(getInfiniteGen(fakeStore())).toBeNull();
-		expect(getInfiniteGen(fakeStore([tilemap("a")]))).toBeNull();
+	it("getInfiniteGen gives the gen turning the terrain on will use", () => {
+		expect(getInfiniteGen(fakeStore())).toEqual(DEFAULT_BASE_GEN);
+		const store = fakeStore([tilemap("a")]);
+		enableInfiniteTerrain(store, { seed: 1, gen: { scale: 0.025 } });
+		disableInfiniteTerrain(store);
+		expect(getInfiniteGen(store).scale).toBe(0.025);
+		enableInfiniteTerrain(store);
+		expect(getInfiniteGen(store).scale).toBe(0.025);
 	});
 
-	it("setInfiniteGen re-generates only while enabled, keeping the seed", () => {
-		const off = fakeStore();
-		expect(setInfiniteGen(off, { seaLevel: 0.6 })).toBe(false);
-		expect(off.getShapes().size).toBe(0);
+	it("setInfiniteGen re-generates while enabled, keeping the seed", () => {
 		const on = fakeStore([tilemap("a", 9)]);
 		expect(setInfiniteGen(on, { seaLevel: 0.6 })).toBe(true);
-		expect(getInfiniteGen(on)?.seaLevel).toBe(0.6);
-		expect(getInfiniteGen(on)?.scale).toBe(DEFAULT_BASE_GEN.scale);
+		expect(getInfiniteGen(on).seaLevel).toBe(0.6);
+		expect(getInfiniteGen(on).scale).toBe(DEFAULT_BASE_GEN.scale);
 		expect(getInfiniteSeed(on)).toBe(9);
+	});
+
+	it("setInfiniteGen while disabled records the gen for turning it on", () => {
+		expect(setInfiniteGen(fakeStore(), { seaLevel: 0.6 })).toBe(false);
+		const off = fakeStore([tilemap("a")]);
+		expect(setInfiniteGen(off, { seaLevel: 0.6 })).toBe(true);
+		expect(isInfiniteTerrainEnabled(off)).toBe(false);
+		enableInfiniteTerrain(off, { seed: 1 });
+		expect(getInfiniteGen(off).seaLevel).toBe(0.6);
+	});
+
+	it("setInfiniteRegion clamps the region size and sea level, and ignores junk", () => {
+		const store = fakeStore([tilemap("a", 1)]);
+		expect(setInfiniteRegion(store, { regionSize: 100, seaLevel: -1 })).toBe(true);
+		expect(regionSizeOf(getInfiniteGen(store))).toBeCloseTo(4, 12);
+		expect(getInfiniteGen(store).seaLevel).toBe(0);
+		expect(setInfiniteRegion(store, { regionSize: 1e-320 })).toBe(true);
+		expect(regionSizeOf(getInfiniteGen(store))).toBeCloseTo(0.5, 12);
+		expect(setInfiniteRegion(store, { regionSize: Number.NaN })).toBe(false);
+		expect(regionSizeOf(getInfiniteGen(store))).toBeCloseTo(0.5, 12);
 	});
 
 	it("region size is a multiple of the default scale (2 = twice as wide)", () => {

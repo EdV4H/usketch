@@ -8,7 +8,9 @@ import {
 	type BaseGenOptions,
 	type BaseGenParams,
 	DEFAULT_BASE_GEN,
+	REGION_SIZE_RANGE,
 	resolveBaseGen,
+	scaleForRegionSize,
 	withBaseGen,
 } from "./base-terrain.js";
 import { resolveTilemap } from "./generate.js";
@@ -46,10 +48,20 @@ export function getInfiniteSeed(store: BoardStore): number | null {
 	return seededTilemap(store.getShapes().values())?.baseSeed ?? null;
 }
 
-/** The board's infinite-terrain generation params, or `null` when disabled. */
-export function getInfiniteGen(store: BoardStore): BaseGenParams | null {
-	const tm = seededTilemap(store.getShapes().values());
-	return tm ? resolveBaseGen(tm.baseGen) : null;
+/**
+ * The tilemap the infinite terrain lives on (or will, when enabled): the seeded one,
+ * else the lowest-id one. Deterministic, so every synced client picks the same.
+ */
+function terrainTarget(store: BoardStore): TileMapShapeData | null {
+	return seededTilemap(store.getShapes().values()) ?? lowestTilemap(store.getShapes().values());
+}
+
+/**
+ * The board's infinite-terrain generation params: the ones in use while enabled,
+ * else the ones turning it on will use (recorded on the board, or the defaults).
+ */
+export function getInfiniteGen(store: BoardStore): BaseGenParams {
+	return resolveBaseGen(terrainTarget(store)?.baseGen);
 }
 
 /** Whether the infinite base terrain is enabled on the board. */
@@ -85,8 +97,7 @@ export function enableInfiniteTerrain(
 	// Deterministic target so every synced client agrees (see seededTilemap). Reuse
 	// the target's own recorded gen if present so re-enabling keeps the same world
 	// even after the default gen advances; the host's `gen` goes on top of it.
-	const target =
-		seededTilemap(store.getShapes().values()) ?? lowestTilemap(store.getShapes().values());
+	const target = terrainTarget(store);
 	const recorded = target?.baseGen ?? DEFAULT_BASE_GEN;
 	// Validate before touching the board, so a bad value creates no tilemap either.
 	const baseGen = opts.gen ? withBaseGen(resolveBaseGen(recorded), opts.gen) : recorded;
@@ -96,14 +107,45 @@ export function enableInfiniteTerrain(
 }
 
 /**
- * Change the generation params of the board's infinite terrain (re-generates the
- * world; same seed). Only while the terrain is on: returns whether it was applied.
- * Throws `RangeError` on an out-of-range value (see `withBaseGen`).
+ * Change the generation params of the board's infinite terrain. While it's on this
+ * re-generates the world (same seed); while it's off the params are recorded on the
+ * board and used when it's turned on. Returns `false` (no-op) on a board with no
+ * tilemap yet: pass `gen` to {@link enableInfiniteTerrain} instead. Throws
+ * `RangeError` on an out-of-range value (see `withBaseGen`).
  */
 export function setInfiniteGen(store: BoardStore, gen: BaseGenOptions): boolean {
-	if (!isInfiniteTerrainEnabled(store)) return false;
-	enableInfiniteTerrain(store, { gen });
+	const target = terrainTarget(store);
+	if (!target) return false;
+	const baseGen = withBaseGen(resolveBaseGen(target.baseGen), gen);
+	store.updateShape(target.id, { baseGen } as Partial<TileMapShapeData>);
 	return true;
+}
+
+/** A board's 「領域の広さ」 (a multiple of the default) and 「海の割合」 (0–1). */
+export interface InfiniteRegionOptions {
+	regionSize?: number;
+	seaLevel?: number;
+}
+
+/**
+ * {@link setInfiniteGen} in the terms a settings UI shows: a region size (clamped to
+ * {@link REGION_SIZE_RANGE}) and a sea level (clamped to 0–1). Non-finite values are
+ * ignored. Returns whether anything was applied.
+ */
+export function setInfiniteRegion(store: BoardStore, opts: InfiniteRegionOptions): boolean {
+	const gen: BaseGenOptions = {};
+	if (Number.isFinite(opts.regionSize)) {
+		const size = Math.min(
+			REGION_SIZE_RANGE.max,
+			Math.max(REGION_SIZE_RANGE.min, opts.regionSize as number),
+		);
+		gen.scale = scaleForRegionSize(size);
+	}
+	if (Number.isFinite(opts.seaLevel)) {
+		gen.seaLevel = Math.min(1, Math.max(0, opts.seaLevel as number));
+	}
+	if (gen.scale === undefined && gen.seaLevel === undefined) return false;
+	return setInfiniteGen(store, gen);
 }
 
 /** Disable the infinite base terrain (clears `baseSeed` on every seeded tilemap). */

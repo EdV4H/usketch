@@ -86,16 +86,25 @@ export type BaseGenOptions = Partial<Pick<BaseGenParams, "scale" | "seaLevel">>;
 
 /**
  * `base` with the given {@link BaseGenOptions} applied. Throws `RangeError` on a
- * non-finite / non-positive `scale` or a `seaLevel` outside 0–1 (the same bounds
- * {@link resolveBaseGen} accepts), so a bad value never gets stamped on a board.
+ * `scale` outside the {@link REGION_SIZE_RANGE} region sizes or a `seaLevel`
+ * outside 0–1, so a bad value never gets stamped on a board. Only the given
+ * options are checked: `base` itself may hold any value {@link resolveBaseGen} accepts.
  */
 export function withBaseGen(base: BaseGenParams, opts: BaseGenOptions): BaseGenParams {
 	const scale = opts.scale ?? base.scale;
 	const seaLevel = opts.seaLevel ?? base.seaLevel;
-	if (!Number.isFinite(scale) || scale <= 0) {
-		throw new RangeError(`baseGen: scale must be a finite positive number, got ${String(scale)}`);
+	if (
+		opts.scale !== undefined &&
+		!(
+			scale >= scaleForRegionSize(REGION_SIZE_RANGE.max) &&
+			scale <= scaleForRegionSize(REGION_SIZE_RANGE.min)
+		)
+	) {
+		throw new RangeError(
+			`baseGen: scale must give a region size within ${REGION_SIZE_RANGE.min}–${REGION_SIZE_RANGE.max}, got ${String(scale)}`,
+		);
 	}
-	if (!Number.isFinite(seaLevel) || seaLevel < 0 || seaLevel > 1) {
+	if (opts.seaLevel !== undefined && !(seaLevel >= 0 && seaLevel <= 1)) {
 		throw new RangeError(`baseGen: seaLevel must be within 0–1, got ${String(seaLevel)}`);
 	}
 	return { ...base, scale, seaLevel };
@@ -111,6 +120,12 @@ export const regionSizeOf = (gen: Pick<BaseGenParams, "scale">): number =>
 
 /** The `scale` for a 「領域の広さ」 multiple (see {@link regionSizeOf}). */
 export const scaleForRegionSize = (size: number): number => DEFAULT_BASE_GEN.scale / size;
+
+/**
+ * The 「領域の広さ」 multiples a board may use (half to four times the default). Larger
+ * sizes make the land too uniform to read; smaller ones turn it into per-cell noise.
+ */
+export const REGION_SIZE_RANGE = { min: 0.5, max: 4 } as const;
 
 /** Compact signature of the params (also keys caches that depend on the terrain). */
 export const baseGenSignature = (g: BaseGenParams): string =>
