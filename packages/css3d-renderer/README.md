@@ -39,9 +39,21 @@ createApp({
 | `tilt` | カメラの傾きで地面に寝かせ、描画距離より奥を切り取る |
 | `depth` | `tilt` と同じく寝かせるが切り取らず、中の要素が地面から立ち上がれるように 3D の文脈を保つ |
 | `screen` / 未指定 | 画面に固定したまま（HUD・空など） |
+| `ground` | 自分で地面を描く層（標高のメッシュなど）。傾けない。奥行きステージでは、地面に立つものより奥に置く |
 | `hidden` | 3D 表示の間は出さない |
 
 3D ビューが自分の層ピッカーを持つとき（Mode 7）は、`setTiltLayers` / `setDepthLayers` で一覧を渡す。`null` で宣言に戻る。
+
+## 奥行きステージ（実験）
+
+既定では、傾けた層は層の順に重なる（後の層が前の層の上に描かれる）。奥行きステージをオンにすると、メインのキャンバスを 1 つの 3D 空間にして、傾けた層の中身を実際の奥行きで重ねる。立てた看板の後ろにいるキャラクターは看板に隠れ、手前にいれば看板の前に出る。
+
+HUD の「3D の描き方（CSS 3D）」→「奥行きで重ねる（実験）」か、`setDepthStage(true)` で切り替える。
+
+- 傾けない層は邪魔にならない位置へ動かす: 最初の傾けた層より前の層（空）と `ground` の層は奥へ、それ以外（霧・HUD）は手前へ。それぞれの中では層の順を保つ
+- `ground` の層が何かを描いている間は、その下に重なる層（傾けた層も）をさらに奥へ置く。平らなボードでも隠れていたものなので見た目は変わらない
+- キャンバスの背景は一番奥に描き直す。ステージ自身は切り取れない（Chrome では `overflow: clip` で 3D が平らになる）ので、親要素で切り取る
+- 地形（崖・丘）の陰に入った Shape を隠す処理は別（P6b）
 
 ## 3D の Shape
 
@@ -72,6 +84,8 @@ createApp({
 | `depthLayerIds` | 宣言の代わりに奥行きを持たせる層 |
 | `view3d` | 3D 表示の状態の置き場所。既定はボードのストア（`BoardStore.getView3d`）。古いストアのホストは自前のセルを渡す |
 | `shapes` | 3D の Shape を描くか。既定 `true` |
+| `depthStage` | 奥行きステージをオンで始める。既定 `false` |
+| `hud` | 奥行きステージの切り替えを HUD に出す。既定 `true` |
 
 ### `css3dRendererService`
 
@@ -83,6 +97,7 @@ createApp({
 | `setTiltLayers(ids \| null)` | 傾ける層を決める |
 | `setDepthLayers(ids \| null)` | 奥行きを持たせる層を決める |
 | `getTiltLayers()` / `getDepthLayers()` | いまの一覧 |
+| `setDepthStage(on)` / `isDepthStage()` | 奥行きステージ（実験）の切り替え |
 
 ### `setupCss3dRenderer(ctx, options?)`
 
@@ -94,6 +109,7 @@ createApp({
 - `cameraHeightPx(state, zoom)`: 画面上のカメラの高さ（px）
 - `drawDistanceClip(...)` / `drawDistanceOverscanPx(...)`: 描画距離の切り取りと、背景を奥まで敷く幅
 - `tiltLayerRules(ids, options)`: 層を傾ける CSS
+- `depthStageRules(options)`: 奥行きステージの CSS
 - 3D の Shape の配置: `selectShapes3d` / `shapePose` / `poseBox` / `poseTransform` / `render3dFrame` / `boxWalls` / `shadowStyle` など
 
 ## 描画の仕組み

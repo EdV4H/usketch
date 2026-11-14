@@ -48,9 +48,12 @@ export interface LayerRenderContext {
  * - `depth`  … tilted and keeps real depth (not clipped): things rising out of the
  *              ground, such as cliffs, standing shapes and characters.
  * - `screen` … not tilted: screen UI (HUD, panels).
+ * - `ground` … not tilted, because it projects itself onto the ground (e.g. a WebGL
+ *              terrain mesh). Drawn like `screen`, but a renderer that sorts layers by
+ *              real depth keeps it behind everything standing on the ground.
  * - `hidden` … not shown while in 3D.
  */
-export type LayerView3d = "tilt" | "depth" | "screen" | "hidden";
+export type LayerView3d = "tilt" | "depth" | "screen" | "ground" | "hidden";
 
 export type RenderTarget = "svg" | "html";
 

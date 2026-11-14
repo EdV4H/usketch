@@ -1,4 +1,8 @@
 export {
+	DEPTH_STAGE_FAR_PX,
+	type DepthStageLayer,
+	type DepthStageOptions,
+	depthStageRules,
 	drawDistanceClip,
 	drawDistanceOverscanPx,
 	type TiltRuleOptions,
@@ -11,6 +15,7 @@ export {
 	cameraHeightPx,
 	createCss3dRendererPlugin,
 	css3dRendererService,
+	DEPTH_STAGE_FIELD,
 	LEGACY_STAGE_ATTR,
 	layerTransform,
 	STAGE_ATTR,

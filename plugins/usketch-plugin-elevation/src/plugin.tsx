@@ -177,6 +177,8 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 					order: layerOrder(options.meshOrder, DEFAULT_MESH_ORDER),
 					avoidCollision: true,
 					fixed: true,
+					// Draws the ground itself: a renderer sorting by depth keeps it behind.
+					view3d: "ground",
 					render: () => (
 						<ElevationMeshLayer
 							store={ctx.store}

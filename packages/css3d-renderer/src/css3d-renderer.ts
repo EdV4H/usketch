@@ -24,7 +24,12 @@ import {
 	type View3dState,
 	view3dCellOf,
 } from "@edv4h/usketch-shared";
-import { drawDistanceClip, drawDistanceOverscanPx, tiltLayerRules } from "./css3d-css.js";
+import {
+	depthStageRules,
+	drawDistanceClip,
+	drawDistanceOverscanPx,
+	tiltLayerRules,
+} from "./css3d-css.js";
 import { setupCss3dShapes } from "./css3d-shapes.js";
 
 /** Attribute the renderer puts on the main canvas container while drawing in 3D. */
@@ -50,6 +55,12 @@ export interface Css3dRendererApi {
 	getTiltLayers(): readonly string[];
 	/** The tilted layers drawn with depth. */
 	getDepthLayers(): readonly string[];
+	/**
+	 * Sort the layers' 3D contents by their real depth in one 3D space (experimental, off
+	 * by default): see `depthStageRules`.
+	 */
+	setDepthStage(on: boolean): void;
+	isDepthStage(): boolean;
 }
 
 /** The renderer on `ctx.services` (one per board). */
@@ -67,6 +78,10 @@ export interface Css3dRendererOptions {
 	view3d?: View3dCell;
 	/** Draw the shapes that have a 3D look (see css3d-shapes). Default `true`. */
 	shapes?: boolean;
+	/** Start with the depth stage on (see {@link Css3dRendererApi.setDepthStage}). Default `false`. */
+	depthStage?: boolean;
+	/** Offer the depth stage as a HUD setting. Default `true`. */
+	hud?: boolean;
 }
 
 /** The layer ids that declare one of `kinds`, in drawing order. */
@@ -130,6 +145,26 @@ export function setupCss3dRenderer(
 	const cell = options.view3d ?? view3dCellOf(ctx.store);
 	if (!cell) return null;
 	let tiltOverride: readonly string[] | null = options.tiltLayerIds ?? null;
+	let depthStage = options.depthStage === true;
+	const depthStageListeners = new Set<() => void>();
+	// The stage's parent clips while the depth stage leaves the stage unclipped: its own
+	// inline `overflow`, to put back.
+	let clippedParent: { el: HTMLElement; overflow: string } | null = null;
+	const clipParent = (container: HTMLElement | null): void => {
+		const parent = container?.parentElement ?? null;
+		if (clippedParent && clippedParent.el !== parent) {
+			clippedParent.el.style.overflow = clippedParent.overflow;
+			clippedParent = null;
+		}
+		if (!parent || clippedParent) return;
+		clippedParent = { el: parent, overflow: parent.style.overflow };
+		parent.style.overflow = "clip";
+	};
+	const unclipParent = (): void => {
+		if (!clippedParent) return;
+		clippedParent.el.style.overflow = clippedParent.overflow;
+		clippedParent = null;
+	};
 	let depthOverride: readonly string[] | null = options.depthLayerIds ?? null;
 
 	const tiltLayers = (): readonly string[] => tiltOverride ?? declared(ctx, ["tilt", "depth"]);
@@ -166,6 +201,29 @@ export function setupCss3dRenderer(
 		container.style.setProperty(CAMERA_HEIGHT_VAR, value);
 	};
 
+	// A ground layer only covers the layers under it while it draws something: watch what
+	// is inside its wrapper (the canvas wraps the layer's drawing in one more element, empty
+	// while the layer renders nothing) and redraw when that changes.
+	let groundWatch: MutationObserver | null = null;
+	const watched = new Set<Element>();
+	const drawsGround = (container: HTMLElement, id: string): boolean => {
+		const el = [...container.children].find((c) => c.getAttribute("data-layer-id") === id);
+		if (!el) return false;
+		if (!watched.has(el) && typeof MutationObserver !== "undefined") {
+			groundWatch ??= new MutationObserver(() => {
+				if (drawing()) draw();
+			});
+			groundWatch.observe(el, { childList: true, subtree: true });
+			watched.add(el);
+		}
+		return el.querySelector(":scope > * > *") !== null;
+	};
+	const unwatchGround = (): void => {
+		groundWatch?.disconnect();
+		groundWatch = null;
+		watched.clear();
+	};
+
 	const draw = (): void => {
 		const container = mainContainer();
 		if (!container) return;
@@ -194,13 +252,33 @@ export function setupCss3dRenderer(
 			clip,
 			depthLayerIds: new Set(depthLayers()),
 		});
-		const css = `${rules}[${STAGE_ATTR}="on"] [data-view3d="hidden"]{display:none !important;}`;
+		let stageRules = "";
+		if (depthStage) {
+			const tilted = new Set(tiltLayers());
+			stageRules = depthStageRules({
+				stageAttr: STAGE_ATTR,
+				layers: ctx.layers.getLayers().map((l) => ({
+					id: l.id,
+					tilted: tilted.has(l.id),
+					ground: l.view3d === "ground" && drawsGround(container, l.id),
+				})),
+				background: container.style.background || "transparent",
+				tiltTransform: transform,
+			});
+			clipParent(container);
+		} else {
+			unclipParent();
+			unwatchGround();
+		}
+		const css = `${rules}${stageRules}[${STAGE_ATTR}="on"] [data-view3d="hidden"]{display:none !important;}`;
 		if (css === lastCss) return;
 		lastCss = css;
 		sheet.textContent = css;
 	};
 
 	const clear = (): void => {
+		unclipParent();
+		unwatchGround();
 		if (styleEl) styleEl.textContent = "";
 		lastCss = "";
 		stage?.style.removeProperty(CAMERA_HEIGHT_VAR);
@@ -271,11 +349,25 @@ export function setupCss3dRenderer(
 		},
 		getTiltLayers: () => tiltLayers(),
 		getDepthLayers: () => depthLayers(),
+		setDepthStage(on) {
+			if (on === depthStage) return;
+			depthStage = on;
+			sync();
+			for (const fn of [...depthStageListeners]) fn();
+		},
+		isDepthStage: () => depthStage,
 	};
+
+	const unregisterHud =
+		options.hud === false || !ctx.hud
+			? null
+			: registerCss3dRendererHud(ctx, api, depthStageListeners);
 
 	return {
 		api,
 		dispose: () => {
+			unregisterHud?.();
+			depthStageListeners.clear();
 			disposeShapes?.();
 			clear();
 			styleEl?.remove();
@@ -286,6 +378,33 @@ export function setupCss3dRenderer(
 			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);
 		},
 	};
+}
+
+/** HUD field name of the depth stage toggle. */
+export const DEPTH_STAGE_FIELD = "depthStage";
+
+/** The renderer's HUD settings (the depth stage toggle). Returns the unregister. */
+function registerCss3dRendererHud(
+	ctx: PluginContext,
+	api: Css3dRendererApi,
+	listeners: Set<() => void>,
+): () => void {
+	return ctx.hud.registerSettings({
+		id: "usketch-css3d-renderer:settings",
+		label: "3D の描き方（CSS 3D）",
+		order: 15,
+		fields: [{ name: DEPTH_STAGE_FIELD, label: "奥行きで重ねる（実験）", type: "boolean" }],
+		get: (name) => (name === DEPTH_STAGE_FIELD ? api.isDepthStage() : undefined),
+		set: (name, value) => {
+			if (name === DEPTH_STAGE_FIELD) api.setDepthStage(value === true);
+		},
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+	});
 }
 
 /**
