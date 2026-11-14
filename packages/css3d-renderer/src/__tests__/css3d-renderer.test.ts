@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
-import { createView3dCell, type Layer, type PluginContext } from "@edv4h/usketch-shared";
+import {
+	createView3dCell,
+	type HudSettingsDescriptor,
+	type Layer,
+	type PluginContext,
+} from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { depthStageRules } from "../css3d-css.js";
 import {
 	CAMERA_HEIGHT_VAR,
 	cameraHeightPx,
+	DEPTH_STAGE_FIELD,
 	LEGACY_STAGE_ATTR,
 	layerTransform,
 	STAGE_ATTR,
@@ -122,6 +129,113 @@ describe("CSS 3D renderer", () => {
 	it("is null without a 3D view state", () => {
 		const { ctx } = fakeCtx();
 		expect(setupCss3dRenderer(ctx)).toBeNull();
+	});
+
+	it("sorts by depth only when the depth stage is on, and clips the parent instead", () => {
+		const view3d = createView3dCell({ amount: 1 });
+		const { ctx } = fakeCtx();
+		const parent = document.createElement("div");
+		parent.style.overflow = "auto";
+		document.body.appendChild(parent);
+		parent.appendChild(container);
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
+		expect(r?.api.isDepthStage()).toBe(false);
+		expect(sheet()).not.toContain("preserve-3d !important;overflow:visible");
+		r?.api.setDepthStage(true);
+		expect(r?.api.isDepthStage()).toBe(true);
+		expect(sheet()).toContain("preserve-3d !important;overflow:visible");
+		// The HUD is after the tilted layers: pushed to the front.
+		expect(sheet()).toContain('[data-layer-id="hud"]{transform:translateZ(100002px)');
+		expect(parent.style.overflow).toBe("clip");
+		r?.api.setDepthStage(false);
+		expect(sheet()).not.toContain("preserve-3d !important;overflow:visible");
+		expect(parent.style.overflow).toBe("auto");
+		r?.api.setDepthStage(true);
+		view3d.set({ amount: 0 });
+		expect(parent.style.overflow).toBe("auto");
+		r?.dispose();
+		parent.remove();
+	});
+
+	it("offers the depth stage on the HUD", () => {
+		const view3d = createView3dCell({ amount: 1 });
+		const { ctx } = fakeCtx();
+		let descriptor: HudSettingsDescriptor | null = null;
+		const unregister = vi.fn();
+		(ctx as { hud: unknown }).hud = {
+			registerSettings: (d: HudSettingsDescriptor) => {
+				descriptor = d;
+				return unregister;
+			},
+		};
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
+		const d = descriptor as HudSettingsDescriptor | null;
+		expect(d?.fields.map((f) => f.name)).toEqual([DEPTH_STAGE_FIELD]);
+		const seen = vi.fn();
+		d?.subscribe(seen);
+		d?.set(DEPTH_STAGE_FIELD, true);
+		expect(r?.api.isDepthStage()).toBe(true);
+		expect(d?.get(DEPTH_STAGE_FIELD)).toBe(true);
+		expect(seen).toHaveBeenCalledTimes(1);
+		r?.dispose();
+		expect(unregister).toHaveBeenCalled();
+	});
+});
+
+describe("depth stage rules", () => {
+	const T = "perspective(600px) rotateX(60deg)";
+
+	it("pushes untilted layers out of the way: behind before the ground, else in front", () => {
+		const css = depthStageRules({
+			stageAttr: "data-s",
+			layers: [
+				{ id: "sky", tilted: false },
+				{ id: "ground", tilted: true },
+				{ id: "fog", tilted: false },
+			],
+			background: "#fff",
+			tiltTransform: T,
+		});
+		expect(css).toContain('[data-s="on"]{transform-style:preserve-3d !important;');
+		expect(css).toContain("background:transparent !important");
+		// The stage's background is redrawn far behind everything.
+		expect(css).toContain("background:#fff;transform:translateZ(-300000px)");
+		expect(css).toContain('>[data-layer-id="sky"]{transform:translateZ(-100000px)');
+		expect(css).not.toContain('"ground"');
+		expect(css).toContain('>[data-layer-id="fog"]{transform:translateZ(100002px)');
+	});
+
+	it("keeps what a ground-drawing layer covers under it, tilted or not", () => {
+		const css = depthStageRules({
+			stageAttr: "data-s",
+			layers: [
+				{ id: "sky", tilted: false },
+				{ id: "grid", tilted: true },
+				{ id: "mesh", tilted: false, ground: true },
+				{ id: "shapes", tilted: true },
+				{ id: "hud", tilted: false },
+			],
+			background: "#fff",
+			tiltTransform: T,
+		});
+		expect(css).toContain('>[data-layer-id="sky"]{transform:translateZ(-200000px)');
+		// Moved back along the view before its tilt: the same pixels, but behind.
+		expect(css).toContain(
+			`>[data-layer-id="grid"]{transform:translateZ(-199999px) ${T} !important`,
+		);
+		expect(css).toContain('>[data-layer-id="mesh"]{transform:translateZ(-99998px)');
+		expect(css).not.toContain('"shapes"');
+		expect(css).toContain('>[data-layer-id="hud"]{transform:translateZ(100004px)');
+	});
+
+	it("puts every layer behind when nothing is tilted", () => {
+		const css = depthStageRules({
+			stageAttr: "data-s",
+			layers: [{ id: "a", tilted: false }],
+			background: "transparent",
+			tiltTransform: T,
+		});
+		expect(css).toContain('>[data-layer-id="a"]{transform:translateZ(-100000px)');
 	});
 });
 

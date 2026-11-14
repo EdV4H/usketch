@@ -102,3 +102,73 @@ function attrValue(id: string): string {
 function round(n: number): number {
 	return Math.round(n * 1000) / 1000;
 }
+
+/** How far (px) the depth stage pushes the layers that aren't tilted out of the ground. */
+export const DEPTH_STAGE_FAR_PX = 100_000;
+
+/** A layer as the depth stage sees it, in drawing order. */
+export interface DepthStageLayer {
+	id: string;
+	/** Tilted into the ground (a `tilt` or `depth` layer). */
+	tilted: boolean;
+	/** Draws the ground itself without being tilted (`Layer.view3d` `ground`). */
+	ground?: boolean;
+}
+
+export interface DepthStageOptions {
+	stageAttr: string;
+	layers: readonly DepthStageLayer[];
+	/** The stage's own background (drawn behind everything once the stage is transparent). */
+	background: string;
+	/** The tilted layers' `transform` (as in {@link TiltRuleOptions.transform}). */
+	tiltTransform: string;
+}
+
+/**
+ * The depth stage: the main canvas container becomes ONE 3D space (`preserve-3d`), so the
+ * tilted layers' contents sort by their real depth across layers (a character behind a
+ * standing sign is hidden by it, a cliff hides what is behind it) instead of each layer
+ * painting over the ones before it.
+ *
+ * Everything in that space is sorted by depth, so the stage moves what isn't part of the
+ * tilted ground out of the way, keeping the drawing order inside each band (from the back):
+ *
+ * 1. the stage's own background (a `::before`);
+ * 2. every layer stacked under a layer that draws the ground itself (a terrain mesh): it
+ *    covers them on the flat board too. A tilted one is moved back along the view
+ *    (a `translateZ` before its tilt), so it still lands on the same pixels;
+ * 3. the layers drawing the ground, and the untilted ones before the first tilted (a sky);
+ * 4. the tilted layers, where they are;
+ * 5. the other untilted layers (overlays, HUD), in front.
+ *
+ * The stage can't clip without flattening the space (`overflow: clip` flattens in
+ * Chrome), so it is left unclipped: its parent clips instead. Pure.
+ */
+export function depthStageRules(o: DepthStageOptions): string {
+	const stage = `[${o.stageAttr}="on"]`;
+	const far = DEPTH_STAGE_FAR_PX;
+	const firstTilted = o.layers.findIndex((l) => l.tilted);
+	let lastGround = -1;
+	o.layers.forEach((l, i) => {
+		if (l.ground && !l.tilted) lastGround = i;
+	});
+	const parts = [
+		`${stage}{transform-style:preserve-3d !important;overflow:visible !important;background:transparent !important;}`,
+		`${stage}::before{content:"";position:absolute;inset:0;pointer-events:none;background:${o.background};transform:translateZ(-${far * 3}px);}`,
+	];
+	o.layers.forEach((l, i) => {
+		const ground = l.ground === true && !l.tilted;
+		const layer = `${stage}>[data-layer-id="${attrValue(l.id)}"]`;
+		if (!ground && i < lastGround) {
+			// Under the ground. Later ones a little nearer, as everywhere below.
+			const z = -far * 2 + i;
+			const transform = l.tilted ? `translateZ(${z}px) ${o.tiltTransform}` : `translateZ(${z}px)`;
+			parts.push(`${layer}{transform:${transform} !important;}`);
+			return;
+		}
+		if (l.tilted) return;
+		const behind = ground || firstTilted < 0 || i < firstTilted;
+		parts.push(`${layer}{transform:translateZ(${(behind ? -far : far) + i}px) !important;}`);
+	});
+	return parts.join("");
+}
