@@ -39,7 +39,7 @@ The only build-time env var you can optionally set:
 ```ts
 import { createApp } from "@edv4h/usketch-core";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
-import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
+import { createOpenUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
 import {
 	createOpenUIToolPlugin,
 	createServerProxyProvider,
@@ -50,7 +50,7 @@ const app = await createApp({
 	plugins: [
 		// Side panel must come BEFORE the tool plugin so its tab registration is received.
 		createSidePanelPlugin(),
-		openUIShapePlugin,
+		createOpenUIShapePlugin(),
 		createOpenUIToolPlugin({
 			provider: createServerProxyProvider({
 				apiUrl: import.meta.env.VITE_API_URL,

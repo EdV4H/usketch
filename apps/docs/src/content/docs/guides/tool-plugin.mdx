@@ -188,4 +188,4 @@ For static "click to place" tools, you don't need a session at all; the eraser e
 - `editor.inputs.currentPagePoint` → `event.worldPoint`
 - `editor.createShape(...)` → `ctx.commands.execute(createAddShapeCommand(store, shape))`
 
-Keep all internal state in `setup()` closures — never on the plugin object — so each plugin instance has its own state. See [Migrating from tldraw](./migrate-from-tldraw) for the full mapping including `StateNode` child hierarchies and `track()` reactivity.
+Keep all internal state in `setup()` closures — never on the plugin object — so each plugin instance has its own state. See [Migrating from tldraw](../migrate-from-tldraw/) for the full mapping including `StateNode` child hierarchies and `track()` reactivity.

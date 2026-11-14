@@ -3,24 +3,61 @@
 		"id": "phase-0",
 		"phase": "Phase 0",
 		"title": "Foundations",
-		"items": ["Plugin API", "Canvas engine", "Basic shapes"]
+		"items": [
+			"pnpm + Turborepo monorepo",
+			"Web app + edge server scaffolds",
+			"CI, Biome, Vitest, Playwright"
+		]
 	},
 	{
 		"id": "phase-1",
 		"phase": "Phase 1",
 		"title": "MVP",
-		"items": ["Save / share", "Export", "Realtime sync", "Presence"]
+		"items": [
+			"Plugin API + canvas engine",
+			"Save / share / export",
+			"Realtime sync + presence",
+			"Cloudflare deploy"
+		]
+	},
+	{
+		"id": "phase-1-5",
+		"phase": "Phase 1.5",
+		"title": "Release hygiene (v1.0.0)",
+		"items": ["LICENSE + SECURITY.md", "CHANGELOG + Changesets", "All packages promoted to 1.0.0"]
 	},
 	{
 		"id": "phase-2",
 		"phase": "Phase 2",
-		"title": "AI‑Native",
-		"items": ["Copilot + Chat", "Voice / NL2Canvas", "Agent workflows", "Image gen"]
+		"title": "Operations & quality (v1.1.0 scope)",
+		"items": [
+			"Error tracking + structured logs",
+			"Security checks + PP / ToS",
+			"Known bug fixes + more tests",
+			"PDF export, templates, shortcut list"
+		]
 	},
 	{
 		"id": "phase-3",
 		"phase": "Phase 3",
-		"title": "Marketplace",
-		"items": ["Public plugin registry", "Hot‑install", "Revenue share", "Templates v2"]
+		"title": "Monetization",
+		"items": [
+			"Stripe + Free / Pro / Team plans",
+			"Plan limits",
+			"Team management + SSO",
+			"Audit log"
+		]
+	},
+	{
+		"id": "phase-4",
+		"phase": "Phase 4",
+		"title": "Expansion (ongoing)",
+		"items": [
+			"Public plugin API docs",
+			"Third-party plugins / marketplace",
+			"Mobile (touch)",
+			"Public REST API",
+			"Self-hosting"
+		]
 	}
 ]
