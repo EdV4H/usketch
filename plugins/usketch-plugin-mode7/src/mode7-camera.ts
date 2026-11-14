@@ -2,14 +2,17 @@
 // and unit tests import it without pulling in React). The camera is GEOMETRY only —
 // it describes how the flat board plane is tilted into a receding ground plane:
 //   - pitch   … ground tilt in degrees (0 = flat top-down, higher = more oblique)
-//   - yaw     … heading rotation in degrees (spin the ground around the view axis)
+//   - yaw     … heading in degrees. Not part of the tilt: while in 3D, Mode 7 turns the
+//               viewport by it (about the horizon point, see `mode7-yaw.ts`)
 //   - fov     … CSS `perspective()` distance in px (smaller = stronger perspective)
 //   - horizon … pivot line as a fraction of viewport height (0=top … 1=bottom);
 //               where the ground meets the sky after the tilt.
 //   - height  … how high the camera is, in world units (0 = the board's level). The
 //               ground at this height is drawn where the flat board would be. The
 //               camera's place across the board is the viewport (pan), not a field here.
-// Appearance (sky color, fog) is separate — see `mode7-transform.ts`.
+// Appearance (sky color, fog) is separate — see `mode7-transform.ts`. Everything but the
+// yaw is the board's 3D view camera (`Camera3d` in `@edv4h/usketch-shared`).
+import { CAMERA_3D_LIMITS } from "@edv4h/usketch-shared";
 
 export interface Camera {
 	pitch: number;
@@ -27,7 +30,7 @@ export interface RenderedCamera extends Camera {
 }
 
 /** Largest camera height accepted (world units, either way), far beyond any terrain. */
-export const MAX_CAMERA_HEIGHT = 100_000;
+export const MAX_CAMERA_HEIGHT = CAMERA_3D_LIMITS.height.max;
 
 /** Keep a camera height usable: within ±{@link MAX_CAMERA_HEIGHT}; non-finite / absent = 0. */
 export function clampCameraHeight(height: number | undefined): number {
@@ -47,11 +50,7 @@ export function cameraHeightPx(height: number | undefined, zoom: number, amount:
 
 /** Allowed ranges. pitch stays < 90 so the plane never goes fully edge-on
  *  (which would collapse to a line); horizon stays off the very edges. */
-export const CAMERA_LIMITS = {
-	pitch: { min: 0, max: 85 },
-	fov: { min: 200, max: 2000 },
-	horizon: { min: 0.1, max: 0.9 },
-} as const;
+export const CAMERA_LIMITS = CAMERA_3D_LIMITS;
 
 export const DEFAULT_CAMERA: Camera = { pitch: 55, yaw: 0, fov: 600, horizon: 0.45 };
 

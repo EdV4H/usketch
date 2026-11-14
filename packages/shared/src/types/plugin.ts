@@ -1,4 +1,5 @@
 import type { ComponentType, ReactElement } from "react";
+import type { View3dPatch, View3dState } from "../view-3d-state.js";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
 import type { LodController, RenderMode } from "./lod.js";
 import type { ResizeHandle, ShapeData, ShapeStyle } from "./shape.js";
@@ -1270,6 +1271,21 @@ export interface BoardStore {
 
 	subscribe(listener: () => void): () => void;
 	onMutation(listener: (event: StoreEvent) => void): () => void;
+
+	/**
+	 * The viewer's 3D view: the camera and how far the view is risen (`amount`, 0 = the
+	 * flat board). Per viewer like the viewport, never synced. Its heading is the
+	 * viewport's `rotation`. Optional until the next major; read it through
+	 * `view3dCellOf(store)`, which is `null` on a store without it.
+	 */
+	getView3d?(): View3dState;
+	/** Change the 3D view (camera fields merged and clamped, amount clamped to 0…1). */
+	setView3d?(patch: View3dPatch): void;
+	/**
+	 * Told when the 3D view changes. Separate from {@link subscribe}: a follower moves the
+	 * camera height every frame, which shouldn't wake every store listener.
+	 */
+	subscribeView3d?(listener: () => void): () => void;
 }
 
 // ── Markdown → Shape conversion ──

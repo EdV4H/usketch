@@ -242,3 +242,17 @@ export {
 	zIndexBetween,
 } from "./utils/z-order.js";
 export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";
+export {
+	CAMERA_3D_LIMITS,
+	type Camera3d,
+	clampCamera3d,
+	createView3dCell,
+	DEFAULT_CAMERA_3D,
+	FLAT_VIEW_3D,
+	patchView3d,
+	sameView3d,
+	type View3dCell,
+	type View3dPatch,
+	type View3dState,
+	view3dCellOf,
+} from "./view-3d-state.js";

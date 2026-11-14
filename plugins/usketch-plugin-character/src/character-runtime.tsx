@@ -6,10 +6,12 @@ import {
 	type PluginContext,
 	type Point,
 	screenToWorld,
+	shortestAngleDelta,
 	solidHeightService,
 	type Viewport,
 	view3dService,
 	viewportRotation,
+	wrapDeg,
 } from "@edv4h/usketch-shared";
 import {
 	anchorPx,
@@ -20,6 +22,7 @@ import {
 	sameViewport,
 	smoothingAlpha,
 	targetRotation,
+	turnedByView,
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
@@ -224,6 +227,11 @@ export function setupCharacterRuntime(
 		amount: () => view3dService.get(ctx.services)?.amount() ?? 0,
 		subscribe: (listener) => view3dService.get(ctx.services)?.subscribe(listener) ?? (() => {}),
 	};
+	// How far the 3D view has turned the viewport by its heading: the follow keeps it.
+	const viewTurn = (): number => {
+		const t = view3dService.get(ctx.services)?.turn?.() ?? 0;
+		return Number.isFinite(t) ? t : 0;
+	};
 
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
@@ -330,7 +338,7 @@ export function setupCharacterRuntime(
 			if (s.cameraMode !== "free" && !s.followSuspended) {
 				const target: CameraFocus = {
 					focus: { x: pose.x, y: pose.y },
-					rotation: targetRotation(s.cameraMode, pose.heading),
+					rotation: wrapDeg(targetRotation(s.cameraMode, pose.heading) + viewTurn()),
 				};
 				const anchor = anchorPoint();
 				// (Re)seed from what's on screen now, so resuming/switching eases instead of jumping.
@@ -396,9 +404,10 @@ export function setupCharacterRuntime(
 				virtual = null;
 				virtualJumpPressed = false;
 				virtualDriftPressed = false;
-				// Hand the camera back upright.
-				if (viewportRotation(ctx.store.getViewport()) !== 0) {
-					ctx.store.rotateTo(0, anchorPoint(), { animate: true });
+				// Hand the camera back upright (as turned by the 3D view's heading).
+				const upright = viewTurn();
+				if (shortestAngleDelta(viewportRotation(ctx.store.getViewport()), upright) !== 0) {
+					ctx.store.rotateTo(upright, anchorPoint(), { animate: true });
 				}
 			}
 			sync?.publish(true);
@@ -412,16 +421,30 @@ export function setupCharacterRuntime(
 	});
 
 	// A viewport change we didn't make: zoom (wheel / keys) is welcome — the follow
-	// keeps the character on its anchor at the new zoom. A pure pan means the user
-	// wants to look around, so pause following until a movement key (or the virtual
-	// control) is pressed.
+	// keeps the character on its anchor at the new zoom. So is the 3D view turning the
+	// viewport by its heading: the follow turns with it. A pan means the user wants to
+	// look around, so pause following until a movement key (or the virtual control) is
+	// pressed.
 	let lastZoom = ctx.store.getViewport().zoom;
+	let lastRotation = viewportRotation(ctx.store.getViewport());
+	let lastTurn = viewTurn();
 	const offViewport = ctx.store.onMutation((e) => {
 		if (e.type !== "viewport:changed") return;
 		const vp = ctx.store.getViewport();
 		const zoomChanged = Math.abs(vp.zoom - lastZoom) > 1e-9;
 		lastZoom = vp.zoom;
+		const rotation = viewportRotation(vp);
+		const turned = shortestAngleDelta(lastRotation, rotation);
+		lastRotation = rotation;
+		const turn = viewTurn();
+		const viewTurned = shortestAngleDelta(lastTurn, turn);
+		lastTurn = turn;
 		if (writing || zoomChanged) return;
+		if (turnedByView(turned, viewTurned)) {
+			// Carry on from the turned view (the target already includes the turn).
+			if (cam) cam = { ...cam, rotation: wrapDeg(cam.rotation + turned) };
+			return;
+		}
 		const s = store.getState();
 		if (s.enabled && s.cameraMode !== "free") store.setFollowSuspended(true);
 	});

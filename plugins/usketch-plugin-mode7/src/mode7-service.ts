@@ -10,7 +10,7 @@ import {
 import { type Camera, cameraHeightPx, type RenderedCamera } from "./mode7-camera.js";
 import type { HeightKeyConfig, HeightKeys } from "./mode7-height-keys.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
-import { transitionCamera } from "./mode7-transform.js";
+import { tiltCamera } from "./mode7-transform.js";
 import type { Mode7SwitchOptions, Mode7Transition } from "./mode7-transition.js";
 
 export interface Mode7Api {
@@ -30,12 +30,18 @@ export interface Mode7Api {
 	/** The current camera geometry (the target; see `getRenderedCamera` mid-transition). */
 	getCamera(): Camera;
 	/**
-	 * The camera as drawn right now: `getCamera()` with pitch/yaw scaled by the
-	 * transition amount (flat when off), plus its height in screen px (`heightPx`). Feed
-	 * it to `projectToGround` / `unprojectFromGround` to line things up with the ground.
+	 * The camera as drawn right now: `getCamera()` with pitch scaled by the transition
+	 * amount (flat when off), plus its height in screen px (`heightPx`). Its `yaw` is `0`:
+	 * the yaw turns the viewport instead. Feed it to `projectToGround` /
+	 * `unprojectFromGround` (with screen points through the viewport) to line things up
+	 * with the ground.
 	 */
 	getRenderedCamera(): RenderedCamera;
 	setPitch(deg: number): void;
+	/**
+	 * Turn the view to heading `deg`. While in 3D the viewport is turned (about the
+	 * horizon point) by the yaw, and turned back when the view goes flat again.
+	 */
 	setYaw(deg: number): void;
 	setFov(px: number): void;
 	setHorizon(fraction: number): void;
@@ -97,7 +103,7 @@ export const mode7Service = defineService<Mode7Api>("usketch-plugin-mode7");
 export function renderedCamera(store: Mode7Store, zoom: number): RenderedCamera {
 	const { camera, amount } = store.getState();
 	return {
-		...transitionCamera(camera, amount),
+		...tiltCamera(camera, amount),
 		heightPx: cameraHeightPx(camera.height, zoom, amount),
 	};
 }
@@ -165,6 +171,8 @@ export function createView3dApi(
 	zoom: () => number = () => 1,
 	/** Told whenever a follower sets the height, so the height keys yield to it. */
 	onDriveHeight: () => void = () => {},
+	/** How far the yaw has turned the viewport now (see `mode7-yaw.ts`). */
+	turn: () => number = () => 0,
 ): View3dApi {
 	return {
 		amount: () => store.getState().amount,
@@ -176,6 +184,7 @@ export function createView3dApi(
 			onDriveHeight();
 			store.setCamera({ height });
 		},
+		turn,
 		subscribe: (listener) => store.subscribe(listener),
 	};
 }

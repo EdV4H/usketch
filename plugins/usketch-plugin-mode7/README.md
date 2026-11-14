@@ -5,7 +5,7 @@
 
 ## 仕組み
 
-- `perspective()+rotateX(pitch)+rotateZ(yaw)` の **CSS 3D 変換**を、`document.head` に挿した単一の `<style>`
+- `perspective()+rotateX(pitch)` の **CSS 3D 変換**を、`document.head` に挿した単一の `<style>`
   シート（`!important` ルール）で「板コンテンツ層」の外側ラッパ div に当てる。各レイヤーは `canvas.tsx` で
   `data-layer-id` 付き div にラップされ、ルールは `data-mode7-stage="on"` を付けたメインコンテナ配下に
   スコープされる。コンテナ検出は **`data-testid` ではなく `[data-layer-id]` の親**で行う（`data-testid` は
@@ -56,7 +56,7 @@ createApp({
 - **ON**: 地面が平ら（pitch 0）から `camera.pitch` までせり上がり、空・フォグがフェードイン。
 - **OFF**: 逆再生し、平らに戻りきってから非アクティブになる（それまで capture 層が編集を塞ぐ）。
 - 途中で切り替えると、**今の状態から逆再生**（ジャンプしない）。
-- 保存されたカメラ/見た目は常に目標値のまま。アニメするのは描画値だけ（pitch・yaw を
+- 保存されたカメラ/見た目は常に目標値のまま。アニメするのは描画値だけ（pitch と、viewport を回す yaw を
   遷移量でスケール、空/フォグは不透明度、描画距離の手前切り取りも同率でフェード）。
 - 1 フレームにつき store 更新は 1 回。`prefers-reduced-motion` なら終了状態へ即時。
 - 呼び出し単位で上書き可: `api.enable({ animate: true })` / `api.disable({ animate: false })`。
@@ -69,7 +69,7 @@ createApp({
 | パラメータ | 意味 | 範囲 |
 | --- | --- | --- |
 | `pitch` | 地平面の傾き（0=真上, 大=斜め） | 0–85° |
-| `yaw` | 旋回（進行方向の回転） | -180–180° |
+| `yaw` | 旋回（進行方向の回転）。3D の間は viewport の回転（`Viewport.rotation`）として地平線の中央を軸に回し、平らに戻るときに回した分だけ戻す | -180–180° |
 | `fov` | CSS `perspective()` 距離（小=遠近強） | 200–2000px |
 | `horizon` | 地平線の画面高さ割合（ピボット） | 0.1–0.9 |
 
