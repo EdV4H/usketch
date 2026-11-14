@@ -428,10 +428,10 @@ function approachVector(
 	return { x: x + (dx / d) * step, y: y + (dy / d) * step };
 }
 
-/** Ground height at a world point (world units; see `groundHeightService`). */
+/** Ground height at a world point (world units; see `BoardHeightApi.groundAt`). */
 export type HeightAt = (x: number, y: number) => number;
 
-/** A solid's top at a world point (see `solidHeightService`): `null` = none, `Infinity` = wall. */
+/** A solid's top at a world point (see `BoardHeightApi.solidAt`): `null` = none, `Infinity` = wall. */
 export type SolidAt = (x: number, y: number) => number | null;
 
 /**

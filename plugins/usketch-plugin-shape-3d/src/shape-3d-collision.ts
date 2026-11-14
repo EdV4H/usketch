@@ -1,6 +1,6 @@
 // What a 3D shape blocks on the ground (`collision` in its parameters) — pure, React-free.
 //
-// The plugin answers the shared `solidHeightService` with this: a character walking the
+// The plugin's solid provider on the board's height answers with this: a character walking the
 // board asks "how tall is the solid here?" and gets `null` (nothing), a finite top it can
 // step or jump onto (`platform`), or `Infinity` (a wall: `solid`). Each shape's footprint
 // follows its mode:

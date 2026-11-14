@@ -2,12 +2,11 @@
 // plus smoothing of remote characters. One rAF loop that runs only while the local
 // character is enabled or a remote one is still easing into place.
 import {
-	groundHeightService,
+	boardHeight,
 	type PluginContext,
 	type Point,
 	screenToWorld,
 	shortestAngleDelta,
-	solidHeightService,
 	type Viewport,
 	view3dService,
 	viewportRotation,
@@ -213,11 +212,12 @@ export function setupCharacterRuntime(
 
 	const anchorPoint = (): Point => anchorPx(store.getState().anchor, cachedCanvasSize());
 
-	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
-	// per call so a provider registered later still counts. Absent = flat board.
-	const groundAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
-	// Solids on the ground (e.g. raised 3D shapes): walls block, tops can be stood on.
-	const solidAt: SolidAt = (x, y) => solidHeightService.get(ctx.services)?.heightAt(x, y) ?? null;
+	// The board's height: the ground (e.g. the map's raised terrain, the elevation field)
+	// and the solids on it (e.g. raised 3D shapes: walls block, tops can be stood on). Its
+	// providers are asked per call, so one registered later still counts. None = flat.
+	const height = ctx.height ?? boardHeight(ctx.services);
+	const groundAt: HeightAt = (x, y) => height.groundAt(x, y);
+	const solidAt: SolidAt = (x, y) => height.solidAt(x, y);
 	// What a move must clear (walls included) and what the feet stand on (walls excluded).
 	const blockAt: HeightAt = (x, y) => blockingHeight(groundAt(x, y), solidAt(x, y));
 	const heightAt: HeightAt = (x, y) => standingHeight(groundAt(x, y), solidAt(x, y));

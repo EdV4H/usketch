@@ -8,6 +8,7 @@ import {
 	createToolRegistry,
 } from "@edv4h/usketch-core";
 import {
+	boardHeight,
 	defineService,
 	groundDecalService,
 	groundDecals,
@@ -128,6 +129,25 @@ describe("elevation plugin", () => {
 		// Torn down: the map's heights and provider are back.
 		expect(setHeightEnabled).toHaveBeenLastCalledWith(true);
 		expect(ground()).toBe(16);
+	});
+
+	it("ranks above a map registered on the board's height, only while there is a field", () => {
+		const { ctx, api, dispose } = harness(false);
+		const height = boardHeight(ctx.services);
+		height.register({ id: "usketch-plugin-map", kind: "ground", heightAt: () => 16 });
+		const owners: (string | null)[] = [];
+		height.subscribe(() => owners.push(height.owner()));
+		expect(height.groundAt(100, 100)).toBe(16);
+		expect(height.owner()).toBe("usketch-plugin-map");
+
+		api.enableInfinite({ seed: 3 });
+		expect(height.groundAt(100, 100)).toBe(api.getHeightAt(100, 100));
+		expect(height.owner()).toBe("usketch-plugin-elevation");
+		expect(owners.at(-1)).toBe("usketch-plugin-elevation");
+
+		dispose();
+		expect(height.groundAt(100, 100)).toBe(16);
+		expect(height.owner()).toBe("usketch-plugin-map");
 	});
 
 	it("on teardown leaves a ground provider that came after it in place", () => {
