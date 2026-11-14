@@ -1,28 +1,22 @@
-// Shape 3D plugin: shapes that hold 3D parameters (`ShapeData.view3d`) stand out of the ground
-// while the board is shown in 3D (Mode 7), instead of lying flat on it. Pure CSS 3D,
-// like the map's cliffs — no 3D library. The 2D board, export and editing are untouched:
-// outside a 3D view this plugin draws nothing.
-//
-// It depends on neither Mode 7 nor the map: the view comes from the shared
-// `view3dService`, the ground from the board's height, and the DOM shape layer is told
-// which shapes to skip with its `renderer:hide-shapes` event. Shapes with a `collision`
-// are a solid provider on the board's height, which a character walking the board consults.
-import { HIDE_SHAPES_EVENT, VIEWPORT_OVERSCAN_EVENT } from "@edv4h/usketch-dom-renderer";
+// Shape 3D plugin: the HUD to give shapes a 3D look (`ShapeData.view3d`) — stand / box /
+// float, and how a walking character meets them — and its per-viewer settings. The CSS 3D
+// renderer draws the shapes (`@edv4h/usketch-css3d-renderer`) and the core makes their
+// solids; this plugin hands both its type table (it also covers types that don't declare
+// their 3D yet, and the deprecated `types` option) and its limits.
+import { css3dShapeSourceService } from "@edv4h/usketch-css3d-renderer";
 import {
 	boardHeight,
 	createShapeSolids,
+	createView3dTracker,
 	type PluginContext,
 	shapeSolidsService,
 	type UsketchPlugin,
-	view3dService,
 } from "@edv4h/usketch-shared";
 import { registerShape3dHud } from "./register-shape-3d-hud.js";
-import { SHAPE_3D_LAYER_ID, type Shape3dCameraSource, Shape3dLayer } from "./shape-3d-layer.js";
 import type { Shape3dLimits } from "./shape-3d-layout.js";
 import type { Shape3dTypeConfig, Shape3dTypes } from "./shape-3d-params.js";
 import { createShape3dApi, shape3dService } from "./shape-3d-service.js";
 import { createShape3dSettings, type DeclaredShape3dTypes } from "./shape-3d-settings.js";
-import { createView3dTracker } from "./view-3d-tracker.js";
 
 export interface Shape3dPluginOptions {
 	/**
@@ -36,8 +30,6 @@ export interface Shape3dPluginOptions {
 	/** Draw limits (min on-screen size, max count) and whether collision is 3D-only. */
 	limits?: Partial<Shape3dLimits>;
 }
-
-const HIDE_SOURCE = "usketch-plugin-shape-3d";
 
 export function createShape3dPlugin(options: Shape3dPluginOptions = {}): UsketchPlugin {
 	return {
@@ -66,47 +58,25 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 				limits: options.limits,
 				declared,
 			});
-			const tracker = createView3dTracker(ctx.services, ctx.events);
 			const api = createShape3dApi(ctx.store, settings);
-
-			let overscanPx = 0;
-			const offOverscan = ctx.events.on<{ px: number }>(VIEWPORT_OVERSCAN_EVENT, ({ px }) => {
-				const next = Number.isFinite(px) && px > 0 ? px : 0;
-				if (next === overscanPx) return;
-				overscanPx = next;
-				ctx.events.emit("layers:changed", {});
-			});
+			// The renderer draws by our settings: re-draw when they change.
 			const offSettings = settings.subscribe(() => ctx.events.emit("layers:changed", {}));
 
-			// Tell the DOM layer which shapes are drawn here (only when the set changes).
-			let lastHidden = "";
-			const onDrawn = (ids: ReadonlySet<string>) => {
-				const key = [...ids].join("\n");
-				if (key === lastHidden) return;
-				lastHidden = key;
-				ctx.events.emit(HIDE_SHAPES_EVENT, { source: HIDE_SOURCE, ids });
-			};
 			// The board's height: the ground the shapes stand on, and where their solids go.
 			const height = ctx.height ?? boardHeight(ctx.services);
-			const heightAt = (x: number, y: number) => height.groundAt(x, y);
-			// The view's camera for a type's own `render3d`. Notifications go through the
-			// tracker, which attaches to a provider that sets up later or comes and goes.
-			const camera: Shape3dCameraSource = {
-				get: () => view3dService.get(ctx.services)?.camera() ?? null,
-				subscribe: (listener) => tracker.subscribeCamera(listener),
-			};
-
 			// Solids for the character: the core's shape solids (it registers them on the
 			// board's height), or our own with an older core. Either reads this plugin's
 			// type table (it also covers types that don't declare their 3D yet) and limit.
 			const coreSolids = shapeSolidsService.get(ctx.services);
+			// Our own solids follow the 3D view themselves (the core's read its view state).
+			const tracker = coreSolids ? null : createView3dTracker(ctx.services, ctx.events);
 			const solids =
 				coreSolids ??
 				createShapeSolids({
 					shapes: () => ctx.store.getShapes(),
 					typeView3d: (type) => settings.get().types[type],
-					groundAt: heightAt,
-					view3dAmount: () => tracker.get().amount,
+					groundAt: (x, y) => height.groundAt(x, y),
+					view3dAmount: () => tracker?.get().amount ?? 0,
 				});
 			// The table is replaced, never mutated, on a change: its identity is the version.
 			solids.setTypeView3d(
@@ -117,45 +87,26 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			syncSolids();
 			const offSolidLimits = settings.subscribe(syncSolids);
 
-			ctx.layers.register({
-				id: SHAPE_3D_LAYER_ID,
-				view3d: "depth",
-				// Just above the flat DOM shapes (50); a fixed layer placed in screen px.
-				order: 51,
-				avoidCollision: true,
-				fixed: true,
-				render: (rc) => (
-					<Shape3dLayer
-						rc={rc}
-						shapes={ctx.shapes}
-						tracker={tracker}
-						types={settings.get().types}
-						limits={settings.get().limits}
-						overscanPx={overscanPx}
-						heightAt={heightAt}
-						onDrawn={onDrawn}
-						camera={camera}
-					/>
-				),
-			});
 			const stopHud = registerShape3dHud(ctx, api, settings);
 			// Provide the services LAST so a failed earlier step can't leak them.
 			const unregisterSolid = coreSolids ? () => {} : height.register(solids.provider);
+			const unprovideSource = css3dShapeSourceService.provide(ctx.services, {
+				types: () => settings.get().types,
+				limits: () => settings.get().limits,
+			});
 			const unprovide = shape3dService.provide(ctx.services, api);
 
 			return () => {
 				unprovide();
+				unprovideSource();
 				unregisterSolid();
 				offSolidLimits();
 				solids.setTypeView3d(null);
 				solids.setIn3dOnly(false);
 				offOverrides?.();
 				stopHud();
-				ctx.layers.unregister(SHAPE_3D_LAYER_ID);
-				ctx.events.emit(HIDE_SHAPES_EVENT, { source: HIDE_SOURCE, ids: new Set<string>() });
 				offSettings();
-				offOverscan();
-				tracker.dispose();
+				tracker?.dispose();
 			};
 		},
 	};

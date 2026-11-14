@@ -729,13 +729,28 @@ importers:
 
   packages/css3d-renderer:
     dependencies:
+      '@edv4h/usketch-dom-renderer':
+        specifier: workspace:*
+        version: link:../dom-renderer
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
     devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
       jsdom:
         specifier: 31.0.0
         version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+      react-dom:
+        specifier: 19.3.1
+        version: 19.3.1(react@19.3.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -2166,9 +2181,9 @@ importers:
 
   plugins/usketch-plugin-shape-3d:
     dependencies:
-      '@edv4h/usketch-dom-renderer':
+      '@edv4h/usketch-css3d-renderer':
         specifier: workspace:*
-        version: link:../../packages/dom-renderer
+        version: link:../../packages/css3d-renderer
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared

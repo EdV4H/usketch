@@ -76,6 +76,13 @@ export {
 } from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+export {
+	createShapeClaims,
+	type ShapeClaimsApi,
+	shapeClaims,
+	shapeClaimsService,
+	unionShapeIds,
+} from "./shape-claims.js";
 // The solids 3D shapes make on the ground (a solid provider on the board's height)
 export {
 	areaContains,
@@ -317,3 +324,9 @@ export {
 	view3dCellOf,
 	view3dOverscanPx,
 } from "./view-3d-state.js";
+export {
+	createView3dTracker,
+	STAGE_3D_EVENT,
+	type View3dSnapshot,
+	type View3dTracker,
+} from "./view-3d-tracker.js";

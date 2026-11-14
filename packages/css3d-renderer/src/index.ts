@@ -16,3 +16,41 @@ export {
 	STAGE_ATTR,
 	setupCss3dRenderer,
 } from "./css3d-renderer.js";
+export {
+	type Css3dShapeSource,
+	css3dShapeSourceService,
+	sanitizeCss3dShapeLimits,
+	setupCss3dShapes,
+} from "./css3d-shapes.js";
+export {
+	type Css3dCameraSource,
+	Css3dShapesLayer,
+	type Css3dShapesLayerProps,
+	SHAPE_3D_LAYER_ID,
+} from "./shapes-layer.js";
+export {
+	type BoxSide,
+	type BoxWall,
+	boxTopTransform,
+	boxWalls,
+	type Css3dShapeLimits,
+	type Css3dShapeTypes,
+	DEFAULT_CSS3D_SHAPE_LIMITS,
+	GROUND_FLAT_PARAMS,
+	lerpAngle,
+	poseBox,
+	poseOrigin,
+	poseTransform,
+	render3dFrame,
+	SHADOW_LIFT_PX,
+	type Shape3dEntry,
+	type ShapePose,
+	STAND_ORIGIN,
+	selectShapes3d,
+	shadowStyle,
+	shapeAnchor,
+	shapePose,
+	standFoot,
+	wallColor,
+	wallShade,
+} from "./shapes-layout.js";

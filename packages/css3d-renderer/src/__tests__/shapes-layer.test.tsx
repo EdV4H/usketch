@@ -1,18 +1,19 @@
 // @vitest-environment jsdom
-import type {
-	LayerRenderContext,
-	ShapeData,
-	ShapeDefinition,
-	ShapeRegistry,
+import {
+	type LayerRenderContext,
+	LEGACY_SHAPE_VIEW_3D_KEY as SHAPE_3D_KEY,
+	type ShapeView3dRenderContext as Shape3dRenderContext,
+	type ShapeData,
+	type ShapeDefinition,
+	type ShapeRegistry,
+	type View3dSnapshot,
+	type View3dTracker,
 } from "@edv4h/usketch-shared";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Shape3dLayer } from "../shape-3d-layer.js";
-import { DEFAULT_SHAPE_3D_LIMITS } from "../shape-3d-layout.js";
-import { SHAPE_3D_KEY } from "../shape-3d-params.js";
-import { crossRender3d, type Shape3dRenderContext } from "../shape-3d-render3d.js";
-import type { View3dSnapshot, View3dTracker } from "../view-3d-tracker.js";
+import { Css3dShapesLayer as Shape3dLayer } from "../shapes-layer.js";
+import { DEFAULT_CSS3D_SHAPE_LIMITS as DEFAULT_SHAPE_3D_LIMITS } from "../shapes-layout.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,7 +79,7 @@ afterEach(() => {
 	host.remove();
 });
 
-describe("Shape3dLayer", () => {
+describe("Css3dShapesLayer", () => {
 	it("draws nothing while flat, and stands the 3D shapes up when the view rises", () => {
 		const t = tracker({ amount: 0, yaw: 0 });
 		const onDrawn = vi.fn();
@@ -172,23 +173,5 @@ describe("Shape3dLayer", () => {
 		const ctx = seen[0];
 		expect(ctx).toMatchObject({ amount: 1, zoom: 1, width: 40, height: 20, faceCamera: -90 });
 		expect(ctx?.camera()?.pitch).toBe(60);
-	});
-
-	it("crossRender3d stands two crossed planes, and leaves other modes generic", () => {
-		const ctx = {
-			params: { mode: "stand" },
-			amount: 0.5,
-			content: <b data-content="" />,
-		} as unknown as Shape3dRenderContext;
-		act(() => root.render(crossRender3d(shape("a"), ctx)));
-		const planes = [...host.querySelectorAll<HTMLElement>("[data-shape-3d-plane]")];
-		expect(planes.map((p) => p.style.transform)).toEqual([
-			"rotateZ(0deg) rotateX(-45deg)",
-			"rotateZ(45deg) rotateX(-45deg)",
-		]);
-		expect(host.querySelectorAll("[data-content]").length).toBe(2);
-		expect(
-			crossRender3d(shape("a"), { ...ctx, params: { mode: "box" } } as Shape3dRenderContext),
-		).toBeNull();
 	});
 });
