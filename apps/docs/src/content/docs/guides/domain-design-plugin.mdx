@@ -43,13 +43,13 @@ Connectors are **anchor-aware**: they snap to source / target shapes and follow 
 Add the plugin to your `basePlugins` array:
 
 ```tsx
-import { domainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createApp } from "@edv4h/usketch-core";
 
 createApp({
   plugins: [
     /* ...existing plugins... */
-    domainDesignPlugin,
+    createDomainDesignPlugin(),
   ],
 });
 ```
@@ -58,7 +58,7 @@ The `domain-draw` tool then appears in the toolbar. Selecting it lets you draw t
 
 ## Switching subtype
 
-Tools that bundle multiple shape subtypes use a **subtype-select event**. Emit this from your toolbar / picker UI:
+Tools that bundle multiple shape subtypes use a **subtype-select event**. The plugin registers a `domain-design:subtype` action on the Control HUD that emits it; a custom toolbar / picker UI can emit it directly:
 
 ```ts
 ctx.events.emit("domain-design:select-subtype", {
@@ -78,7 +78,7 @@ Pressing **Enter** or clicking outside commits the change. Pressing **Escape** c
 
 ## Where domain data lives
 
-Unlike most older plugins (`text`, `connector`, ...) that put intrinsic fields directly on `ShapeData`, this plugin stores all domain-specific state in **`ShapeData<TMeta>`'s `meta`** field — the contract recommended by [the shape system docs](/docs/concepts/shape-system/).
+Unlike most older plugins (`text`, `connector`, ...) that put intrinsic fields directly on `ShapeData`, this plugin stores all domain-specific state in **`ShapeData<TMeta>`'s `meta`** field — the contract recommended by [the shape system docs](../../concepts/shape-system/).
 
 ```ts
 import type { ShapeData } from "@edv4h/usketch-shared";
@@ -126,10 +126,10 @@ Common extensions:
 - Inline editing covers shape-level fields only; relation / multiplicity / upstream are edited via the connector's property bar (which appears when a `domain-connector` is selected).
 - In-line **label editing directly on connectors** is a follow-up; for now use the property bar's label input.
 - **Endpoint-handle reconnection** for `domain-connector` is not yet implemented; recreate the connector to change source / target.
-- The toolbar UI for the subtype picker is the host application's responsibility; the plugin only listens for `domain-design:select-subtype` events.
+- Beyond the `domain-design:subtype` Control HUD action, a dedicated toolbar picker is the host application's responsibility; it switches subtypes by emitting `domain-design:select-subtype`.
 
 ## See also
 
-- [Shape system overview](/docs/concepts/shape-system/) — the contract `meta` is part of.
-- [Building a Shape Plugin](/docs/guides/shape-plugin/) — write your own domain notation.
-- [Building a Tool Plugin](/docs/guides/tool-plugin/) — write a custom drawing tool.
+- [Shape system overview](../../concepts/shape-system/) — the contract `meta` is part of.
+- [Building a Shape Plugin](../shape-plugin/) — write your own domain notation.
+- [Building a Tool Plugin](../tool-plugin/) — write a custom drawing tool.
