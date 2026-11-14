@@ -4,7 +4,13 @@
 // the exact same enable/seed logic as the Control HUD "無限地形" toggle, so a host
 // with its own UI (ActionRing / radial / toolbar) can drive it without the HUD.
 import type { BoardStore } from "@edv4h/usketch-shared";
-import { DEFAULT_BASE_GEN } from "./base-terrain.js";
+import {
+	type BaseGenOptions,
+	type BaseGenParams,
+	DEFAULT_BASE_GEN,
+	resolveBaseGen,
+	withBaseGen,
+} from "./base-terrain.js";
 import { resolveTilemap } from "./generate.js";
 import {
 	DEFAULT_TILE,
@@ -25,11 +31,25 @@ export interface EnableInfiniteTerrainOptions {
 	seed?: number;
 	/** Tile size for a tilemap created on a blank board. Default {@link DEFAULT_TILE}. */
 	tile?: number;
+	/**
+	 * How the world is generated: `scale` (smaller ⇒ larger land / forest / mountain
+	 * regions at the same tile size; default 0.05) and `seaLevel` (0–1, larger ⇒ more
+	 * sea; default 0.42). Given values replace the board's current ones (else the
+	 * defaults), so the world changes; omitted, the board keeps its recorded params.
+	 * Throws `RangeError` on an out-of-range value.
+	 */
+	gen?: BaseGenOptions;
 }
 
 /** The board's effective infinite-terrain seed, or `null` when disabled. */
 export function getInfiniteSeed(store: BoardStore): number | null {
 	return seededTilemap(store.getShapes().values())?.baseSeed ?? null;
+}
+
+/** The board's infinite-terrain generation params, or `null` when disabled. */
+export function getInfiniteGen(store: BoardStore): BaseGenParams | null {
+	const tm = seededTilemap(store.getShapes().values());
+	return tm ? resolveBaseGen(tm.baseGen) : null;
 }
 
 /** Whether the infinite base terrain is enabled on the board. */
@@ -64,15 +84,26 @@ export function enableInfiniteTerrain(
 	}
 	// Deterministic target so every synced client agrees (see seededTilemap). Reuse
 	// the target's own recorded gen if present so re-enabling keeps the same world
-	// even after the default gen advances.
+	// even after the default gen advances; the host's `gen` goes on top of it.
 	const target =
 		seededTilemap(store.getShapes().values()) ?? lowestTilemap(store.getShapes().values());
+	const recorded = target?.baseGen ?? DEFAULT_BASE_GEN;
+	// Validate before touching the board, so a bad value creates no tilemap either.
+	const baseGen = opts.gen ? withBaseGen(resolveBaseGen(recorded), opts.gen) : recorded;
 	const id = target?.id ?? resolveTilemap(store, tile).id;
-	store.updateShape(id, {
-		baseSeed: seed,
-		baseGen: target?.baseGen ?? DEFAULT_BASE_GEN,
-	} as Partial<TileMapShapeData>);
+	store.updateShape(id, { baseSeed: seed, baseGen } as Partial<TileMapShapeData>);
 	return seed;
+}
+
+/**
+ * Change the generation params of the board's infinite terrain (re-generates the
+ * world; same seed). Only while the terrain is on: returns whether it was applied.
+ * Throws `RangeError` on an out-of-range value (see `withBaseGen`).
+ */
+export function setInfiniteGen(store: BoardStore, gen: BaseGenOptions): boolean {
+	if (!isInfiniteTerrainEnabled(store)) return false;
+	enableInfiniteTerrain(store, { gen });
+	return true;
 }
 
 /** Disable the infinite base terrain (clears `baseSeed` on every seeded tilemap). */

@@ -36,7 +36,14 @@ export {
 	resolveTerritoryStyle,
 	type TerritoryStyle,
 } from "./base/territory-style.js";
-export { type BaseGenParams, baseTerrainAt, DEFAULT_BASE_GEN } from "./base-terrain.js";
+export {
+	type BaseGenOptions,
+	type BaseGenParams,
+	baseTerrainAt,
+	DEFAULT_BASE_GEN,
+	regionSizeOf,
+	scaleForRegionSize,
+} from "./base-terrain.js";
 export { type GenState, genStateStore, useGenState, type WorldRect } from "./gen-state.js";
 // NOTE: `resolveTilemap` returns the FIRST tilemap in iteration order (or creates
 // one) — NOT deterministic across synced peers when several tilemaps exist. For
@@ -60,8 +67,10 @@ export {
 	disableInfiniteTerrain,
 	type EnableInfiniteTerrainOptions,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
+	setInfiniteGen,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 export { RELIEF_LAYER_ID, reliefCellRange } from "./map-relief-layer.js";

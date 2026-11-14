@@ -13,12 +13,15 @@ import {
 } from "./base/base-ops.js";
 import { baseStateStore } from "./base/base-state.js";
 import { computeTerritory, type Territory } from "./base/territory.js";
+import type { BaseGenOptions, BaseGenParams } from "./base-terrain.js";
 import {
 	disableInfiniteTerrain,
 	type EnableInfiniteTerrainOptions,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
+	setInfiniteGen,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 import type { ReactiveStore } from "./reactive-store.js";
@@ -30,11 +33,21 @@ import { type MapToolState, toolStateStore } from "./tool-state.js";
 /** The map plugin's host-facing operations + live stores. */
 export interface MapApi {
 	// ── Infinite base terrain (store-bound; the host needn't pass the store) ──
-	/** Enable/re-seed the infinite base terrain. Returns the applied integer seed. */
+	/**
+	 * Enable/re-seed the infinite base terrain, optionally with its generation params
+	 * (`gen: { scale, seaLevel }`). Returns the applied integer seed.
+	 */
 	enableInfiniteTerrain(opts?: EnableInfiniteTerrainOptions): number;
 	disableInfiniteTerrain(): void;
 	/** Current effective seed, or `null` when disabled. */
 	getInfiniteSeed(): number | null;
+	/** The board's generation params (scale, seaLevel…), or `null` when disabled. */
+	getInfiniteGen(): BaseGenParams | null;
+	/**
+	 * Change the generation params (`scale` / `seaLevel`) of the enabled terrain —
+	 * re-generates the world. Returns `false` (no-op) while the terrain is off.
+	 */
+	setInfiniteGen(gen: BaseGenOptions): boolean;
 	isInfiniteTerrainEnabled(): boolean;
 	/** A number enables/re-seeds, `null` disables. */
 	setInfiniteSeed(seed: number | null): void;
@@ -84,6 +97,8 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 		enableInfiniteTerrain: (opts) => enableInfiniteTerrain(store, opts),
 		disableInfiniteTerrain: () => disableInfiniteTerrain(store),
 		getInfiniteSeed: () => getInfiniteSeed(store),
+		getInfiniteGen: () => getInfiniteGen(store),
+		setInfiniteGen: (gen) => setInfiniteGen(store, gen),
 		isInfiniteTerrainEnabled: () => isInfiniteTerrainEnabled(store),
 		setInfiniteSeed: (seed) => setInfiniteSeed(store, seed),
 		getTerritory: () => snapshot().territory,

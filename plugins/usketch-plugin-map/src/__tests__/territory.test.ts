@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type Cells, parseCellKey } from "../autotile.js";
 import { BASE_MAP_TYPE, type BaseInfo } from "../base/base-map-shape.js";
 import { computeTerritory } from "../base/territory.js";
-import { baseTerrainAt, DEFAULT_BASE_GEN } from "../base-terrain.js";
+import { type BaseGenParams, baseTerrainAt, DEFAULT_BASE_GEN } from "../base-terrain.js";
 import { TILEMAP_TYPE } from "../tilemap-shape.js";
 
 const TILE = 40;
@@ -118,7 +118,11 @@ describe("computeTerritory", () => {
 });
 
 /** A tilemap carrying an infinite-terrain seed. */
-function seededTilemapShape(baseSeed: number, cells: Cells = {}): ShapeData {
+function seededTilemapShape(
+	baseSeed: number,
+	cells: Cells = {},
+	baseGen?: BaseGenParams,
+): ShapeData {
 	return {
 		id: "tm",
 		type: TILEMAP_TYPE,
@@ -130,6 +134,7 @@ function seededTilemapShape(baseSeed: number, cells: Cells = {}): ShapeData {
 		cells,
 		handPaint: {},
 		baseSeed,
+		...(baseGen ? { baseGen } : {}),
 	} as unknown as ShapeData;
 }
 
@@ -206,5 +211,22 @@ describe("computeTerritory — exclude applies to effective terrain (#982)", () 
 		}
 		// Same seed twice → cache hit (unchanged fast path).
 		expect(computeTerritory(storeA, TILE, new Set(["water"]))).toBe(tA);
+	});
+
+	it("keys the cache by baseGen (same cells and seed, different gen → recompute)", () => {
+		const cells: Cells = {};
+		const bases: Record<string, BaseInfo> = {
+			b1: { name: "B1", color: "#f00", radius: 6, beaconCell: "0,0" },
+		};
+		const wide: BaseGenParams = { ...DEFAULT_BASE_GEN, scale: 0.01, seaLevel: 0.9 };
+		const storeA = makeStore([baseMap(bases), seededTilemapShape(1, cells)]);
+		const storeB = makeStore([baseMap(bases), seededTilemapShape(1, cells, wide)]);
+		const tA = computeTerritory(storeA, TILE, new Set(["water"]));
+		const tB = computeTerritory(storeB, TILE, new Set(["water"]));
+		expect(tB).not.toBe(tA);
+		for (const key of Object.keys(tB)) {
+			const [c, r] = parseCellKey(key);
+			expect(baseTerrainAt(1, c, r, wide)).not.toBe("water");
+		}
 	});
 });

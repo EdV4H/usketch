@@ -1,12 +1,14 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_BASE_GEN } from "../base-terrain.js";
+import { DEFAULT_BASE_GEN, regionSizeOf, scaleForRegionSize } from "../base-terrain.js";
 import {
 	DEFAULT_INFINITE_SEED,
 	disableInfiniteTerrain,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
+	setInfiniteGen,
 	setInfiniteSeed,
 } from "../infinite-terrain.js";
 import { makeTileMap, type TileMapShapeData } from "../tilemap-shape.js";
@@ -98,5 +100,54 @@ describe("infinite-terrain public API", () => {
 		expect(getInfiniteSeed(store)).toBe(4);
 		setInfiniteSeed(store, null);
 		expect(getInfiniteSeed(store)).toBeNull();
+	});
+
+	it("enableInfiniteTerrain stamps the given gen (scale / seaLevel) over the defaults", () => {
+		const store = fakeStore();
+		enableInfiniteTerrain(store, { seed: 1, gen: { scale: 0.025, seaLevel: 0.5 } });
+		expect(getInfiniteGen(store)).toEqual({ ...DEFAULT_BASE_GEN, scale: 0.025, seaLevel: 0.5 });
+	});
+
+	it("enableInfiniteTerrain without gen keeps the board's recorded gen", () => {
+		const store = fakeStore();
+		enableInfiniteTerrain(store, { seed: 1, gen: { scale: 0.025 } });
+		enableInfiniteTerrain(store, { seed: 2 });
+		expect(getInfiniteGen(store)?.scale).toBe(0.025);
+		expect(getInfiniteSeed(store)).toBe(2);
+	});
+
+	it("enableInfiniteTerrain rejects an out-of-range gen without touching the board", () => {
+		for (const gen of [
+			{ scale: 0 },
+			{ scale: Number.NaN },
+			{ seaLevel: -0.1 },
+			{ seaLevel: 1.5 },
+		]) {
+			const store = fakeStore();
+			expect(() => enableInfiniteTerrain(store, { seed: 1, gen })).toThrow(RangeError);
+			expect(store.getShapes().size).toBe(0);
+		}
+	});
+
+	it("getInfiniteGen is null while disabled", () => {
+		expect(getInfiniteGen(fakeStore())).toBeNull();
+		expect(getInfiniteGen(fakeStore([tilemap("a")]))).toBeNull();
+	});
+
+	it("setInfiniteGen re-generates only while enabled, keeping the seed", () => {
+		const off = fakeStore();
+		expect(setInfiniteGen(off, { seaLevel: 0.6 })).toBe(false);
+		expect(off.getShapes().size).toBe(0);
+		const on = fakeStore([tilemap("a", 9)]);
+		expect(setInfiniteGen(on, { seaLevel: 0.6 })).toBe(true);
+		expect(getInfiniteGen(on)?.seaLevel).toBe(0.6);
+		expect(getInfiniteGen(on)?.scale).toBe(DEFAULT_BASE_GEN.scale);
+		expect(getInfiniteSeed(on)).toBe(9);
+	});
+
+	it("region size is a multiple of the default scale (2 = twice as wide)", () => {
+		expect(scaleForRegionSize(2)).toBeCloseTo(DEFAULT_BASE_GEN.scale / 2, 12);
+		expect(regionSizeOf({ scale: scaleForRegionSize(2) })).toBeCloseTo(2, 12);
+		expect(regionSizeOf(DEFAULT_BASE_GEN)).toBe(1);
 	});
 });
