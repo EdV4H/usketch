@@ -2,7 +2,7 @@
 // the strip, and along it either following the ground (smoothed, so bumps go but hills
 // stay) or at one height. Past the strip a shoulder blends the edit into the terrain.
 // Works on a Stroke like the brush, so it is written as one undo step. Pure.
-import { type Stroke, strokeEditor } from "./elevation-brush.js";
+import { MAX_RADIUS, type Stroke, strokeEditor } from "./elevation-brush.js";
 import { MAX_HEIGHT } from "./elevation-field.js";
 import { elevationSampler } from "./elevation-model.js";
 
@@ -68,15 +68,20 @@ export function gradeProfile(
 	heightAt: (x: number, y: number) => number,
 	opts: { step: number; smoothing: number; height?: number; closed?: boolean },
 ): GradePoint[] {
-	const pts = resamplePath(path, opts.step);
+	const ends = path.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+	const first = ends[0];
+	const last = ends[ends.length - 1];
+	// A loop given without repeating its first point: close it.
+	const closedPath =
+		opts.closed === true && ends.length > 2 && (first.x !== last.x || first.y !== last.y)
+			? [...ends, first]
+			: ends;
+	const pts = resamplePath(closedPath, opts.step);
 	if (opts.height !== undefined) return pts.map((p) => ({ ...p, h: opts.height as number }));
 	const raw = pts.map((p) => heightAt(p.x, p.y));
 	const k = Math.max(0, Math.round(opts.smoothing / 2 / opts.step));
 	// A loop's last point repeats its first: average over the unique ones, wrapping.
-	const loop =
-		opts.closed === true &&
-		pts.length > 2 &&
-		Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) <= opts.step;
+	const loop = opts.closed === true && pts.length > 2;
 	const n = loop ? pts.length - 1 : pts.length;
 	const prefix = new Float64Array(n + 1);
 	for (let i = 0; i < n; i++) prefix[i + 1] = prefix[i] + raw[i];
@@ -108,31 +113,46 @@ export function gradeProfile(
 const smoothstep = (s: number): number => s * s * (3 - 2 * s);
 
 /**
+ * Check {@link GradeOptions}: throws `RangeError` on a `halfWidth` outside
+ * (0, MAX_RADIUS], a `shoulder` outside [0, MAX_RADIUS], a negative `smoothing` or a
+ * `height` outside 0 … MAX_HEIGHT. Returns the shoulder and smoothing to use. Pure.
+ */
+export function checkGradeOptions(opts: GradeOptions): { shoulder: number; smoothing: number } {
+	const hw = opts.halfWidth;
+	const sh = opts.shoulder ?? hw;
+	if (!(hw > 0 && hw <= MAX_RADIUS)) {
+		throw new RangeError(`grade: halfWidth must be within (0, ${MAX_RADIUS}], got ${String(hw)}`);
+	}
+	if (!(sh >= 0 && sh <= MAX_RADIUS)) {
+		throw new RangeError(`grade: shoulder must be within [0, ${MAX_RADIUS}], got ${String(sh)}`);
+	}
+	const smoothing = opts.smoothing ?? 4 * (hw + sh);
+	if (!(smoothing >= 0 && Number.isFinite(smoothing))) {
+		throw new RangeError(`grade: smoothing must be a finite number ≥ 0, got ${String(smoothing)}`);
+	}
+	if (opts.height !== undefined && !(opts.height >= 0 && opts.height <= MAX_HEIGHT)) {
+		throw new RangeError(
+			`grade: height must be within 0–${MAX_HEIGHT}, got ${String(opts.height)}`,
+		);
+	}
+	return { shoulder: sh, smoothing };
+}
+
+/**
  * Level the strip along `path` on the stroke's working copy (see {@link GradeOptions}).
- * Where the strip passes near itself the nearer part of the path wins. Returns whether
- * any height changed. Throws `RangeError` on a non-positive `halfWidth` or a negative
- * `shoulder` / `smoothing`.
+ * Where the strip passes near itself the nearer part of the path wins, so a crossing of
+ * two parts at different heights keeps a step between them. Returns whether any height
+ * changed. Throws `RangeError` on bad options (see {@link checkGradeOptions}).
  */
 export function applyGrade(stroke: Stroke, path: readonly Pt[], opts: GradeOptions): boolean {
 	const hw = opts.halfWidth;
-	const sh = opts.shoulder ?? hw;
-	if (!(hw > 0) || !Number.isFinite(hw)) {
-		throw new RangeError(`grade: halfWidth must be a finite positive number, got ${String(hw)}`);
-	}
-	if (!(sh >= 0) || !Number.isFinite(sh)) {
-		throw new RangeError(`grade: shoulder must be a finite number ≥ 0, got ${String(sh)}`);
-	}
-	const smoothing = opts.smoothing ?? 4 * (hw + sh);
-	if (!(smoothing >= 0)) {
-		throw new RangeError(`grade: smoothing must be ≥ 0, got ${String(smoothing)}`);
-	}
-	if (opts.height !== undefined && !Number.isFinite(opts.height)) {
-		throw new RangeError(`grade: height must be a finite number, got ${String(opts.height)}`);
-	}
+	const { shoulder: sh, smoothing } = checkGradeOptions(opts);
 	const sp = stroke.field.spacing;
 	const sampler = elevationSampler(stroke.model);
+	// The profile is linear between its points, so they needn't be closer than a
+	// fraction of the strip: fewer, longer segments to measure every node against.
 	const profile = gradeProfile(path, (x, y) => sampler.heightAt(x, y), {
-		step: sp,
+		step: Math.max(sp, hw / 2),
 		smoothing,
 		height: opts.height,
 		closed: opts.closed,
@@ -140,7 +160,7 @@ export function applyGrade(stroke: Stroke, path: readonly Pt[], opts: GradeOptio
 	if (profile.length === 0) return false;
 	const reach = hw + sh;
 	// Nearest point of the path for every grid node within reach.
-	const best = new Map<string, { i: number; j: number; d: number; h: number }>();
+	const best = new Map<number, { i: number; j: number; d: number; h: number }>();
 	const segs = profile.length === 1 ? [[profile[0], profile[0]]] : [];
 	for (let k = 1; k < profile.length; k++) segs.push([profile[k - 1], profile[k]]);
 	for (const [a, b] of segs) {
@@ -158,8 +178,9 @@ export function applyGrade(stroke: Stroke, path: readonly Pt[], opts: GradeOptio
 				const t =
 					len2 > 0 ? Math.min(1, Math.max(0, ((px - a.x) * dx + (py - a.y) * dy) / len2)) : 0;
 				const d = Math.hypot(px - (a.x + dx * t), py - (a.y + dy * t));
-				if (d >= reach && !(d <= hw)) continue;
-				const key = `${i},${j}`;
+				if (d > reach) continue;
+				// Grid indices stay far below 2^25 for any world a board can hold.
+				const key = (i + 2 ** 25) * 2 ** 26 + (j + 2 ** 25);
 				const cur = best.get(key);
 				if (!cur || d < cur.d) best.set(key, { i, j, d, h: a.h + (b.h - a.h) * t });
 			}

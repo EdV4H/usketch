@@ -79,6 +79,18 @@ describe("gradeProfile", () => {
 		expect(p[0].h).toBeCloseTo(p[p.length - 1].h, 6);
 		expect(Math.abs(p[1].h - p[p.length - 2].h)).toBeLessThan(10);
 	});
+
+	it("closes a loop given without repeating its first point", () => {
+		const square = [
+			{ x: 0, y: 0 },
+			{ x: 800, y: 0 },
+			{ x: 800, y: 800 },
+			{ x: 0, y: 800 },
+		];
+		const p = gradeProfile(square, () => 0, { step: 16, smoothing: 0, closed: true });
+		expect(p[p.length - 1]).toMatchObject({ x: 0, y: 0 });
+		expect(p.some((q) => q.x === 0 && q.y === 400)).toBe(true);
+	});
 });
 
 describe("gradeElevation", () => {
@@ -92,14 +104,14 @@ describe("gradeElevation", () => {
 		const { store, commands, deps } = setup();
 		enableInfiniteElevation(deps, { seed: 3, gen: { relief: 1200, scale: 2048 } });
 		const before = [-80, 0, 80].map((y) => elevationHeightAt(store, 1000, y));
+		const far = elevationHeightAt(store, 1000, 600);
 		const n = gradeElevation(deps, line, { halfWidth: 100, height: 300 });
 		expect(n).toBeGreaterThan(0);
 		for (const y of [-80, 0, 80]) expect(elevationHeightAt(store, 1000, y)).toBeCloseTo(300, 0);
 		// Far past the shoulder the ground is untouched.
-		const far = elevationHeightAt(store, 1000, 600);
+		expect(elevationHeightAt(store, 1000, 600)).toBe(far);
 		commands.undo();
 		expect([-80, 0, 80].map((y) => elevationHeightAt(store, 1000, y))).toEqual(before);
-		expect(elevationHeightAt(store, 1000, 600)).toBe(far);
 	});
 
 	it("following the ground keeps the strip flat across but sloped along", () => {
@@ -122,9 +134,12 @@ describe("gradeElevation", () => {
 		expect(mid).toBeLessThan(2000);
 	});
 
-	it("rejects bad options", () => {
+	it("rejects bad options, with or without a field", () => {
 		const { deps } = setup();
+		expect(() => gradeElevation(deps, line, { halfWidth: -5 })).toThrow(RangeError);
 		enableInfiniteElevation(deps, { seed: 3 });
+		expect(() => gradeElevation(deps, line, { halfWidth: 50000 })).toThrow(RangeError);
+		expect(() => gradeElevation(deps, line, { halfWidth: 10, height: 5000 })).toThrow(RangeError);
 		expect(() => gradeElevation(deps, line, { halfWidth: 0 })).toThrow(RangeError);
 		expect(() => gradeElevation(deps, line, { halfWidth: 10, shoulder: -1 })).toThrow(RangeError);
 		expect(() => gradeElevation(deps, line, { halfWidth: 10, height: Number.NaN })).toThrow(

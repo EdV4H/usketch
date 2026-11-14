@@ -33,7 +33,7 @@ import {
 	strokeChanges,
 } from "./elevation-brush.js";
 import { encodeChunk } from "./elevation-codec.js";
-import { applyGrade, type GradeOptions } from "./elevation-grade.js";
+import { applyGrade, checkGradeOptions, type GradeOptions } from "./elevation-grade.js";
 import { boardElevation, boardField, elevationSampler } from "./elevation-model.js";
 
 export interface ElevationDeps {
@@ -289,6 +289,7 @@ export function gradeElevation(
 	path: readonly { x: number; y: number }[],
 	opts: GradeOptions,
 ): number {
+	checkGradeOptions(opts);
 	const model = boardElevation(deps.store);
 	if (!model) return 0;
 	const stroke = beginStroke(model);

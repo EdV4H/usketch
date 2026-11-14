@@ -201,7 +201,7 @@ export interface StrokeEditor {
 	heightAt(i: number, j: number): number;
 	/** Set the height at grid node `(i, j)` (world units; kept as a delta over the base). */
 	write(i: number, j: number, h: number): void;
-	/** Publish the writes as the stroke's new `model` (call once after writing). */
+	/** Publish the writes as the stroke's new `model` (once, after writing; no writes after). */
 	commit(): void;
 }
 
@@ -224,9 +224,12 @@ export function strokeEditor(stroke: Stroke): StrokeEditor {
 		const a = chunks.get(chunkKey(cx, cy));
 		return a ? a[(j - cy * n) * n + (i - cx * n)] / DELTA_SCALE : 0;
 	};
+	let committed = false;
 	return {
 		heightAt: (i, j) => clamp(baseOf.sample(i, j) + deltaAt(i, j), 0, MAX_HEIGHT),
 		write: (i, j, h) => {
+			// The committed chunks belong to the published model: never change them.
+			if (committed) throw new Error("strokeEditor: write after commit");
 			const cx = Math.floor(i / n);
 			const cy = Math.floor(j / n);
 			const key = chunkKey(cx, cy);
@@ -243,6 +246,7 @@ export function strokeEditor(stroke: Stroke): StrokeEditor {
 				(h - baseOf.sample(i, j)) * DELTA_SCALE;
 		},
 		commit: () => {
+			committed = true;
 			stroke.model = { field, chunks };
 		},
 	};
