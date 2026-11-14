@@ -369,6 +369,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 
 			ctx.layers.register({
 				id: "snap-guides",
+				view3d: "tilt",
 				order: 90,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

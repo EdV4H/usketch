@@ -451,6 +451,7 @@ export function setupCharacterRuntime(
 
 	ctx.layers.register({
 		id: CHARACTER_LAYER_ID,
+		view3d: "depth",
 		order: CHARACTER_LAYER_ORDER,
 		fixed: true,
 		render: (rc) => (

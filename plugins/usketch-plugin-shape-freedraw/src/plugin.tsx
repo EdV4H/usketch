@@ -92,6 +92,7 @@ export function createFreedrawPlugin(
 			// ── 自前 UI レイヤー（Vim-first でツールバーが無くても動く） ──
 			ctx.layers.register({
 				id: "freedraw-cursor",
+				view3d: "tilt",
 				order: 92,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

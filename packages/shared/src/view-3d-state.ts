@@ -23,13 +23,23 @@ export interface View3dState {
 	camera: Camera3d;
 	/** How far the view is risen right now, `0` (flat) … `1` (3D). Eased while it rises. */
 	amount: number;
+	/**
+	 * How far the ground is drawn, in world units forward from the near edge of the stage.
+	 * `0` = clip to the stage box. Beyond the stage, backgrounds are drawn that much
+	 * further (see {@link view3dOverscanPx}).
+	 */
+	drawDistance: number;
 }
 
 /** A change to {@link View3dState}: camera fields are merged, then clamped. */
 export interface View3dPatch {
 	camera?: Partial<Camera3d>;
 	amount?: number;
+	drawDistance?: number;
 }
+
+/** The draw distance a view starts with (world units). */
+export const DEFAULT_DRAW_DISTANCE = 1500;
 
 /** Allowed camera ranges. pitch stays below 90 so the ground never goes edge-on. */
 export const CAMERA_3D_LIMITS = {
@@ -42,7 +52,11 @@ export const CAMERA_3D_LIMITS = {
 
 export const DEFAULT_CAMERA_3D: Camera3d = { pitch: 55, fov: 600, horizon: 0.45, height: 0 };
 
-export const FLAT_VIEW_3D: View3dState = { camera: DEFAULT_CAMERA_3D, amount: 0 };
+export const FLAT_VIEW_3D: View3dState = {
+	camera: DEFAULT_CAMERA_3D,
+	amount: 0,
+	drawDistance: DEFAULT_DRAW_DISTANCE,
+};
 
 function clamp(v: number, min: number, max: number, fallback = min): number {
 	if (!Number.isFinite(v)) return fallback;
@@ -64,7 +78,31 @@ export function clampCamera3d(c: Camera3d): Camera3d {
 export function patchView3d(state: View3dState, patch: View3dPatch): View3dState {
 	const camera = patch.camera ? clampCamera3d({ ...state.camera, ...patch.camera }) : state.camera;
 	const amount = patch.amount === undefined ? state.amount : clamp(patch.amount, 0, 1, 0);
-	return { camera, amount };
+	const drawDistance =
+		patch.drawDistance === undefined ? state.drawDistance : clampDrawDistance(patch.drawDistance);
+	return { camera, amount, drawDistance };
+}
+
+/** A usable draw distance: `>= 0`; non-finite / negative = `0` (clip to the stage). */
+export function clampDrawDistance(n: number): number {
+	return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** Extra px added to the overscan so backgrounds comfortably cover the clip line. */
+export const OVERSCAN_BUFFER_PX = 16;
+
+/**
+ * How far past the stage box (px, every side) backgrounds should be drawn so they stay
+ * under the far ground the draw distance shows: the draw distance on screen
+ * (`drawDistance × zoom`) beyond the stage height, plus {@link OVERSCAN_BUFFER_PX}.
+ * `0` while flat or when the distance ends within the stage.
+ */
+export function view3dOverscanPx(state: View3dState, zoom: number, stageHeight: number): number {
+	if (!(state.amount > 0) || !(state.drawDistance > 0) || !(zoom > 0) || !(stageHeight > 0)) {
+		return 0;
+	}
+	const band = state.drawDistance * zoom;
+	return band > stageHeight ? Math.ceil(band - stageHeight) + OVERSCAN_BUFFER_PX : 0;
 }
 
 /** Whether two states draw the same. */
@@ -73,6 +111,7 @@ export function sameView3d(a: View3dState, b: View3dState): boolean {
 	const d = b.camera;
 	return (
 		a.amount === b.amount &&
+		a.drawDistance === b.drawDistance &&
 		c.pitch === d.pitch &&
 		c.fov === d.fov &&
 		c.horizon === d.horizon &&

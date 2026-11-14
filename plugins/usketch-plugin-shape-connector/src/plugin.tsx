@@ -309,6 +309,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 			if (labelEditor) {
 				ctx.layers.register({
 					id: CONNECTOR_LAYER_IDS.labelEditor,
+					view3d: "tilt",
 					order: 83,
 					fixed: true,
 					// World-anchored: follow the camera rotation (see Layer.worldOverlay).

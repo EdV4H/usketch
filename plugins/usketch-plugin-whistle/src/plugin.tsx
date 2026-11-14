@@ -400,6 +400,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			// ── Indicator layer ──
 			ctx.layers.register({
 				id: "whistle-indicator",
+				view3d: "tilt",
 				order: 98,
 				fixed: true,
 				render: () => (

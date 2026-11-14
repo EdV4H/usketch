@@ -95,6 +95,7 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 
 			ctx.layers.register({
 				id: SHAPE_3D_LAYER_ID,
+				view3d: "depth",
 				// Just above the flat DOM shapes (50); a fixed layer placed in screen px.
 				order: 51,
 				avoidCollision: true,

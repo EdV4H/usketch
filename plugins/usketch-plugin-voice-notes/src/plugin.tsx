@@ -164,6 +164,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 			// ── Indicator (fixed screen overlay) ──
 			ctx.layers.register({
 				id: "voice-notes-indicator",
+				view3d: "tilt",
 				order: 99,
 				fixed: true,
 				render: () => (

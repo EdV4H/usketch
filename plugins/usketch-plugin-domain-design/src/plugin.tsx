@@ -149,6 +149,7 @@ export function createDomainDesignPlugin(): UsketchPlugin {
 			// が、order 値を分けておくことでレイヤーリストでの並びが安定する。
 			ctx.layers.register({
 				id: "domain-connector-properties",
+				view3d: "tilt",
 				order: 84,
 				fixed: true,
 				render: () => <DomainConnectorPropertyBar />,

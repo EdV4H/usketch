@@ -67,6 +67,7 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 			// バッジレイヤー（fixedレイヤー = スクリーン座標系で描画）
 			ctx.layers.register({
 				id: "comment-badges",
+				view3d: "tilt",
 				order: 55,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

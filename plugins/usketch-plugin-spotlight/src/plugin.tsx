@@ -167,6 +167,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			// fixedレイヤーとしてCanvas2Dを登録
 			ctx.layers.register({
 				id: "spotlight",
+				view3d: "tilt",
 				order: 95,
 				fixed: true,
 				render: (renderCtx) => <SpotlightCanvas ctx={renderCtx} />,

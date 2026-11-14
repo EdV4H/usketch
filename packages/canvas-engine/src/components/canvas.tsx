@@ -15,6 +15,7 @@ import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
+import { useView3dOverscan } from "../hooks/use-view-3d-overscan.js";
 
 /**
  * Effectively hidden = the shape's own `hidden` flag OR any ancestor's (hiding a
@@ -451,6 +452,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 					order: active.order ?? 80,
 					fixed: active.fixed ?? true,
 					worldOverlay: active.worldOverlay ?? true,
+					view3d: active.view3d ?? "tilt",
 					render: active.render,
 				});
 				mounted = true;
@@ -626,6 +628,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		[viewport, canvasSize],
 	);
 
+	// While in 3D: how far past the box backgrounds should draw (the draw distance).
+	const view3dOverscan = useView3dOverscan(app.store, viewport.zoom, canvasSize.height);
+
 	const renderCtx = {
 		viewport,
 		shapes: filteredShapes,
@@ -635,6 +640,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		theme: DEFAULT_THEME,
 		renderMode,
 		viewportBounds,
+		view3dOverscan,
 	};
 
 	const layers = app.layers.getLayers();
@@ -684,6 +690,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 							<div
 								key={layer.id}
 								data-layer-id={layer.id}
+								data-view3d={layer.view3d}
 								data-world-overlay=""
 								style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
 							>
@@ -697,6 +704,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 						<div
 							key={layer.id}
 							data-layer-id={layer.id}
+							data-view3d={layer.view3d}
 							style={{
 								position: "absolute",
 								inset: 0,
@@ -712,6 +720,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 					<div
 						key={layer.id}
 						data-layer-id={layer.id}
+						data-view3d={layer.view3d}
 						style={{
 							position: "absolute",
 							inset: 0,

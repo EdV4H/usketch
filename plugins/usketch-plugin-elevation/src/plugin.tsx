@@ -15,6 +15,7 @@ import {
 	type UsketchPlugin,
 	view3dService,
 } from "@edv4h/usketch-shared";
+import { useLayoutEffect } from "react";
 import { BRUSH_CURSOR_LAYER_ID, BrushCursorLayer } from "./brush-cursor-layer.js";
 import { type BrushSettings, DEFAULT_BRUSH, normalizeBrush } from "./elevation-brush.js";
 import { CHUNK_TYPE, FIELD_TYPE } from "./elevation-field.js";
@@ -67,7 +68,23 @@ export const DEFAULT_MESH_ORDER = 46;
 const layerOrder = (value: number | undefined, fallback: number): number =>
 	typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
-/** Event a 3D view emits with the screen px of ground it shows past the viewport. */
+/** Hands the canvas's 3D overscan to the plugin (a layer's render can't set state itself). */
+function CoreOverscan({
+	px,
+	onChange,
+}: {
+	px: number | undefined;
+	onChange: (px: number | undefined) => void;
+}): null {
+	useLayoutEffect(() => onChange(px), [px, onChange]);
+	return null;
+}
+
+/**
+ * Event a 3D view emits with the screen px of ground it shows past the viewport.
+ * @deprecated The canvas passes it as `LayerRenderContext.view3dOverscan`; the event is
+ * still read until the next major.
+ */
 export const GROUND_OVERSCAN_EVENT = "bg-grid:set-overscan";
 const DEFAULT_MAX_OVERSCAN_PX = 1200;
 
@@ -102,30 +119,48 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			const decals = groundDecals(ctx.services);
 			const mesh = createReactiveStore<MeshState>({ drawing: false });
 			const maxOverscan = options.maxOverscanPx ?? DEFAULT_MAX_OVERSCAN_PX;
+			// Ground drawn past the viewport while in 3D: the core's value
+			// (`LayerRenderContext.view3dOverscan`) or the older overscan event's, the larger.
 			const overscan = createReactiveStore({ px: 0 });
+			let eventPx = 0;
+			let corePx = 0;
+			const updateOverscan = (): void => {
+				const px = Math.max(eventPx, corePx);
+				const next = Number.isFinite(px) ? Math.min(Math.max(0, px), maxOverscan) : 0;
+				if (next !== overscan.get().px) overscan.set({ px: next });
+			};
 			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
 				const px = Number(data?.px);
-				overscan.set({ px: Number.isFinite(px) ? Math.min(Math.max(0, px), maxOverscan) : 0 });
+				eventPx = Number.isFinite(px) ? px : 0;
+				updateOverscan();
 			});
+			const setCoreOverscan = (px: number | undefined): void => {
+				corePx = Number.isFinite(px) ? (px as number) : 0;
+				updateOverscan();
+			};
 
 			ctx.layers.register({
 				id: GROUND_LAYER_ID,
+				view3d: "tilt",
 				// Above the map's ground (40–44), below the shapes (50), unless the host says.
 				order: layerOrder(options.groundOrder, DEFAULT_GROUND_ORDER),
 				avoidCollision: true,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
 				worldOverlay: true,
-				render: () => (
-					<ElevationGroundLayer
-						store={ctx.store}
-						display={display}
-						overscan={overscan}
-						preview={preview}
-						mesh={options.mesh === false ? undefined : mesh}
-						decals={decals}
-						view3d={view3d}
-					/>
+				render: (rc) => (
+					<>
+						<CoreOverscan px={rc.view3dOverscan} onChange={setCoreOverscan} />
+						<ElevationGroundLayer
+							store={ctx.store}
+							display={display}
+							overscan={overscan}
+							preview={preview}
+							mesh={options.mesh === false ? undefined : mesh}
+							decals={decals}
+							view3d={view3d}
+						/>
+					</>
 				),
 			});
 			if (options.mesh !== false) {

@@ -254,6 +254,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			// fixedレイヤーとしてCanvas2Dを登録（ビューポート変換は自前で行う）
 			ctx.layers.register({
 				id: "laser",
+				view3d: "tilt",
 				order: 90,
 				fixed: true,
 				render: (renderCtx) => <LaserCanvas ctx={renderCtx} />,

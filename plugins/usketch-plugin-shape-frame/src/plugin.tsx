@@ -160,6 +160,7 @@ export function createFramePlugin(): UsketchPlugin {
 			// Editing closes on the input's blur/Enter/Escape.
 			ctx.layers.register({
 				id: "usketch-plugin-shape-frame:title-editor",
+				view3d: "tilt",
 				order: 84,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

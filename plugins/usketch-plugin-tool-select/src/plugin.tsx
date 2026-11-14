@@ -775,6 +775,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			if (handleRegistry) {
 				ctx.layers.register({
 					id: SELECT_TOOL_LAYER_IDS.handles,
+					view3d: "tilt",
 					// Above the selection frame (80): the handles never sit on a built-in
 					// handle (those are left out), and they must not be covered by an
 					// outline drawn through them (e.g. a connector's line highlight).

@@ -73,6 +73,7 @@ export function createDotsBgPlugin(): UsketchPlugin {
 
 			ctx.layers.register({
 				id: "bg-dots",
+				view3d: "tilt",
 				order: 10,
 				fixed: true,
 				render: (renderCtx) => <DotsBackground viewport={renderCtx.viewport} />,

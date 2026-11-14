@@ -36,6 +36,7 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 			const overlayHandle = handle;
 			ctx.layers.register({
 				id: UNCONFIRMED_OVERLAY_LAYER_ID,
+				view3d: "tilt",
 				order: 250,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

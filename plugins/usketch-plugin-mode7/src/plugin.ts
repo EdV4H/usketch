@@ -40,8 +40,9 @@ export interface Mode7PluginOptions {
 	camera?: Partial<Camera>;
 	/** Initial appearance (sky / fog). */
 	look?: Partial<Look>;
-	/** Initial set of tilted layer ids (default: Shapes + backgrounds). The set is
-	 *  also selectable at runtime via the HUD layer picker. */
+	/** Initial set of tilted layer ids (default: `DEFAULT_TILT_LAYER_IDS` plus every layer
+	 *  that declares `view3d: "tilt" | "depth"`). Giving it makes the list exact (declared
+	 *  layers aren't added). The set is also selectable at runtime via the HUD layer picker. */
 	tiltLayerIds?: string[];
 	/** Layer ids the runtime picker must never offer (in addition to the plugin's own
 	 *  overlays and the HUD, which are always excluded). */
@@ -50,8 +51,8 @@ export interface Mode7PluginOptions {
 	 *  larger values extend the ground past it; default `1500`). */
 	drawDistance?: number;
 	/**
-	 * Tilted layers rendered with real depth (default `DEFAULT_DEPTH_LAYER_IDS`: the
-	 * map's raised terrain + characters). They skip the draw-distance clip, which
+	 * Tilted layers rendered with real depth (default `DEFAULT_DEPTH_LAYER_IDS` plus every
+	 * layer that declares `view3d: "depth"`: the map's raised terrain + characters). They skip the draw-distance clip, which
 	 * would flatten them.
 	 */
 	depthLayerIds?: string[];
@@ -126,6 +127,8 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			const stopRuntime = setupMode7Runtime(ctx, store, {
 				depthLayerIds: options.depthLayerIds,
 				yaw,
+				adoptDeclared: options.tiltLayerIds === undefined,
+				excludedLayerIds,
 			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.

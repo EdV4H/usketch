@@ -122,6 +122,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
 				id: TERRAIN_LAYER_ID,
+				view3d: "tilt",
 				order: 40,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -141,6 +142,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    areas / icons (42/44) so those stay visible. ──
 			ctx.layers.register({
 				id: RELIEF_LAYER_ID,
+				view3d: "depth",
 				order: 41,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -159,6 +161,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			// ── Base areas (above terrain, below shapes) + enter banner overlay ──
 			ctx.layers.register({
 				id: BASE_LAYER_ID,
+				view3d: "tilt",
 				order: 42,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -173,6 +176,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    split (#955). Always visible, unlike the base-mode-gated territory. ──
 			ctx.layers.register({
 				id: BASE_ICON_LAYER_ID,
+				view3d: "tilt",
 				order: 44,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

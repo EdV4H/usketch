@@ -24,6 +24,7 @@ export function createGpuRendererPlugin(options?: GpuRendererPluginOptions): Usk
 			// Register GPU shape layer as fixed (GPU handles its own viewport transform)
 			ctx.layers.register({
 				id: "gpu-shapes",
+				view3d: "tilt",
 				order: 10,
 				fixed: true,
 				render: (renderCtx) => (
