@@ -147,39 +147,11 @@ export function applyDabs(
 	dabs: readonly { x: number; y: number; dt: number }[],
 	opts: Omit<DabOptions, "dt">,
 ): boolean {
-	const { field } = stroke;
-	const n = field.chunk;
-	const sp = field.spacing;
+	const sp = stroke.field.spacing;
 	const s = opts.settings;
 	const mode = opts.mode ?? s.mode;
 	const r = s.radius;
-	const chunks = new Map(stroke.model.chunks);
-	/** Chunks already copied in this step (writable). */
-	const fresh = new Set<string>();
-	const baseOf = elevationSampler(stroke.base);
-	const deltaAt = (i: number, j: number): number => {
-		const cx = Math.floor(i / n);
-		const cy = Math.floor(j / n);
-		const a = chunks.get(chunkKey(cx, cy));
-		return a ? a[(j - cy * n) * n + (i - cx * n)] / DELTA_SCALE : 0;
-	};
-	const heightAt = (i: number, j: number): number =>
-		clamp(baseOf.sample(i, j) + deltaAt(i, j), 0, MAX_HEIGHT);
-	const write = (i: number, j: number, h: number) => {
-		const cx = Math.floor(i / n);
-		const cy = Math.floor(j / n);
-		const key = chunkKey(cx, cy);
-		let a = chunks.get(key);
-		if (!fresh.has(key)) {
-			if (!stroke.before.has(key)) stroke.before.set(key, a ?? null);
-			const copy = new Float32Array(n * n);
-			if (a) copy.set(a);
-			a = copy;
-			chunks.set(key, a);
-			fresh.add(key);
-		}
-		(a as Float32Array)[(j - cy * n) * n + (i - cx * n)] = (h - baseOf.sample(i, j)) * DELTA_SCALE;
-	};
+	const { heightAt, write, commit } = strokeEditor(stroke);
 
 	let changed = false;
 	for (const dab of dabs) {
@@ -219,8 +191,61 @@ export function applyDabs(
 		for (let k = 0; k < updates.length; k += 3) write(updates[k], updates[k + 1], updates[k + 2]);
 		if (updates.length > 0) changed = true;
 	}
-	if (changed) stroke.model = { field, chunks };
+	if (changed) commit();
 	return changed;
+}
+
+/** Reads and writes grid heights on a stroke's working copy (see {@link strokeEditor}). */
+export interface StrokeEditor {
+	/** The height at grid node `(i, j)` with every write so far (world units). */
+	heightAt(i: number, j: number): number;
+	/** Set the height at grid node `(i, j)` (world units; kept as a delta over the base). */
+	write(i: number, j: number, h: number): void;
+	/** Publish the writes as the stroke's new `model` (call once after writing). */
+	commit(): void;
+}
+
+/**
+ * Grid-level access to a stroke for edits that aren't brush dabs (e.g. levelling a
+ * road): read heights, write new ones, then `commit` to replace `stroke.model` with a
+ * new object (the chunks written are new arrays, as with the brush). Pure apart from
+ * the stroke it is given.
+ */
+export function strokeEditor(stroke: Stroke): StrokeEditor {
+	const { field } = stroke;
+	const n = field.chunk;
+	const chunks = new Map(stroke.model.chunks);
+	/** Chunks already copied in this step (writable). */
+	const fresh = new Set<string>();
+	const baseOf = elevationSampler(stroke.base);
+	const deltaAt = (i: number, j: number): number => {
+		const cx = Math.floor(i / n);
+		const cy = Math.floor(j / n);
+		const a = chunks.get(chunkKey(cx, cy));
+		return a ? a[(j - cy * n) * n + (i - cx * n)] / DELTA_SCALE : 0;
+	};
+	return {
+		heightAt: (i, j) => clamp(baseOf.sample(i, j) + deltaAt(i, j), 0, MAX_HEIGHT),
+		write: (i, j, h) => {
+			const cx = Math.floor(i / n);
+			const cy = Math.floor(j / n);
+			const key = chunkKey(cx, cy);
+			let a = chunks.get(key);
+			if (!fresh.has(key)) {
+				if (!stroke.before.has(key)) stroke.before.set(key, a ?? null);
+				const copy = new Float32Array(n * n);
+				if (a) copy.set(a);
+				a = copy;
+				chunks.set(key, a);
+				fresh.add(key);
+			}
+			(a as Float32Array)[(j - cy * n) * n + (i - cx * n)] =
+				(h - baseOf.sample(i, j)) * DELTA_SCALE;
+		},
+		commit: () => {
+			stroke.model = { field, chunks };
+		},
+	};
 }
 
 /**

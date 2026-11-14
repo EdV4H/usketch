@@ -8,6 +8,7 @@ import {
 } from "@edv4h/usketch-shared";
 import type { BrushSettings } from "./elevation-brush.js";
 import type { ElevationFieldConfig } from "./elevation-field.js";
+import type { GradeOptions } from "./elevation-grade.js";
 import { elevationHeightAt } from "./elevation-model.js";
 import {
 	clearElevationEdits,
@@ -16,6 +17,7 @@ import {
 	editedChunkCount,
 	enableInfiniteElevation,
 	getElevationField,
+	gradeElevation,
 	type PaintOptions,
 	paintElevation,
 	removeElevationField,
@@ -44,6 +46,12 @@ export interface ElevationApi {
 	 * Returns the number of chunks changed.
 	 */
 	paint(path: readonly { x: number; y: number }[], opts?: PaintOptions): number;
+	/**
+	 * Level a strip of ground along `path` (world points), one undo step: flat across,
+	 * following the ground or at one height along it (a road over hills). No-op without
+	 * a field. Returns the number of chunks changed.
+	 */
+	grade(path: readonly { x: number; y: number }[], opts: GradeOptions): number;
 	/** The look (colours / shading / contours). App-local, not synced. */
 	display: ReactiveStore<ElevationDisplay>;
 	/** The elevation tool's brush (mode, radius, strength…). App-local, not synced. */
@@ -70,6 +78,7 @@ export function createElevationApi(
 		getHeightAt: (x, y) => elevationHeightAt(store, x, y),
 		paint: (path, opts) =>
 			paintElevation(deps, path, { ...opts, brush: { ...brush.get(), ...opts?.brush } }),
+		grade: (path, opts) => gradeElevation(deps, path, opts),
 		display,
 		brush,
 	};
