@@ -32,6 +32,7 @@ export {
 	skyBackground,
 	type TiltRuleOptions,
 	type TiltTransform,
+	tiltCamera,
 	tiltLayerRules,
 	tiltTransform,
 	transitionCamera,
@@ -42,6 +43,7 @@ export {
 	type Mode7SwitchOptions,
 	type Mode7TransitionOptions,
 } from "./mode7-transition.js";
+export { yawPivot, yawTurn } from "./mode7-yaw.js";
 export { createMode7Plugin, type Mode7PluginOptions } from "./plugin.js";
 export type {
 	Mode7ActionKey,

@@ -9,6 +9,7 @@ import {
 	sameViewport,
 	smoothingAlpha,
 	targetRotation,
+	turnedByView,
 } from "../character-camera.js";
 
 describe("follow camera", () => {
@@ -104,5 +105,14 @@ describe("followCameraHeight", () => {
 		expect(defaultCameraHeightMargin(48, 0)).toBe(48);
 		expect(defaultCameraHeightMargin(null, 12)).toBe(12);
 		expect(defaultCameraHeightMargin(null, 0)).toBe(0);
+	});
+});
+
+describe("turnedByView", () => {
+	it("is the 3D view's turn only when the view turned by the same amount", () => {
+		expect(turnedByView(15, 15)).toBe(true);
+		expect(turnedByView(-170, 190)).toBe(true); // the same turn, wrapped
+		expect(turnedByView(15, 0)).toBe(false); // someone else turned it
+		expect(turnedByView(0, 0)).toBe(false); // not turned at all (a pan)
 	});
 });

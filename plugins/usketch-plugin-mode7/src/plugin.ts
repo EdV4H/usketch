@@ -4,7 +4,12 @@
 // camera. It is a view mode (editing is suspended while active), off by default,
 // and holds only per-viewer view state (never persisted as shapes). Toggle it via
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
-import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
+import {
+	type PluginContext,
+	type UsketchPlugin,
+	view3dCellOf,
+	view3dService,
+} from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import {
 	createHeightDriver,
@@ -24,6 +29,7 @@ import {
 import { createMode7Api, createView3dApi, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
 import { createMode7Transition, type Mode7TransitionOptions } from "./mode7-transition.js";
+import { createYawTurner } from "./mode7-yaw.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
 import { registerMode7Hud } from "./register-mode7-hud.js";
 
@@ -112,7 +118,15 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		name: "Mode 7 (3D ビュー)",
 		setup(ctx: PluginContext) {
 			zoom = () => ctx.store.getViewport().zoom;
-			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
+			// The camera and amount live in the board's 3D view state (a store from before
+			// it had one keeps them in the plugin).
+			const view3d = view3dCellOf(ctx.store);
+			const unbindView3d = view3d ? store.bindView3d(view3d) : () => {};
+			const yaw = createYawTurner(ctx.store);
+			const stopRuntime = setupMode7Runtime(ctx, store, {
+				depthLayerIds: options.depthLayerIds,
+				yaw,
+			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.
 			const heightDriver = createHeightDriver();
@@ -129,7 +143,12 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			const unprovideService = mode7Service.provide(ctx.services, api);
 			const unprovideView3d = view3dService.provide(
 				ctx.services,
-				createView3dApi(store, () => zoom(), heightDriver.mark),
+				createView3dApi(
+					store,
+					() => zoom(),
+					heightDriver.mark,
+					() => yaw.applied(),
+				),
 			);
 
 			return () => {
@@ -140,6 +159,9 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				stopActions();
 				transition.dispose();
 				stopRuntime();
+				unbindView3d();
+				// Nothing shows the board in 3D any more.
+				view3d?.set({ amount: 0 });
 			};
 		},
 	};

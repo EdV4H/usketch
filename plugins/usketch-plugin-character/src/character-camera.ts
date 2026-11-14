@@ -29,6 +29,15 @@ export function targetRotation(mode: CameraMode, heading: number): number {
 }
 
 /**
+ * Whether a viewport turn of `turned` degrees that the follow didn't make is the 3D view
+ * turning by its heading (its turn changed by the same `viewTurned`). The follow then
+ * turns with it instead of pausing as it does for a pan.
+ */
+export function turnedByView(turned: number, viewTurned: number): boolean {
+	return Math.abs(turned) > 1e-9 && Math.abs(shortestAngleDelta(viewTurned, turned)) < 1e-6;
+}
+
+/**
  * Frame-rate-independent smoothing factor: `smoothing` 0 = rigid (always 1),
  * approaching 1 = heavier lag. It is the fraction LEFT after 1/60 s.
  */

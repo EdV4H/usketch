@@ -33,6 +33,16 @@ export function transitionCamera(cam: Camera, amount: number): Camera {
 }
 
 /**
+ * The camera the layers are tilted with at transition `amount`: {@link transitionCamera}
+ * without the yaw. The yaw turns the viewport instead (see `mode7-yaw.ts`), so the board
+ * is already turned when it is tilted, and everything drawn through the viewport (also
+ * what isn't tilted, and pointer math) turns with it.
+ */
+export function tiltCamera(cam: Camera, amount: number): Camera {
+	return { ...transitionCamera(cam, amount), yaw: 0 };
+}
+
+/**
  * The full CSS transform (perspective + rotate) for a tilted layer wrapper. Built by
  * `tiltCss` in `@edv4h/usketch-shared`, the same projection shaders and hit tests use.
  */

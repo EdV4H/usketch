@@ -13,16 +13,16 @@ describe("createView3dApi (view3dService)", () => {
 		expect(api.camera()).toMatchObject({ pitch: 0, yaw: 0 });
 	});
 
-	it("hands out the drawn camera and notifies through the transition", () => {
+	it("hands out the drawn camera (no yaw: it turns the viewport) through the transition", () => {
 		const store = createMode7Store({ camera: { pitch: 60, yaw: 40 } });
 		const api = createView3dApi(store);
 		let n = 0;
 		api.subscribe(() => n++);
 		store.setPresentation({ active: true, progress: 0.5, amount: 0.5, transitioning: true });
 		expect(api.amount()).toBe(0.5);
-		expect(api.camera()).toMatchObject({ pitch: 30, yaw: 20 });
+		expect(api.camera()).toMatchObject({ pitch: 30, yaw: 0 });
 		store.setActive(true);
-		expect(api.camera()).toMatchObject({ pitch: 60, yaw: 40 });
+		expect(api.camera()).toMatchObject({ pitch: 60, yaw: 0 });
 		expect(n).toBe(2);
 	});
 

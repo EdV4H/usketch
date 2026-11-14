@@ -10,6 +10,7 @@
 //   2. Registers the sky / fog / capture overlay layers (they self-gate on `active`).
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
+//   4. Turns the viewport by the camera yaw while in 3D (see `mode7-yaw.ts`).
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
 import { cameraHeightPx } from "./mode7-camera.js";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
@@ -17,10 +18,11 @@ import { DEFAULT_DEPTH_LAYER_IDS, type Mode7State, type Mode7Store } from "./mod
 import {
 	drawDistanceClip,
 	drawDistanceOverscanPx,
+	tiltCamera,
 	tiltLayerRules,
 	tiltTransform,
-	transitionCamera,
 } from "./mode7-transform.js";
+import { createYawTurner, type YawTurner, yawPivot } from "./mode7-yaw.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -97,7 +99,11 @@ function mainContainer(): HTMLElement | null {
 export function setupMode7Runtime(
 	ctx: PluginContext,
 	store: Mode7Store,
-	options: { depthLayerIds?: readonly string[] } = {},
+	options: {
+		depthLayerIds?: readonly string[];
+		/** Turns the viewport by the yaw (default: one of its own on `ctx.store`). */
+		yaw?: YawTurner;
+	} = {},
 ): () => void {
 	const STAGE_ATTR = "data-mode7-stage";
 	const depthLayers = new Set(options.depthLayerIds ?? DEFAULT_DEPTH_LAYER_IDS);
@@ -160,7 +166,7 @@ export function setupMode7Runtime(
 		if (!styleEl) return;
 		const { camera, drawDistance, amount } = store.getState();
 		// During an enter/exit transition the tilt is scaled by the eased amount.
-		const tilt = tiltTransform(transitionCamera(camera, amount));
+		const tilt = tiltTransform(tiltCamera(camera, amount));
 		const { transformOrigin } = tilt;
 		// Then lowered by the camera height (applied first, along the board's normal).
 		const transform = `${tilt.transform} translateZ(calc(var(${CAMERA_HEIGHT_VAR}, 0px) * -1))`;
@@ -234,8 +240,24 @@ export function setupMode7Runtime(
 		}
 	};
 
+	// Turn the viewport by the yaw (scaled by the transition) about the tilt's pivot.
+	const yaw = options.yaw ?? createYawTurner(ctx.store);
+	const pivot = () => {
+		const c = mainContainer();
+		if (!c) return null;
+		const r = c.getBoundingClientRect();
+		if (r.width <= 0 || r.height <= 0) return null;
+		return yawPivot(r, store.getState().camera.horizon);
+	};
+	const turnYaw = (): void => {
+		const { camera, amount } = store.getState();
+		yaw.sync(camera.yaw, amount, pivot);
+	};
+
 	const sync = (): void => {
 		const active = store.getState().active;
+		// Turn first: the tilt (and the draw-distance clip) read the viewport.
+		turnYaw();
 		if (active) applyTilt();
 		else clearAll();
 		announceStage(active);
@@ -297,7 +319,9 @@ export function setupMode7Runtime(
 	// (every frame while a camera follows something) changes neither, and re-applying on
 	// it walked the layers, forced a layout and restyled the stage each frame.
 	const reapplyIfActive = (): void => {
-		if (store.getState().active) applyTilt();
+		if (!store.getState().active) return;
+		turnYaw();
+		applyTilt();
 	};
 	let lastZoom = ctx.store.getViewport().zoom;
 	const offViewport = ctx.store.onMutation((e) => {
@@ -310,10 +334,15 @@ export function setupMode7Runtime(
 	const onResize = typeof window !== "undefined" ? reapplyIfActive : null;
 	if (onResize) window.addEventListener("resize", onResize);
 
-	// Initial apply (honors enabledInitially).
+	// Initial apply (honors enabledInitially). The stage may not be laid out yet: turn by
+	// the yaw once more on the next frame.
 	sync();
+	const retry =
+		typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => turnYaw()) : null;
 
 	return () => {
+		if (retry !== null) cancelAnimationFrame(retry);
+		yaw.restore(pivot);
 		clearAll();
 		announceStage(false);
 		styleEl?.remove();
