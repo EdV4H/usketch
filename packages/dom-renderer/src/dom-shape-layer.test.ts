@@ -131,6 +131,25 @@ describe("DomShapeLayer viewport LOD", () => {
 		expect(container.querySelector('[data-lod-id="far"]')).not.toBeNull();
 	});
 
+	it("draws the shapes a 3D view shows past the viewport in full, not simplified", () => {
+		const shapes = [shape("near", 0), shape("ahead", 1000)];
+		const renderPad = (padPx: number) =>
+			act(() =>
+				root.render(
+					createElement(DomShapeLayer, {
+						ctx: ctx(0, shapes),
+						shapeRegistry: registry,
+						cullPadPx: padPx,
+					}),
+				),
+			);
+		renderPad(0);
+		expect(container.querySelector('[data-lod-id="ahead"]')).not.toBeNull();
+		renderPad(400);
+		expect(container.querySelector('[data-lod-id="ahead"]')).toBeNull();
+		expect(container.querySelector('[data-shape-id="ahead"]')).not.toBeNull();
+	});
+
 	it("draws everything when culling is off", () => {
 		const shapes = [shape("near", 0), shape("gone", 5000)];
 		act(() =>

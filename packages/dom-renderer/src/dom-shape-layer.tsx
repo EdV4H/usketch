@@ -249,6 +249,17 @@ export function DomShapeLayer({
 			)
 		: null;
 
+	// Past the viewport, shapes render simplified. A 3D view shows the board past the
+	// viewport (`cullPadPx`): those shapes are in view, so the region grows with it.
+	const lodRegion =
+		viewportLod && cullPadPx > 0
+			? cullRegion(ctx.viewportBounds, viewportLodRatio, cullPadPx, ctx.viewport.zoom)
+			: null;
+	const outsideLod = (shape: ShapeData): boolean =>
+		lodRegion
+			? isShapeOutsideViewport(shape, lodRegion, 1)
+			: isShapeOutsideViewport(shape, ctx.viewportBounds, viewportLodRatio);
+
 	// Global LOD (zoom/count/fps): every shape renders simplified.
 	const globalLod = ctx.renderMode === "lod";
 	// GPU is "active" only when it is both enabled (non-interactive mode) AND has
@@ -278,9 +289,7 @@ export function DomShapeLayer({
 				if (culling && isShapeOutsideViewport(shape, culling, 1)) return null;
 				// LOD when the global mode says so, OR (per-shape) when the shape sits
 				// outside the scaled viewport — off-screen shapes render simplified.
-				const isLod =
-					globalLod ||
-					(viewportLod && isShapeOutsideViewport(shape, ctx.viewportBounds, viewportLodRatio));
+				const isLod = globalLod || (viewportLod && outsideLod(shape));
 				// LOD mode: render the shape's simplifiedComponent (or LodFallback)
 				// instead of its full component. The simplifiedComponent is
 				// responsible for its own positioning (it receives the full

@@ -4,7 +4,8 @@
 // (no DOM node) is drawn from its `gpuPrimitive` on a 2D canvas.
 //
 // Limits of the `foreignObject` copy (the SVG is loaded as an image, which can't fetch):
-// web fonts fall back to local ones, and images from other URLs are left out.
+// web fonts fall back to local ones. An image is copied in as a `data:` URL when the page
+// can read its pixels (loaded, and same-origin or CORS-enabled); others are left out.
 import type { GpuPrimitive, ShapeData } from "@edv4h/usketch-shared";
 
 /** Longest side of a shape picture, device px. */
@@ -80,8 +81,9 @@ export function nodePictureSvg(
 	if (clone instanceof HTMLElement || clone instanceof SVGElement) {
 		for (const [k, v] of Object.entries(ROOT_RESET)) clone.style.setProperty(k, v);
 	}
-	// Images from other URLs can't load inside an SVG image: leave them out.
-	for (const img of clone.querySelectorAll("img, image, video, iframe, canvas")) img.remove();
+	// Nothing can load inside an SVG image: copy the pictures in, leave the rest out.
+	inlineImages(node, clone);
+	for (const el of clone.querySelectorAll("image, video, iframe, canvas")) el.remove();
 	const wrap = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
 	wrap.setAttribute(
 		"style",
@@ -96,6 +98,44 @@ export function nodePictureSvg(
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${pw}" height="${ph}">` +
 		`<foreignObject x="0" y="0" width="${pw}" height="${ph}">${xml}</foreignObject></svg>`
 	);
+}
+
+/**
+ * Each `<img>` of `clone` (a deep copy of `node`) as a `data:` URL of what `node`'s image
+ * shows: kept as is when it already is one, drawn through a canvas when its pixels can be
+ * read, otherwise removed.
+ */
+function inlineImages(node: Element, clone: Element): void {
+	const from = node.querySelectorAll("img");
+	const to = clone.querySelectorAll("img");
+	for (let i = 0; i < to.length; i++) {
+		const copy = to[i];
+		copy.removeAttribute("srcset");
+		const url = imageDataUrl(from[i]);
+		if (url) copy.setAttribute("src", url);
+		else copy.remove();
+	}
+}
+
+/** What an image shows, as a `data:` URL, or `null` when it can't be read. */
+export function imageDataUrl(img: HTMLImageElement | undefined): string | null {
+	if (!img) return null;
+	const src = img.currentSrc || img.src || "";
+	if (src.startsWith("data:")) return src;
+	if (!img.complete || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return null;
+	try {
+		const s = Math.min(1, MAX_PICTURE_PX / Math.max(img.naturalWidth, img.naturalHeight));
+		const canvas = document.createElement("canvas");
+		canvas.width = Math.max(1, Math.round(img.naturalWidth * s));
+		canvas.height = Math.max(1, Math.round(img.naturalHeight * s));
+		const g = canvas.getContext("2d");
+		if (!g) return null;
+		g.drawImage(img, 0, 0, canvas.width, canvas.height);
+		// Throws on an image from another origin without CORS (a tainted canvas).
+		return canvas.toDataURL("image/png");
+	} catch {
+		return null;
+	}
 }
 
 /** Loads SVG markup as an image (rejects when it can't be decoded). */

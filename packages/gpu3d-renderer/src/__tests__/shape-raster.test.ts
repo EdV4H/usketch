@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { flatShapeHeight } from "../gpu3d-shapes.js";
-import { MAX_PICTURE_PX, nodePictureSvg, PICTURE_PAD, pictureScale } from "../shape-raster.js";
+import {
+	imageDataUrl,
+	MAX_PICTURE_PX,
+	nodePictureSvg,
+	PICTURE_PAD,
+	pictureScale,
+} from "../shape-raster.js";
 
 describe("pictureScale", () => {
 	it("is twice the screen's px, as a power of two between 1/4 and 4", () => {
@@ -57,5 +63,18 @@ describe("nodePictureSvg", () => {
 		expect(svg).not.toContain("<img");
 		// The live node is left as it was.
 		expect(node.style.left).toBe("300px");
+	});
+
+	it("keeps an image that already is a data URL, and leaves out one it can't read", () => {
+		const node = document.createElement("div");
+		const data = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+		node.innerHTML = `<img src="${data}" srcset="${data} 2x"><img src="https://example.com/y.png">`;
+		document.body.appendChild(node);
+		const svg = nodePictureSvg(node, 10, 10, 1);
+		node.remove();
+		expect(svg.match(/<img/g)).toHaveLength(1);
+		expect(svg).toContain(data);
+		expect(svg).not.toContain("srcset");
+		expect(imageDataUrl(undefined)).toBeNull();
 	});
 });

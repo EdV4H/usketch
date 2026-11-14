@@ -59,6 +59,11 @@ export interface HideShapesEvent {
 }
 export const HIDE_SHAPES_EVENT = "renderer:hide-shapes";
 
+/** The canvas's 3D overscan as a pad (absent / not finite / negative = none). */
+function layerOverscan(px: number | undefined): number {
+	return typeof px === "number" && Number.isFinite(px) && px > 0 ? px : 0;
+}
+
 /** The union of every source's hidden ids (`undefined` when nothing is hidden). Pure. */
 export const unionHiddenIds: (
 	bySource: ReadonlyMap<string, ReadonlySet<string>>,
@@ -216,7 +221,9 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 						viewportLodRatio={viewportLodRatio}
 						viewportCull={viewportCullEnabled}
 						viewportCullRatio={viewportCullRatio}
-						cullPadPx={overscanPx}
+						// The canvas's own 3D overscan, or the older event's (whichever is larger):
+						// a 3D renderer that doesn't send the event still gets the far shapes.
+						cullPadPx={Math.max(overscanPx, layerOverscan(renderCtx.view3dOverscan))}
 						hiddenIds={hiddenIds}
 					/>
 				),

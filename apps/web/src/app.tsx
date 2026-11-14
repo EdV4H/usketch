@@ -145,6 +145,7 @@ import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createBoardMetaPanelPlugin } from "./plugins/board-meta-panel.js";
+import { createCompare3dPlugin, readCompare3dScene } from "./plugins/compare-3d.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
 import { createPresencePanelPlugin } from "./plugins/presence-panel.js";
 import { createSyncStatusPanelPlugin } from "./plugins/sync-status-panel.js";
@@ -323,6 +324,10 @@ async function loadPlugins(
 	exportOptions?: ExportPluginOptions,
 ): Promise<UsketchPlugin[]> {
 	const plugins = [...createBasePlugins(cardHand, exportOptions), ...extra];
+	// `?scene3d=hills|many|drive`: 3D レンダラーを比べる場面（#1304 P6c）。キャラ（extra）の後。
+	const search = typeof window !== "undefined" ? window.location.search : "";
+	const scene3d = readCompare3dScene(search);
+	if (scene3d) plugins.push(createCompare3dPlugin(scene3d, readRenderer3d(search)));
 	// Control HUD (universal plugin-operation panel). Promoted from DEV-only to a
 	// first-class, always-available panel — hidden by default, toggled with `` ` ``.
 	// Kept as a dynamic import so it stays code-split.
