@@ -1,4 +1,5 @@
 import type { ComponentType, ReactElement } from "react";
+import type { BoardHeightApi } from "../board-height.js";
 import type { View3dPatch, View3dState } from "../view-3d-state.js";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
 import type { LodController, RenderMode } from "./lod.js";
@@ -1439,6 +1440,12 @@ export interface PluginContext {
 	 * feature concerns. See {@link ServiceRegistry}.
 	 */
 	services: ServiceRegistry;
+	/**
+	 * The board's height: ground and solid providers, and the heights things stand at
+	 * (see `BoardHeightApi`). The same object as `boardHeight(ctx.services)`, which a
+	 * plugin uses until the next major (a context from an older core has no `height`).
+	 */
+	height?: BoardHeightApi;
 }
 
 /**

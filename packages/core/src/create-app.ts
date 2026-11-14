@@ -1,26 +1,28 @@
-import type {
-	ActionRegistry,
-	BoardStore,
-	CommandRegistry,
-	EventBus,
-	ExternalContentRegistry,
-	HudRegistry,
-	LayerManager,
-	LodPolicy,
-	PluginContext,
-	PluginInfoRegistry,
-	PluginTeardown,
-	RenderMode,
-	SelectionForeground,
-	SelectionForegroundRegistry,
-	SelectionHandleRegistry,
-	ServiceRegistry,
-	ShapeRegistry,
-	ShortcutRegistry,
-	ToolRegistry,
-	TransientRegistry,
-	UiRegistry,
-	UsketchPlugin,
+import {
+	type ActionRegistry,
+	type BoardHeightApi,
+	type BoardStore,
+	boardHeight,
+	type CommandRegistry,
+	type EventBus,
+	type ExternalContentRegistry,
+	type HudRegistry,
+	type LayerManager,
+	type LodPolicy,
+	type PluginContext,
+	type PluginInfoRegistry,
+	type PluginTeardown,
+	type RenderMode,
+	type SelectionForeground,
+	type SelectionForegroundRegistry,
+	type SelectionHandleRegistry,
+	type ServiceRegistry,
+	type ShapeRegistry,
+	type ShortcutRegistry,
+	type ToolRegistry,
+	type TransientRegistry,
+	type UiRegistry,
+	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createActionRegistry } from "./action-registry.js";
 import { createCommandRegistry } from "./command-registry.js";
@@ -80,6 +82,8 @@ export interface AppInstance {
 	hud: HudRegistry;
 	/** String-keyed slot for plugin-provided services (IoC). */
 	services: ServiceRegistry;
+	/** The board's height (ground + solid providers); the plugins' `ctx.height`. */
+	height: BoardHeightApi;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -130,6 +134,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const actions = createActionRegistry();
 	const hud = createHudRegistry();
 	const services = createServiceRegistry();
+	const height = boardHeight(services);
 	const selectionForeground = createSelectionForegroundRegistry();
 	const selectionHandles = createSelectionHandleRegistry();
 	const ui: UiRegistry = {
@@ -178,6 +183,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		hud,
 		plugins: pluginInfo,
 		services,
+		height,
 	};
 
 	// Bridge store mutations to EventBus
@@ -295,6 +301,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		actions,
 		hud,
 		services,
+		height,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			if (destroyed) return;

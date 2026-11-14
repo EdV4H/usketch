@@ -1,3 +1,12 @@
+// The board's height (ground + solid providers)
+export {
+	type BoardHeightApi,
+	boardHeight,
+	boardHeightService,
+	createBoardHeight,
+	type HeightKind,
+	type HeightProvider,
+} from "./board-height.js";
 // Ground decals (things painted onto the ground surface, e.g. by a terrain renderer)
 export {
 	ALL_GROUND_DECAL_VIEWS,
