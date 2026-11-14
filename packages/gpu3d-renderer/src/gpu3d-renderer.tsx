@@ -4,15 +4,26 @@
 // into the same canvas through the board's GL hook (`view3dGl` in shared), so the
 // terrain and what stands on it hide each other by depth.
 //
-// While it draws, the layers that show in 3D (`tilt` / `depth`) are hidden: what they
-// show is drawn on the canvas. The shapes are pictures of their (hidden) DOM drawing laid
-// on the ground (see `gpu3d-shapes`). Screen layers (the sky, fog, HUD) stay DOM. It draws
-// nothing while the board is flat (the 2D renderers draw it then).
+// While it draws, the layers that show in 3D (`tilt` / `depth`) up to the shapes are
+// hidden: what they show is drawn on the canvas. The shapes are pictures of their (hidden)
+// DOM drawing laid on the ground (see `gpu3d-shapes`). The 3D layers above the shapes (a
+// character, the selection handles, cursors) stay DOM, tilted over the canvas with CSS 3D
+// as the CSS 3D renderer does it; what stands behind a hill asks the occlusion service,
+// which this renderer answers too (see `gpu3d-layers`). Screen layers (the sky, fog, HUD)
+// stay DOM. It draws nothing while the board is flat (the 2D renderers draw it then).
+import {
+	CAMERA_HEIGHT_VAR,
+	cameraHeightPx,
+	drawDistanceClip,
+	layerTransform,
+	tiltLayerRules,
+} from "@edv4h/usketch-css3d-renderer";
 import {
 	boardHeight,
 	createView3dTracker,
 	declaredView3dShapeTypes,
 	defineService,
+	isOccluded,
 	type Layer,
 	type LayerRenderContext,
 	type LayerView3d,
@@ -25,10 +36,12 @@ import {
 	type View3dCell,
 	type View3dGlApi,
 	type View3dGlFrame,
+	type View3dOcclusionApi,
 	type View3dRendererApi,
 	type View3dState,
 	view3dCellOf,
 	view3dGl,
+	view3dOcclusionService,
 	view3dOverscanPx,
 	view3dRendererService,
 	view3dShapeSourceService,
@@ -36,6 +49,7 @@ import {
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef } from "react";
 import { type GroundLook, GroundPainter } from "./gpu3d-ground.js";
+import { splitView3dLayers } from "./gpu3d-layers.js";
 import { ShapePainter, type ShapeSource } from "./gpu3d-shapes.js";
 
 /** The canvas layer's id. */
@@ -208,6 +222,10 @@ export function setupGpu3dRenderer(
 	let raf = 0;
 	let styleEl: HTMLStyleElement | null = null;
 	let stage: HTMLElement | null = null;
+	// The camera height on the stage, for the overlaid layers' tilt (as last set).
+	let lastLift = "";
+	// The canvas's size as last drawn, for the occlusion's projection.
+	let stageSize: { width: number; height: number } | null = null;
 
 	const drawing = (): boolean => cell.get().amount > 0 && painter !== null;
 	const height = ctx.height ?? boardHeight(ctx.services);
@@ -257,13 +275,19 @@ export function setupGpu3dRenderer(
 		};
 	};
 
-	const showLayers = (on: boolean): void => {
+	const unstage = (el: HTMLElement): void => {
+		el.removeAttribute(GPU_STAGE_ATTR);
+		el.style.removeProperty(CAMERA_HEIGHT_VAR);
+		lastLift = "";
+	};
+
+	const showLayers = (on: boolean, stageHeight = 0): void => {
 		// The canvas sits in its layer's node, whose parent holds every layer.
 		const container = canvas?.closest("[data-layer-id]")?.parentElement ?? null;
-		if (stage && stage !== container) stage.removeAttribute(GPU_STAGE_ATTR);
+		if (stage && stage !== container) unstage(stage);
 		stage = container;
 		if (!on) {
-			stage?.removeAttribute(GPU_STAGE_ATTR);
+			if (stage) unstage(stage);
 			if (styleEl) styleEl.textContent = "";
 			return;
 		}
@@ -273,16 +297,28 @@ export function setupGpu3dRenderer(
 			styleEl.setAttribute("data-gpu3d-renderer", "");
 			document.head.appendChild(styleEl);
 		}
-		const ids = [
-			...new Set([
-				...tiltLayers(),
-				...depthLayers(),
-				...declared(ctx, ["ground"]),
-				// The canvas draws itself: never hide it.
-			]),
-		].filter((id) => id !== GPU3D_LAYER_ID);
-		const css = hiddenLayerRules(ids);
+		const state = cell.get();
+		const zoom = ctx.store.getViewport().zoom;
+		const { hidden, overlay } = splitView3dLayers(
+			ctx.layers.getLayers(),
+			[...tiltLayers(), ...depthLayers(), ...declared(ctx, ["ground"])],
+			GPU3D_LAYER_ID,
+		);
+		const { transform, transformOrigin } = layerTransform(state);
+		const css =
+			tiltLayerRules(overlay, {
+				stageAttr: GPU_STAGE_ATTR,
+				transform,
+				transformOrigin,
+				clip: drawDistanceClip(state.drawDistance, zoom, stageHeight, state.amount),
+				depthLayerIds: new Set(depthLayers()),
+			}) + hiddenLayerRules(hidden);
 		if (styleEl.textContent !== css) styleEl.textContent = css;
+		const lift = `${cameraHeightPx(state, zoom)}px`;
+		if (lift !== lastLift) {
+			lastLift = lift;
+			stage.style.setProperty(CAMERA_HEIGHT_VAR, lift);
+		}
 		stage.setAttribute(GPU_STAGE_ATTR, "on");
 	};
 
@@ -306,9 +342,10 @@ export function setupGpu3dRenderer(
 			hook.setDrawing(false);
 			return;
 		}
-		showLayers(true);
 		const size = { width: canvas.clientWidth, height: canvas.clientHeight };
+		showLayers(true, size.height);
 		if (!(size.width > 0 && size.height > 0)) return;
+		stageSize = size;
 		const viewport = ctx.store.getViewport();
 		const view = { viewport, camera: drawnCamera(state, viewport.zoom), stage: size };
 		const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
@@ -365,6 +402,32 @@ export function setupGpu3dRenderer(
 	];
 	if (typeof window !== "undefined") window.addEventListener("resize", schedule);
 
+	// What the ground hides: the overlaid layers are drawn over the canvas whatever its
+	// depth says, so what stands in them asks (see `View3dOcclusionApi`), as with the CSS
+	// 3D renderer.
+	const occlusion: View3dOcclusionApi = {
+		hidden(x, y, h) {
+			const state = cell.get();
+			if (!(state.amount > 0) || !stageSize) return false;
+			const viewport = ctx.store.getViewport();
+			const view = { viewport, camera: drawnCamera(state, viewport.zoom), stage: stageSize };
+			if (!(view.camera.pitch > 0)) return false;
+			return isOccluded({ x, y, height: h }, view, (gx, gy) => height.groundAt(gx, gy));
+		},
+		look: () => "fade",
+		subscribe(listener) {
+			const offState = cell.subscribe(listener);
+			const offHeight = height.subscribe(listener);
+			return () => {
+				offState();
+				offHeight();
+			};
+		},
+	};
+	const unprovideOcclusion = view3dOcclusionService.get(ctx.services)
+		? null
+		: view3dOcclusionService.provide(ctx.services, occlusion);
+
 	const layer: Layer = {
 		id: GPU3D_LAYER_ID,
 		order: LAYER_ORDER,
@@ -398,6 +461,7 @@ export function setupGpu3dRenderer(
 		dispose: () => {
 			if (ctx.layers.getLayers().some((l) => l === layer)) ctx.layers.unregister(GPU3D_LAYER_ID);
 			attach(null);
+			unprovideOcclusion?.();
 			for (const off of offs) off();
 			declaredTypes.dispose();
 			tracker.dispose();

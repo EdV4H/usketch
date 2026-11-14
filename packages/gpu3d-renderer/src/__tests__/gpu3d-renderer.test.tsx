@@ -5,6 +5,7 @@ import {
 	type PluginContext,
 	type ServiceRegistry,
 	view3dGlService,
+	view3dOcclusionService,
 	view3dRendererService,
 } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
@@ -116,6 +117,24 @@ describe("setupGpu3dRenderer", () => {
 		expect(view3dGlService.get(ctx.services)?.isDrawing()).toBe(false);
 		r.dispose();
 		expect(layers.some((l) => l.id === GPU3D_LAYER_ID)).toBe(false);
+	});
+
+	it("answers what the ground hides unless another renderer does, and stops on dispose", () => {
+		const { ctx } = fakeCtx();
+		const r = setupGpu3dRenderer(ctx);
+		const occlusion = view3dOcclusionService.get(ctx.services);
+		expect(occlusion).toBeDefined();
+		expect(occlusion?.look()).toBe("fade");
+		// Not drawn yet (no stage size): nothing is hidden.
+		expect(occlusion?.hidden(0, 0, 0)).toBe(false);
+		r?.dispose();
+		expect(view3dOcclusionService.get(ctx.services)).toBeUndefined();
+
+		const other = fakeCtx();
+		const existing = { hidden: () => true, look: () => "hide", subscribe: () => () => {} };
+		view3dOcclusionService.provide(other.ctx.services, existing as never);
+		setupGpu3dRenderer(other.ctx)?.dispose();
+		expect(view3dOcclusionService.get(other.ctx.services)).toBe(existing);
 	});
 });
 

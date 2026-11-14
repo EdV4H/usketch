@@ -819,6 +819,9 @@ importers:
 
   packages/gpu3d-renderer:
     dependencies:
+      '@edv4h/usketch-css3d-renderer':
+        specifier: workspace:*
+        version: link:../css3d-renderer
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
