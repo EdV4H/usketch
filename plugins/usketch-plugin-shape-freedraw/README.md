@@ -53,6 +53,8 @@ createFreedrawPlugin(undefined, {
       renderDraft: (shape) => <path d={...} />, // 描いている最中（shape.draft === true）
       finalize: (points, { size }) => ({ points: tidy(points), penData: { closed: true } }),
       halfWidth: (size) => size / 2 + 12, // 外接矩形・当たり判定・消しゴムの半幅
+      // 描いた人のクライアントで、線が入った直後に 1 回。ctx.commands の変更は線と同じ undo に入る
+      onCommit: (shape, { store, commands }) => levelGroundUnder(shape, { store, commands }),
     },
   ],
 });
@@ -63,6 +65,9 @@ createFreedrawPlugin(undefined, {
 一覧を返すので、ペン選択 UI はこれで作れる。`finalize` が返す `penData` は移動・拡大縮小でそのまま
 写されるので、座標は入れない（点列から毎回作る）。
 ペンを登録していないクライアントでは、そのストロークはボールペンの線（色・太さはそのまま）で描かれる。
+`onCommit(shape, { store, commands })` は、描いた人のクライアントで確定した線が store に入った
+直後に 1 回だけ呼ばれる（同期で届いた線では呼ばれない）。`commands.execute` で実行した変更は線の
+追加と 1 つの undo / redo にまとまる（例: 引いた道の下の地形をならす）。例外は握りつぶされ、線は残る。
 
 ## 線の端をつなぐ
 
