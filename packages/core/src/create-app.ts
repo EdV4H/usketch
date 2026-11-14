@@ -4,6 +4,7 @@ import {
 	type BoardStore,
 	boardHeight,
 	type CommandRegistry,
+	createShapeSolids,
 	type EventBus,
 	type ExternalContentRegistry,
 	type HudRegistry,
@@ -19,6 +20,7 @@ import {
 	type ServiceRegistry,
 	type ShapeRegistry,
 	type ShortcutRegistry,
+	shapeSolidsService,
 	type ToolRegistry,
 	type TransientRegistry,
 	type UiRegistry,
@@ -135,6 +137,16 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const hud = createHudRegistry();
 	const services = createServiceRegistry();
 	const height = boardHeight(services);
+	// The solids 3D shapes make (`view3d.collision`): a solid provider on the board's height.
+	const shapeSolids = createShapeSolids({
+		shapes: () => store.getShapes(),
+		typeView3d: (type) => shapes.getView3d?.(type) ?? shapes.get(type)?.view3d,
+		groundAt: (x, y) => height.groundAt(x, y),
+		view3dAmount: () => store.getView3d?.().amount ?? 0,
+	});
+	const unregisterShapeSolids = height.register(shapeSolids.provider);
+	const unprovideShapeSolids = shapeSolidsService.provide(services, shapeSolids);
+	const offShapeView3d = shapes.subscribeView3d?.(() => shapeSolids.invalidate());
 	const selectionForeground = createSelectionForegroundRegistry();
 	const selectionHandles = createSelectionHandleRegistry();
 	const ui: UiRegistry = {
@@ -320,6 +332,9 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 			}
 			lod.destroy();
 			unsubMutation();
+			offShapeView3d?.();
+			unprovideShapeSolids();
+			unregisterShapeSolids();
 		},
 	};
 }

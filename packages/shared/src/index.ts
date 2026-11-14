@@ -76,6 +76,26 @@ export {
 } from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+// The solids 3D shapes make on the ground (a solid provider on the board's height)
+export {
+	areaContains,
+	buildColliderIndex,
+	COLLIDER_CELL,
+	type ColliderArea,
+	type ColliderIndex,
+	colliderFor,
+	createShapeSolids,
+	MIN_STAND_RADIUS,
+	SHAPE_SOLIDS_PROVIDER_ID,
+	type ShapeSolidsApi,
+	type ShapeSolidsOptions,
+	type ShapeView3dCollider,
+	STAND_WALL_THICKNESS,
+	shapeSolidsService,
+	shapeView3dAnchor,
+	shapeView3dFoot,
+	solidHeightAt,
+} from "./shape-solids.js";
 // A shape's 3D look (ShapeData.view3d) and a shape type's (ShapeDefinition.view3d)
 export {
 	DEFAULT_SHAPE_VIEW_3D,

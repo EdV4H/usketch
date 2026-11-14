@@ -10,13 +10,13 @@
 import { HIDE_SHAPES_EVENT, VIEWPORT_OVERSCAN_EVENT } from "@edv4h/usketch-dom-renderer";
 import {
 	boardHeight,
+	createShapeSolids,
 	type PluginContext,
-	type ShapeData,
+	shapeSolidsService,
 	type UsketchPlugin,
 	view3dService,
 } from "@edv4h/usketch-shared";
 import { registerShape3dHud } from "./register-shape-3d-hud.js";
-import { buildColliderIndex, type ColliderIndex, solidHeightAt } from "./shape-3d-collision.js";
 import { SHAPE_3D_LAYER_ID, type Shape3dCameraSource, Shape3dLayer } from "./shape-3d-layer.js";
 import type { Shape3dLimits } from "./shape-3d-layout.js";
 import type { Shape3dTypeConfig, Shape3dTypes } from "./shape-3d-params.js";
@@ -96,25 +96,26 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 				subscribe: (listener) => tracker.subscribeCamera(listener),
 			};
 
-			// Solids for the character: rebuilt lazily when the shapes or the type settings
-			// change (both are replaced, never mutated, on a change).
-			let colliders: {
-				shapes: ReadonlyMap<string, ShapeData>;
-				types: unknown;
-				index: ColliderIndex;
-			} | null = null;
-			const colliderIndex = (): ColliderIndex => {
-				const shapes = ctx.store.getShapes();
-				const types = settings.get().types;
-				if (colliders?.shapes !== shapes || colliders.types !== types) {
-					colliders = { shapes, types, index: buildColliderIndex(shapes.values(), types) };
-				}
-				return colliders.index;
-			};
-			const solidAt = (x: number, y: number): number | null => {
-				if (settings.get().limits.collisionIn3dOnly && !(tracker.get().amount > 0)) return null;
-				return solidHeightAt(colliderIndex(), x, y, heightAt);
-			};
+			// Solids for the character: the core's shape solids (it registers them on the
+			// board's height), or our own with an older core. Either reads this plugin's
+			// type table (it also covers types that don't declare their 3D yet) and limit.
+			const coreSolids = shapeSolidsService.get(ctx.services);
+			const solids =
+				coreSolids ??
+				createShapeSolids({
+					shapes: () => ctx.store.getShapes(),
+					typeView3d: (type) => settings.get().types[type],
+					groundAt: heightAt,
+					view3dAmount: () => tracker.get().amount,
+				});
+			// The table is replaced, never mutated, on a change: its identity is the version.
+			solids.setTypeView3d(
+				(type) => settings.get().types[type],
+				() => settings.get().types,
+			);
+			const syncSolids = () => solids.setIn3dOnly(settings.get().limits.collisionIn3dOnly);
+			syncSolids();
+			const offSolidLimits = settings.subscribe(syncSolids);
 
 			ctx.layers.register({
 				id: SHAPE_3D_LAYER_ID,
@@ -139,18 +140,16 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			});
 			const stopHud = registerShape3dHud(ctx, api, settings);
 			// Provide the services LAST so a failed earlier step can't leak them.
-			const unregisterSolid = height.register({
-				id: "usketch-plugin-shape-3d",
-				kind: "solid",
-				heightAt: solidAt,
-			});
+			const unregisterSolid = coreSolids ? () => {} : height.register(solids.provider);
 			const unprovide = shape3dService.provide(ctx.services, api);
 
 			return () => {
 				unprovide();
 				unregisterSolid();
+				offSolidLimits();
+				solids.setTypeView3d(null);
+				solids.setIn3dOnly(false);
 				offOverrides?.();
-				colliders = null;
 				stopHud();
 				ctx.layers.unregister(SHAPE_3D_LAYER_ID);
 				ctx.events.emit(HIDE_SHAPES_EVENT, { source: HIDE_SOURCE, ids: new Set<string>() });
