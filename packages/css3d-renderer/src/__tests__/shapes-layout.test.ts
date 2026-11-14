@@ -1,9 +1,15 @@
-import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
+import {
+	normalizeShapeView3d as normalizeShape3d,
+	LEGACY_SHAPE_VIEW_3D_KEY as SHAPE_3D_KEY,
+	type ShapeView3d as Shape3dParams,
+	type ShapeData,
+	type Viewport,
+} from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import {
 	boxTopTransform,
 	boxWalls,
-	DEFAULT_SHAPE_3D_LIMITS,
+	DEFAULT_CSS3D_SHAPE_LIMITS as DEFAULT_SHAPE_3D_LIMITS,
 	GROUND_FLAT_PARAMS,
 	lerpAngle,
 	poseBox,
@@ -15,8 +21,7 @@ import {
 	shapePose,
 	standFoot,
 	wallColor,
-} from "../shape-3d-layout.js";
-import { normalizeShape3d, SHAPE_3D_KEY, type Shape3dParams } from "../shape-3d-params.js";
+} from "../shapes-layout.js";
 
 const shape = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): ShapeData =>
 	({

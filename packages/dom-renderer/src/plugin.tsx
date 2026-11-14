@@ -1,4 +1,9 @@
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	type PluginContext,
+	shapeClaims,
+	type UsketchPlugin,
+	unionShapeIds,
+} from "@edv4h/usketch-shared";
 import { DomShapeLayer } from "./dom-shape-layer.js";
 
 export interface DomRendererOptions {
@@ -44,6 +49,8 @@ export const VIEWPORT_OVERSCAN_EVENT = "bg-grid:set-overscan";
  * up in 3D): the DOM layer skips them. Each `source` owns its own set — the next emit
  * from the same source replaces it, an empty set clears it — so several sources don't
  * undo each other. The union of all sources is hidden.
+ * @deprecated Claim them with `shapeClaims(ctx.services).claim(source, ids)` (shared);
+ * the event is still honoured until the next major.
  */
 export interface HideShapesEvent {
 	source: string;
@@ -53,22 +60,9 @@ export interface HideShapesEvent {
 export const HIDE_SHAPES_EVENT = "renderer:hide-shapes";
 
 /** The union of every source's hidden ids (`undefined` when nothing is hidden). Pure. */
-export function unionHiddenIds(
+export const unionHiddenIds: (
 	bySource: ReadonlyMap<string, ReadonlySet<string>>,
-): ReadonlySet<string> | undefined {
-	let only: ReadonlySet<string> | undefined;
-	let merged: Set<string> | undefined;
-	for (const ids of bySource.values()) {
-		if (ids.size === 0) continue;
-		if (!only) {
-			only = ids;
-			continue;
-		}
-		merged ??= new Set(only);
-		for (const id of ids) merged.add(id);
-	}
-	return merged ?? only;
-}
+) => ReadonlySet<string> | undefined = unionShapeIds;
 
 function sameIds(a: ReadonlySet<string> | undefined, b: ReadonlySet<string>): boolean {
 	const size = a?.size ?? 0;
@@ -122,9 +116,20 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 			let dropTargetId: string | null = null;
 			// Screen px a 3D view shows past the viewport (see VIEWPORT_OVERSCAN_EVENT)
 			let overscanPx = 0;
-			// Shapes other layers draw instead, per source (see HIDE_SHAPES_EVENT)
+			// Shapes other layers draw instead: the board's shape claims, and per source the
+			// older HIDE_SHAPES_EVENT. The union of both is skipped.
+			const claims = shapeClaims(ctx.services);
 			const hiddenBySource = new Map<string, ReadonlySet<string>>();
 			let hiddenIds: ReadonlySet<string> | undefined;
+			const updateHidden = (): void => {
+				const claimed = claims.claimed();
+				hiddenIds = claimed
+					? unionHiddenIds(new Map([...hiddenBySource, ["\0claims", claimed]]))
+					: unionHiddenIds(hiddenBySource);
+				ctx.events.emit("layers:changed", {});
+			};
+			const unsubClaims = claims.subscribe(updateHidden);
+			if (claims.claimed()) updateHidden();
 
 			const unsubHide = ctx.events.on<HideShapesEvent>(HIDE_SHAPES_EVENT, (d) => {
 				if (typeof d?.source !== "string") return;
@@ -133,8 +138,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 				if (sameIds(hiddenBySource.get(d.source), ids)) return;
 				if (ids.size === 0) hiddenBySource.delete(d.source);
 				else hiddenBySource.set(d.source, ids);
-				hiddenIds = unionHiddenIds(hiddenBySource);
-				ctx.events.emit("layers:changed", {});
+				updateHidden();
 			});
 
 			// Runtime viewport-LOD adjustment from a UI control (Control HUD).
@@ -225,6 +229,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 				unsubViewportCull();
 				unsubOverscan();
 				unsubHide();
+				unsubClaims();
 				ctx.layers.unregister("dom-shapes");
 			};
 		},

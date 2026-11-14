@@ -63,7 +63,7 @@ describe("CSS 3D renderer", () => {
 	it("draws only while the view is risen", () => {
 		const view3d = createView3dCell();
 		const { ctx } = fakeCtx();
-		const r = setupCss3dRenderer(ctx, { view3d });
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
 		expect(r).not.toBeNull();
 		expect(container.hasAttribute(STAGE_ATTR)).toBe(false);
 		view3d.set({ amount: 1, camera: { pitch: 60 } });
@@ -86,7 +86,7 @@ describe("CSS 3D renderer", () => {
 	it("moves only the height variable when only the camera height changes", () => {
 		const view3d = createView3dCell({ amount: 1 });
 		const { ctx } = fakeCtx({ x: 0, y: 0, zoom: 2 });
-		const r = setupCss3dRenderer(ctx, { view3d });
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
 		const before = document.querySelector("style[data-css3d-renderer]");
 		const text = sheet();
 		view3d.set({ camera: { height: 30 } });
@@ -99,7 +99,7 @@ describe("CSS 3D renderer", () => {
 	it("tilts the layers it is given instead of the declared ones", () => {
 		const view3d = createView3dCell({ amount: 1 });
 		const { ctx } = fakeCtx();
-		const r = setupCss3dRenderer(ctx, { view3d });
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
 		r?.api.setTiltLayers(["hud"]);
 		expect(r?.api.getTiltLayers()).toEqual(["hud"]);
 		expect(sheet()).toContain('"hud"');
@@ -112,7 +112,7 @@ describe("CSS 3D renderer", () => {
 	it("tells older backgrounds how far to extend, and clears it when flat", () => {
 		const view3d = createView3dCell({ amount: 1, drawDistance: 1500 });
 		const { ctx, emitted } = fakeCtx();
-		const r = setupCss3dRenderer(ctx, { view3d });
+		const r = setupCss3dRenderer(ctx, { view3d, shapes: false });
 		expect(emitted.at(-1)).toEqual(["bg-grid:set-overscan", { px: 700 + 16 }]);
 		view3d.set({ amount: 0 });
 		expect(emitted.at(-1)).toEqual(["bg-grid:set-overscan", { px: 0 }]);

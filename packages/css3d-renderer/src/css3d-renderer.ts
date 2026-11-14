@@ -1,6 +1,7 @@
 // The CSS 3D renderer: draws the board's 3D view (the core `View3dState`) by tilting the
 // canvas's own layer wrappers with CSS 3D transforms. It pairs with the DOM renderer: the
-// shapes stay the 2D DOM, only their layers are turned into a receding ground plane.
+// shapes stay the 2D DOM, only their layers are turned into a receding ground plane, and
+// shapes with a 3D look stand out of it in a layer of its own (see css3d-shapes).
 //
 // One injected <style> sheet (`!important` rules, scoped to the main canvas container
 // marked with a stage attribute) tilts each layer that shows in 3D:
@@ -24,6 +25,7 @@ import {
 	view3dCellOf,
 } from "@edv4h/usketch-shared";
 import { drawDistanceClip, drawDistanceOverscanPx, tiltLayerRules } from "./css3d-css.js";
+import { setupCss3dShapes } from "./css3d-shapes.js";
 
 /** Attribute the renderer puts on the main canvas container while drawing in 3D. */
 export const STAGE_ATTR = "data-view3d-stage";
@@ -63,6 +65,8 @@ export interface Css3dRendererOptions {
 	 * a host on an older store passes a cell of its own.
 	 */
 	view3d?: View3dCell;
+	/** Draw the shapes that have a 3D look (see css3d-shapes). Default `true`. */
+	shapes?: boolean;
 }
 
 /** The layer ids that declare one of `kinds`, in drawing order. */
@@ -253,6 +257,7 @@ export function setupCss3dRenderer(
 	const offLayers = ctx.events.on("layers:changed", onResize);
 
 	sync();
+	const disposeShapes = options.shapes === false ? null : setupCss3dShapes(ctx);
 
 	const api: Css3dRendererApi = {
 		isDrawing: drawing,
@@ -271,6 +276,7 @@ export function setupCss3dRenderer(
 	return {
 		api,
 		dispose: () => {
+			disposeShapes?.();
 			clear();
 			styleEl?.remove();
 			styleEl = null;

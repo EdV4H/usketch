@@ -1,10 +1,5 @@
-import {
-	type EventBus,
-	type ServiceRegistry,
-	type View3dApi,
-	view3dService,
-} from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
+import { type EventBus, type ServiceRegistry, type View3dApi, view3dService } from "../index.js";
 import { createView3dTracker, STAGE_3D_EVENT } from "../view-3d-tracker.js";
 
 function registry(): ServiceRegistry {

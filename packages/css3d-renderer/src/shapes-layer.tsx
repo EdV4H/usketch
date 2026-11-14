@@ -1,25 +1,28 @@
-// The 3D layer: draws the shapes that rise out of the ground while the board is shown
-// in 3D (Mode 7). It must be one of the view's depth layers (Mode 7's default set has
-// it) so the `translateZ` / `rotateX` below rise out of the tilted ground instead of
-// being flattened onto it. The DOM shape layer skips the same shapes meanwhile.
+// The 3D shape layer: draws the shapes that rise out of the ground while the board is
+// shown in 3D. It is a depth layer, so the `translateZ` / `rotateX` below rise out of the
+// tilted ground instead of being flattened onto it. The DOM shape layer skips the same
+// shapes meanwhile (they are claimed through the board's shape claims).
 import { ShapeContent } from "@edv4h/usketch-dom-renderer";
 import type {
 	LayerRenderContext,
 	ShapeData,
 	ShapeDefinition,
 	ShapeRegistry,
+	ShapeView3d,
 	View3dCamera,
+	View3dTracker,
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { memo, type ReactElement, useEffect, useSyncExternalStore } from "react";
 import {
 	boxTopTransform,
 	boxWalls,
+	type Css3dShapeLimits,
+	type Css3dShapeTypes,
 	poseBox,
 	poseOrigin,
 	poseTransform,
 	render3dFrame,
-	type Shape3dLimits,
 	type ShapePose,
 	selectShapes3d,
 	shadowStyle,
@@ -27,10 +30,9 @@ import {
 	shapePose,
 	wallColor,
 	wallShade,
-} from "./shape-3d-layout.js";
-import type { Shape3dParams, Shape3dTypes } from "./shape-3d-params.js";
-import type { View3dTracker } from "./view-3d-tracker.js";
+} from "./shapes-layout.js";
 
+/** The layer's id (the shape-3d plugin's, so a 3D view's layer lists keep naming it). */
 export const SHAPE_3D_LAYER_ID = "shape-3d";
 
 /**
@@ -64,12 +66,12 @@ const StandContent = memo(function StandContent({
 	);
 });
 
-export interface Shape3dLayerProps {
+export interface Css3dShapesLayerProps {
 	rc: LayerRenderContext;
 	shapes: ShapeRegistry;
 	tracker: View3dTracker;
-	types: Shape3dTypes;
-	limits: Shape3dLimits;
+	types: Css3dShapeTypes;
+	limits: Css3dShapeLimits;
 	/** Screen px the 3D view shows past the board box. */
 	overscanPx: number;
 	/** Ground height at a world point (world units). */
@@ -77,18 +79,18 @@ export interface Shape3dLayerProps {
 	/** Told which shapes this layer draws after each render (the DOM layer hides them). */
 	onDrawn: (ids: ReadonlySet<string>) => void;
 	/** The 3D view's camera, for a type's own `render3d`. */
-	camera?: Shape3dCameraSource;
+	camera?: Css3dCameraSource;
 }
 
-/** The drawn camera and its change notifications (see `Shape3dRenderContext`). */
-export interface Shape3dCameraSource {
+/** The drawn camera and its change notifications (see `ShapeView3dRenderContext`). */
+export interface Css3dCameraSource {
 	get(): View3dCamera | null;
 	subscribe(listener: () => void): () => void;
 }
 
-const NO_CAMERA: Shape3dCameraSource = { get: () => null, subscribe: () => () => {} };
+const NO_CAMERA: Css3dCameraSource = { get: () => null, subscribe: () => () => {} };
 
-export function Shape3dLayer({
+export function Css3dShapesLayer({
 	rc,
 	shapes,
 	tracker,
@@ -98,7 +100,7 @@ export function Shape3dLayer({
 	heightAt,
 	onDrawn,
 	camera = NO_CAMERA,
-}: Shape3dLayerProps) {
+}: Css3dShapesLayerProps) {
 	const view = useSyncExternalStore(tracker.subscribe, tracker.get, tracker.get);
 	const entries = selectShapes3d({
 		shapes: rc.shapesSorted,
@@ -123,6 +125,8 @@ export function Shape3dLayer({
 	useEffect(() => {
 		onDrawn(new Set(ids ? ids.split("\n") : []));
 	}, [ids, onDrawn]);
+	// Unmounted (the layer replaced or removed): nothing is drawn here any more.
+	useEffect(() => () => onDrawn(new Set()), [onDrawn]);
 
 	if (drawn.length === 0) return null;
 	return (
@@ -243,10 +247,10 @@ export function Shape3dLayer({
 function renderCustom(
 	shape: ShapeData,
 	def: ShapeDefinition,
-	params: Shape3dParams,
-	types: Shape3dTypes,
+	params: ShapeView3d,
+	types: Css3dShapeTypes,
 	view: { viewport: Viewport; amount: number; yaw: number; groundHeight: number },
-	camera: Shape3dCameraSource,
+	camera: Css3dCameraSource,
 ): { pose: ShapePose; transform: string | undefined; element: ReactElement } | null {
 	const render3d = types[shape.type]?.render3d;
 	if (!render3d) return null;
