@@ -6,8 +6,7 @@
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
 //   4. Turns the viewport by the camera yaw while in 3D (see `mode7-yaw.ts`).
-import type { Css3dRendererApi } from "@edv4h/usketch-css3d-renderer";
-import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
+import type { BoundingBox, PluginContext, View3dRendererApi } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import { DEFAULT_DEPTH_LAYER_IDS, type Mode7State, type Mode7Store } from "./mode7-store.js";
 import { createYawTurner, type YawTurner, yawPivot } from "./mode7-yaw.js";
@@ -85,7 +84,7 @@ export function setupMode7Runtime(
 	store: Mode7Store,
 	options: {
 		/** Draws the tilted layers (Mode 7 only tells it which ones). */
-		renderer: Css3dRendererApi;
+		renderer: View3dRendererApi;
 		depthLayerIds?: readonly string[];
 		/** Turns the viewport by the yaw (default: one of its own on `ctx.store`). */
 		yaw?: YawTurner;

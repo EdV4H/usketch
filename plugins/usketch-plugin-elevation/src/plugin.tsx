@@ -13,6 +13,7 @@ import {
 	groundDecals,
 	type PluginContext,
 	type UsketchPlugin,
+	view3dGl,
 	view3dService,
 } from "@edv4h/usketch-shared";
 import { useLayoutEffect } from "react";
@@ -20,7 +21,12 @@ import { BRUSH_CURSOR_LAYER_ID, BrushCursorLayer } from "./brush-cursor-layer.js
 import { type BrushSettings, DEFAULT_BRUSH, normalizeBrush } from "./elevation-brush.js";
 import { CHUNK_TYPE, FIELD_TYPE } from "./elevation-field.js";
 import { ElevationGroundLayer, GROUND_LAYER_ID, type StrokePreview } from "./elevation-layer.js";
-import { ElevationMeshLayer, MESH_LAYER_ID, type MeshState } from "./elevation-mesh-layer.js";
+import {
+	ElevationMeshLayer,
+	MESH_LAYER_ID,
+	type MeshState,
+	registerElevationGlDrawable,
+} from "./elevation-mesh-layer.js";
 import { boardElevation, elevationSampler, setBaseCacheLimit } from "./elevation-model.js";
 import { createElevationApi, elevationService } from "./elevation-service.js";
 import { DEFAULT_DISPLAY, type ElevationDisplay } from "./elevation-shade.js";
@@ -124,6 +130,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			// Ground decals other plugins paint onto the ground (shared registry, provided on first use).
 			const decals = groundDecals(ctx.services);
 			const mesh = createReactiveStore<MeshState>({ drawing: false });
+			const gpu = view3dGl(ctx.services);
 			const maxOverscan = options.maxOverscanPx ?? DEFAULT_MAX_OVERSCAN_PX;
 			// Ground drawn past the viewport while in 3D: the core's value
 			// (`LayerRenderContext.view3dOverscan`) or the older overscan event's, the larger.
@@ -187,10 +194,23 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 							view3d={view3d}
 							state={mesh}
 							decals={decals}
+							gpu={gpu}
 						/>
 					),
 				});
 			}
+			// A GPU 3D renderer draws the mesh into its own canvas (no-op without one).
+			const unregisterGl =
+				options.mesh === false
+					? null
+					: registerElevationGlDrawable({
+							gpu,
+							store: ctx.store,
+							display,
+							overscan,
+							state: mesh,
+							decals,
+						});
 			ctx.layers.register({
 				id: BRUSH_CURSOR_LAYER_ID,
 				// Over the shapes, under the selection UI and the HUD.
@@ -261,6 +281,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				stopHud();
 				ctx.layers.unregister(GROUND_LAYER_ID);
 				if (options.mesh !== false) ctx.layers.unregister(MESH_LAYER_ID);
+				unregisterGl?.();
 				ctx.layers.unregister(BRUSH_CURSOR_LAYER_ID);
 				offOverscan();
 			};

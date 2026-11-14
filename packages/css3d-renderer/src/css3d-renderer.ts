@@ -27,9 +27,11 @@ import {
 	type View3dCell,
 	type View3dOcclusionApi,
 	type View3dProjection,
+	type View3dRendererApi,
 	type View3dState,
 	view3dCellOf,
 	view3dOcclusionService,
+	view3dRendererService,
 } from "@edv4h/usketch-shared";
 import {
 	depthStageRules,
@@ -48,7 +50,7 @@ export const CAMERA_HEIGHT_VAR = "--usketch-mode7-camera-height";
 /** Extra px added to the grid overscan event so it comfortably covers the clip line. */
 const OVERSCAN_BUFFER = 16;
 
-export interface Css3dRendererApi {
+export interface Css3dRendererApi extends View3dRendererApi {
 	/** Whether the board is being drawn in 3D now (the view's amount is above 0). */
 	isDrawing(): boolean;
 	/**
@@ -514,11 +516,17 @@ export function createCss3dRendererPlugin(options: Css3dRendererOptions = {}): U
 		id: "usketch-css3d-renderer",
 		name: "CSS 3D renderer",
 		setup(ctx: PluginContext) {
-			if (css3dRendererService.get(ctx.services)) return;
+			// Another 3D renderer (a CSS 3D one, or a GPU one) already draws the board.
+			if (css3dRendererService.get(ctx.services) || view3dRendererService.get(ctx.services)) return;
 			const renderer = setupCss3dRenderer(ctx, options);
 			if (!renderer) return;
 			const unprovide = css3dRendererService.provide(ctx.services, renderer.api);
+			// The generic 3D renderer slot too, unless a GPU renderer took it.
+			const unprovideGeneric = view3dRendererService.get(ctx.services)
+				? null
+				: view3dRendererService.provide(ctx.services, renderer.api);
 			return () => {
+				unprovideGeneric?.();
 				unprovide();
 				renderer.dispose();
 			};

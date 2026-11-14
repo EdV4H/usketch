@@ -4,6 +4,7 @@ import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createCss3dRendererPlugin } from "@edv4h/usketch-css3d-renderer";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
+import { createGpu3dRendererPlugin } from "@edv4h/usketch-gpu3d-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
@@ -173,6 +174,14 @@ function readDesktopTemplate(search: string): boolean {
 	return new URLSearchParams(search).get("desktop") === "1";
 }
 
+/**
+ * `?renderer3d=gpu` で 3D 表示を GPU レンダラー（WebGL2・実験中）で描く。既定は CSS 3D。
+ * 2 つのレンダラーを同じボードで見比べるための切替（#1304）。
+ */
+function readRenderer3d(search: string): "css" | "gpu" {
+	return new URLSearchParams(search).get("renderer3d") === "gpu" ? "gpu" : "css";
+}
+
 interface CardHandWiring {
 	userId: string;
 	boardId?: string;
@@ -263,9 +272,12 @@ function createBasePlugins(
 		// 標高（連続した高さの地形）。HUD「標高 → 無限地形を作る・変える」で opt-in。
 		// 地面の高さサービスを提供するので、キャラは坂を上り下りし、3D の Shape は丘に乗る。
 		createElevationPlugin(),
-		// 3D 表示の描画（CSS 3D）。層を CSS の 3D 変形で傾けて地面にする。Mode 7 などの
+		// 3D 表示の描画（既定は CSS 3D）。層を CSS の 3D 変形で傾けて地面にする。Mode 7 などの
 		// 3D ビューはボードの 3D 表示の状態を変えるだけで、描くのはこのレンダラー。
-		createCss3dRendererPlugin(),
+		// `?renderer3d=gpu` なら WebGL2 の GPU レンダラー（実験中）で描く。
+		readRenderer3d(typeof window !== "undefined" ? window.location.search : "") === "gpu"
+			? createGpu3dRendererPlugin()
+			: createCss3dRendererPlugin(),
 		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
