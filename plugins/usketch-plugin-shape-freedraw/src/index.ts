@@ -4,7 +4,12 @@ export {
 	FreedrawConfigSchema,
 	parseFreedrawConfig,
 } from "./config.js";
-export type { FinalizedStroke, FreedrawPenDefinition, PenSizeRange } from "./custom-pens.js";
+export type {
+	FinalizedStroke,
+	FreedrawPenDefinition,
+	PenCommitContext,
+	PenSizeRange,
+} from "./custom-pens.js";
 export { type Nearest, nearestOnPolyline, snapEndpoints } from "./endpoint-snap.js";
 export {
 	type FreedrawApi,
