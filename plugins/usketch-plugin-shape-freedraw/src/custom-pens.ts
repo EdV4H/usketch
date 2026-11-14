@@ -1,3 +1,4 @@
+import type { BoardStore, CommandRegistry } from "@edv4h/usketch-shared";
 import type { ReactElement } from "react";
 import type { FreedrawShapeData, PenKind, StrokePoint } from "./types.js";
 
@@ -56,6 +57,19 @@ export interface FreedrawPenDefinition {
 	 * 画面上の数 px + `halfWidth(size)`。
 	 */
 	snapDistance?(size: number): number;
+	/**
+	 * 描いた人のクライアントで、確定した線が store に入った直後に 1 回だけ呼ぶ（同期先では
+	 * 呼ばない）。`ctx.commands` で実行した変更は線の追加と同じ 1 回の undo / redo に入る
+	 * （例: 引いた道の下の地形をならす）。投げた例外は握りつぶし、線はそのまま残す。
+	 */
+	onCommit?(shape: FreedrawShapeData, ctx: PenCommitContext): void;
+}
+
+/** {@link FreedrawPenDefinition.onCommit} に渡す文脈。 */
+export interface PenCommitContext {
+	store: BoardStore;
+	/** ここで実行したコマンドは、線の追加と 1 つの undo 単位にまとまる。 */
+	commands: CommandRegistry;
 }
 
 // 登録は JS ランタイム単位（同じランタイムの AppInstance で共有）。shape の当たり判定や

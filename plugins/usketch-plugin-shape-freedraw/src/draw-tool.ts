@@ -1,6 +1,9 @@
 import {
+	type BoardStore,
 	type BoundingBox,
 	type CanvasPointerEvent,
+	type Command,
+	type CommandRegistry,
 	DEFAULT_STYLE,
 	generateId,
 	type ShapeData,
@@ -8,7 +11,7 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { TUNING } from "./config.js";
-import { getPenDefinition } from "./custom-pens.js";
+import { type FreedrawPenDefinition, getPenDefinition } from "./custom-pens.js";
 import { snapEndpoints } from "./endpoint-snap.js";
 import { createEraseStrokesCommand, findErasedStrokes } from "./eraser.js";
 import { smoothPressure, speedPressure } from "./geometry/brush-outline.js";
@@ -16,14 +19,7 @@ import { penHalfWidth } from "./geometry/hit.js";
 import { simplifyPoints } from "./geometry/simplify.js";
 import { DEFAULT_PEN, penMeta } from "./pen-meta.js";
 import { type FreedrawSettingsStore, penSize } from "./settings-store.js";
-import {
-	FREEDRAW_STROKE_COMMITTED,
-	type FreedrawShapeData,
-	type FreedrawStrokeCommittedEvent,
-	type PenId,
-	type StrokeJoins,
-	type StrokePoint,
-} from "./types.js";
+import type { FreedrawShapeData, PenId, StrokeJoins, StrokePoint } from "./types.js";
 import type { PointerStore } from "./ui/cursor-overlay.js";
 
 interface StrokeState {
@@ -277,13 +273,7 @@ export function createDrawController(
 				...(finalized?.penData ? { penData: finalized.penData } : {}),
 				...(joins ? { joins } : {}),
 			};
-			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-			// Only the client that drew it hears this (synced peers just see the shape), so a
-			// host can follow up on its own strokes, e.g. level the ground under a road.
-			const added = (toolCtx.store.getShape(shape.id) as FreedrawShapeData | undefined) ?? shape;
-			toolCtx.events.emit<FreedrawStrokeCommittedEvent>(FREEDRAW_STROKE_COMMITTED, {
-				shape: added,
-			});
+			toolCtx.commands.execute(commitStroke(toolCtx.store, shape, def));
 		},
 
 		reset() {
@@ -294,6 +284,55 @@ export function createDrawController(
 			stroke = null;
 			erase = null;
 			pointer.set(null);
+		},
+	};
+}
+
+/**
+ * The command that adds a finished stroke, plus whatever the pen's `onCommit` runs
+ * right after it (on the first execute only), as one undo step: undo reverts the
+ * follow-ups newest first, then removes the stroke; redo replays them in order.
+ */
+export function commitStroke(
+	store: BoardStore,
+	shape: FreedrawShapeData,
+	def: FreedrawPenDefinition | undefined,
+): Command {
+	const add = createAddShapeCommand(store, shape);
+	const followUps: Command[] = [];
+	let first = true;
+	return {
+		execute: () => {
+			add.execute();
+			if (!first) {
+				for (const c of followUps) c.execute();
+				return;
+			}
+			first = false;
+			const added = store.getShape(shape.id) as FreedrawShapeData | undefined;
+			if (!def?.onCommit || !added) return;
+			const commands: CommandRegistry = {
+				execute: (c) => {
+					followUps.push(c);
+					c.execute();
+				},
+				undo: () => {},
+				redo: () => {},
+				canUndo: () => false,
+				canRedo: () => false,
+				getHistorySize: () => 0,
+				getCursor: () => 0,
+			};
+			try {
+				def.onCommit({ ...added }, { store, commands });
+			} catch (err) {
+				// A host's follow-up must not lose the stroke or break the pointer-up.
+				console.error(`freedraw: onCommit of pen "${def.id}" failed`, err);
+			}
+		},
+		undo: () => {
+			for (let k = followUps.length - 1; k >= 0; k--) followUps[k].undo();
+			add.undo();
 		},
 	};
 }
