@@ -33,6 +33,7 @@ import {
 	strokeChanges,
 } from "./elevation-brush.js";
 import { encodeChunk } from "./elevation-codec.js";
+import { applyGrade, checkGradeOptions, type GradeOptions } from "./elevation-grade.js";
 import { boardElevation, boardField, elevationSampler } from "./elevation-model.js";
 
 export interface ElevationDeps {
@@ -271,6 +272,28 @@ export function paintElevation(
 			? [{ ...path[0], dt: seconds }]
 			: path.slice(1).flatMap((p, k) => dabsAlong(path[k], p, seconds / legs, settings.radius));
 	applyDabs(stroke, dabs, { settings, mode, target });
+	const changes = strokeChanges(stroke);
+	writeChunkEdits(deps, changes);
+	return changes.length;
+}
+
+/**
+ * Level a strip of ground along `path` (world points), one undo step: flat across the
+ * strip, following the ground or at one height along it (see {@link GradeOptions}) —
+ * e.g. a road or race track drawn over hills. Only on a board with an elevation field
+ * (else nothing changes). Returns the number of chunks changed. Throws `RangeError` on
+ * bad options.
+ */
+export function gradeElevation(
+	deps: ElevationDeps,
+	path: readonly { x: number; y: number }[],
+	opts: GradeOptions,
+): number {
+	checkGradeOptions(opts);
+	const model = boardElevation(deps.store);
+	if (!model) return 0;
+	const stroke = beginStroke(model);
+	if (!applyGrade(stroke, path, opts)) return 0;
 	const changes = strokeChanges(stroke);
 	writeChunkEdits(deps, changes);
 	return changes.length;

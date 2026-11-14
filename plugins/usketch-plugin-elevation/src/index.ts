@@ -18,7 +18,9 @@ export {
 	normalizeBrush,
 	RAISE_RATE,
 	type Stroke,
+	type StrokeEditor,
 	strokeChanges,
+	strokeEditor,
 } from "./elevation-brush.js";
 export { decodeChunk, encodeChunk, isEmptyChunk } from "./elevation-codec.js";
 export {
@@ -56,6 +58,13 @@ export {
 	normalizeField,
 	normalizeGen,
 } from "./elevation-field.js";
+export {
+	applyGrade,
+	type GradeOptions,
+	type GradePoint,
+	gradeProfile,
+	resamplePath,
+} from "./elevation-grade.js";
 export {
 	ElevationGroundLayer,
 	GROUND_LAYER_ID,
@@ -96,6 +105,7 @@ export {
 	editedChunkCount,
 	enableInfiniteElevation,
 	getElevationField,
+	gradeElevation,
 	type PaintOptions,
 	paintElevation,
 	removeElevationField,
