@@ -1,16 +1,16 @@
 // Elevation plugin: the board's ground has a height at every point — an infinite
 // generated terrain from a seed, plus what the brush adds — instead of the map's
-// per-cell steps. The flat board shows it as colours, shading and contour lines; the
-// shared ground-height service reports it, so a walking character goes up and down the
+// per-cell steps. The flat board shows it as colours, shading and contour lines; it is
+// a ground provider on the board's height, so a walking character goes up and down the
 // slopes and 3D shapes stand on the hills.
 //
 // It depends on no other plugin. With the map on the same board only one of them
-// owns the height: a board with an elevation field uses this plugin's, and the map's
-// cliffs and steps are switched off there (through the map's service, if present).
+// owns the height: a board with an elevation field stands on it (it ranks above the
+// map's ground), and the map's cliffs and steps are off there.
 import {
+	boardHeight,
 	defineService,
 	groundDecals,
-	groundHeightService,
 	type PluginContext,
 	type UsketchPlugin,
 	view3dService,
@@ -59,6 +59,12 @@ export interface ElevationPluginOptions {
 	 */
 	meshOrder?: number;
 }
+
+/**
+ * The elevation's rank among the board's ground providers: above the map's (the default
+ * 0), so a board with a field stands on the field.
+ */
+export const ELEVATION_GROUND_PRIORITY = 10;
 
 /** Default stacking orders of the ground and mesh layers. */
 export const DEFAULT_GROUND_ORDER = 45;
@@ -208,21 +214,21 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			const api = createElevationApi(ctx.store, ctx.commands, display, brush);
 			const stopHud = registerElevationHud(ctx, api);
 
-			// One owner of the board's height: this plugin where the board has a field, the
-			// provider that was there before (the map) elsewhere. Always provided (and
-			// delegating) rather than provided on demand, because taking it away again would
-			// leave no provider at all — the registry keeps only the latest.
-			const previous = groundHeightService.get(ctx.services);
-			const heightAt = (x: number, y: number): number => {
-				const model = boardElevation(ctx.store);
-				if (model) return elevationSampler(model).heightAt(x, y);
-				return previous?.heightAt(x, y) ?? 0;
-			};
+			// The board's height: this plugin's terrain is a ground provider ranked above the
+			// map's, answering only on a board with a field (elsewhere the map's answers).
+			const height = ctx.height ?? boardHeight(ctx.services);
+			const hasField = (): boolean => boardElevation(ctx.store) !== null;
 
 			// Switch the map's own heights (cliffs, steps) off while the board has a field.
+			// A map that reads the board's height already stops; this is for an older one.
 			let mapHeightOff = false;
+			let lastField = hasField();
 			const syncMapHeight = () => {
-				const want = boardElevation(ctx.store) !== null;
+				const want = hasField();
+				if (want !== lastField) {
+					lastField = want;
+					height.notify();
+				}
 				if (want === mapHeightOff) return;
 				const map = mapHeightSwitch.get(ctx.services);
 				if (!map?.setHeightEnabled) return;
@@ -232,18 +238,22 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			const offStore = ctx.store.subscribe(syncMapHeight);
 			syncMapHeight();
 
-			// Provide the services LAST so a failed earlier step can't leak them.
-			const ground = { heightAt };
-			const unprovideGround = groundHeightService.provide(ctx.services, ground);
+			// Register the provider and the service LAST so a failed earlier step can't leak them.
+			const unregisterGround = height.register({
+				id: "usketch-plugin-elevation",
+				kind: "ground",
+				priority: ELEVATION_GROUND_PRIORITY,
+				active: hasField,
+				heightAt: (x, y) => {
+					const model = boardElevation(ctx.store);
+					return model ? elevationSampler(model).heightAt(x, y) : null;
+				},
+			});
 			const unprovide = elevationService.provide(ctx.services, api);
 
 			return () => {
 				unprovide();
-				// Hand the height back to the previous provider only while ours is still the
-				// one in use: a provider that came after this plugin stays.
-				const stillOurs = groundHeightService.get(ctx.services) === ground;
-				unprovideGround();
-				if (stillOurs && previous) groundHeightService.provide(ctx.services, previous);
+				unregisterGround();
 				offStore();
 				if (mapHeightOff) mapHeightSwitch.get(ctx.services)?.setHeightEnabled?.(true);
 				stopHud();

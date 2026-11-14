@@ -2,7 +2,7 @@
 // data-only `tilemap` + `base-map` shapes, the base landmark-icon layer, the `map`
 // tool (brush/eraser/fill/generate/base), and the Tweaks HUD settings. Landmark
 // icons belong to bases (derived from radius), not a separate stamp step.
-import { groundHeightService, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
+import { boardHeight, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseIconLayer } from "./base/base-icon-layer.js";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
@@ -67,6 +67,9 @@ const BASE_LAYER_ID = "usketch-map:base";
 const BASE_ICON_LAYER_ID = "usketch-map:base-icons";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
 
+/** The map plugin's id (also its ground provider's id on the board's height). */
+const MAP_PLUGIN_ID = "usketch-plugin-map";
+
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
 	const territoryStyle = resolveTerritoryStyle(options.territory);
@@ -83,7 +86,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	}
 
 	return {
-		id: "usketch-plugin-map",
+		id: MAP_PLUGIN_ID,
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
@@ -118,6 +121,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			const offStage = ctx.events.on<{ active: boolean }>(STAGE_3D_EVENT, (data) => {
 				stage.set({ active: data?.active === true });
 			});
+
+			// The board's height: the map's terrain is one ground provider. The cliffs are
+			// drawn only while the map's ground is the one in use (another terrain, such as
+			// the elevation field, can rank above it).
+			const height = ctx.height ?? boardHeight(ctx.services);
+			const ownsGround = createReactiveStore({ on: true });
+			const syncOwner = () => {
+				const owner = height.owner();
+				const on = owner === null || owner === MAP_PLUGIN_ID;
+				if (on !== ownsGround.get().on) ownsGround.set({ on });
+			};
 
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
@@ -154,6 +168,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						tile={tile}
 						stage={stage}
 						overscan={overscan}
+						ownsGround={ownsGround}
 					/>
 				),
 			});
@@ -344,12 +359,28 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			const api = createMapApi(ctx.store, tile);
 			const unprovideService = mapService.provide(ctx.services, api);
 			// The board's ground height = the terrain's (a character can't climb cliffs).
-			const unprovideGround = groundHeightService.provide(ctx.services, {
+			// Answered through the older `groundHeightService` too, by the board's height.
+			const unregisterGround = height.register({
+				id: MAP_PLUGIN_ID,
+				kind: "ground",
+				active: () => renderConfigStore.get().heightEnabled,
 				heightAt: (x, y) => api.getHeightAt(x, y),
 			});
+			const offHeight = height.subscribe(syncOwner);
+			// The map's own switch (`heightEnabled`) decides whether it answers at all.
+			let lastHeightEnabled = renderConfigStore.get().heightEnabled;
+			const offHeightSwitch = renderConfigStore.subscribe(() => {
+				const on = renderConfigStore.get().heightEnabled;
+				if (on === lastHeightEnabled) return;
+				lastHeightEnabled = on;
+				height.notify();
+			});
+			syncOwner();
 
 			return () => {
-				unprovideGround();
+				unregisterGround();
+				offHeight();
+				offHeightSwitch();
 				unprovideService();
 				offOverscan();
 				offOverscanCap();

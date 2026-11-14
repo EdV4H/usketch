@@ -4,8 +4,8 @@ Mode 7（`@edv4h/usketch-plugin-mode7`）などの 3D ビュー中に、**3D パ
 
 - 描画は map の崖やキャラクターと同じ **CSS 3D だけ**（`translateZ` / `rotateX(-90deg)` / `rotateY(90deg)` の折り曲げ）。3D ライブラリには依存しない。
 - 各 Shape プラグインの既存の `render` をそのまま立てるので、全 Shape 種別で使える。
-- Mode 7 にも map にも依存しない。3D ビューの状態は shared の `view3dService`、地面の高さは `groundHeightService` から読み、DOM の Shape 層には `renderer:hide-shapes` で「この Shape は描かない」を伝える。
-- 当たり判定（`collision`）を持つ Shape は shared の `solidHeightService` で「ここに立体がある」を答える。キャラクター（`@edv4h/usketch-plugin-character`）はそれを見て壁で止まり、乗れる箱に乗る。
+- Mode 7 にも map にも依存しない。3D ビューの状態は shared の `view3dService`、地面の高さはボードの高さの窓口（shared の `boardHeight` / `ctx.height`）から読み、DOM の Shape 層には `renderer:hide-shapes` で「この Shape は描かない」を伝える。
+- 当たり判定（`collision`）を持つ Shape は、同じ窓口に固体の提供元として「ここに立体がある」を答える。キャラクター（`@edv4h/usketch-plugin-character`）はそれを見て壁で止まり、乗れる箱に乗る。
 
 ## 使い方
 
@@ -39,7 +39,7 @@ Shape データの拡張キー `x-shape-3d`（`SHAPE_3D_KEY`）に置く。コ�
   mode: "stand",            // "stand" = 立てる / "box" = 箱 / "float" = 浮かせる
   height: 16,               // box: 箱の高さ / float: 浮かせる高さ（world units、地形 1 段 = 16）。stand では使わない
   facing: "camera",         // stand のみ。"camera" = 常にカメラの方を向く（看板・木）/ "fixed" = 下辺に沿って立つ（塀）
-  ground: true,             // 地形（groundHeightService）の高さに乗る
+  ground: true,             // 地形（ボードの地面の高さ）に乗る
   shadow: true,             // 影を落とす（stand / float。box は地面に接しているので描かない）
   collision: "none",        // キャラとの当たり判定: "none" / "solid" = 壁（通れない）/ "platform" = 乗れる（box のみ）
 }
@@ -110,7 +110,7 @@ three.js を使う場合は依存をその Shape プラグイン側に持ち、`
 
 - 3D ビューのせり上がり（遷移量 0…1）に合わせて、stand は足元（下辺の中点）を軸に起き上がり、box / float は中心を基準に `height` までせり上がる。OFF にすると平面に戻り、平面の描画に切り替わる。
 - `facing: "camera"` はカメラの旋回（yaw）を打ち消して常に正面を向く。`"fixed"` は Shape 自身の回転のまま。box / float は常に Shape 自身の回転。
-- **3D パラメーターを持たない Shape も地形の高さに乗る**（`limits.groundFlat`、既定オン）。中心の地面の高さ（`groundHeightService`）が 0 より上なら、その Shape は平らなまま、その高さまで持ち上がる（`GROUND_FLAT_PARAMS` = 高さ 0 の `float`、影なし）。地面が 0 の所の Shape は今まで通り平面の層のまま。中心の高さで平らに乗るので、斜面に沿って曲がりはしない。`modes` に `float` が無い種別（`embed` / `openui` など）は対象外。HUD の「3D 表示のない Shape も地形の高さに乗せる」で切れる。
+- **3D パラメーターを持たない Shape も地形の高さに乗る**（`limits.groundFlat`、既定オン）。中心の地面の高さ（ボードの高さの窓口の `groundAt`）が 0 より上なら、その Shape は平らなまま、その高さまで持ち上がる（`GROUND_FLAT_PARAMS` = 高さ 0 の `float`、影なし）。地面が 0 の所の Shape は今まで通り平面の層のまま。中心の高さで平らに乗るので、斜面に沿って曲がりはしない。`modes` に `float` が無い種別（`embed` / `openui` など）は対象外。HUD の「3D 表示のない Shape も地形の高さに乗せる」で切れる。
 - 描画距離の外（地面が描かれていない所）、画面上で小さすぎるもの（既定 8px 未満）、全体 LOD 中は立てない。数は手前から最大 200 個（HUD で変更可）。
 
 ## HUD

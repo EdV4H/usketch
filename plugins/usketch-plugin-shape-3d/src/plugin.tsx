@@ -4,15 +4,14 @@
 // outside a 3D view this plugin draws nothing.
 //
 // It depends on neither Mode 7 nor the map: the view comes from the shared
-// `view3dService`, the ground from `groundHeightService`, and the DOM shape layer is told
+// `view3dService`, the ground from the board's height, and the DOM shape layer is told
 // which shapes to skip with its `renderer:hide-shapes` event. Shapes with a `collision`
-// answer the shared `solidHeightService`, which a character walking the board consults.
+// are a solid provider on the board's height, which a character walking the board consults.
 import { HIDE_SHAPES_EVENT, VIEWPORT_OVERSCAN_EVENT } from "@edv4h/usketch-dom-renderer";
 import {
-	groundHeightService,
+	boardHeight,
 	type PluginContext,
 	type ShapeData,
-	solidHeightService,
 	type UsketchPlugin,
 	view3dService,
 } from "@edv4h/usketch-shared";
@@ -64,8 +63,9 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 				lastHidden = key;
 				ctx.events.emit(HIDE_SHAPES_EVENT, { source: HIDE_SOURCE, ids });
 			};
-			const heightAt = (x: number, y: number) =>
-				groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+			// The board's height: the ground the shapes stand on, and where their solids go.
+			const height = ctx.height ?? boardHeight(ctx.services);
+			const heightAt = (x: number, y: number) => height.groundAt(x, y);
 			// The view's camera for a type's own `render3d`. Notifications go through the
 			// tracker, which attaches to a provider that sets up later or comes and goes.
 			const camera: Shape3dCameraSource = {
@@ -116,12 +116,16 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			});
 			const stopHud = registerShape3dHud(ctx, api, settings);
 			// Provide the services LAST so a failed earlier step can't leak them.
-			const unprovideSolid = solidHeightService.provide(ctx.services, { heightAt: solidAt });
+			const unregisterSolid = height.register({
+				id: "usketch-plugin-shape-3d",
+				kind: "solid",
+				heightAt: solidAt,
+			});
 			const unprovide = shape3dService.provide(ctx.services, api);
 
 			return () => {
 				unprovide();
-				unprovideSolid();
+				unregisterSolid();
 				colliders = null;
 				stopHud();
 				ctx.layers.unregister(SHAPE_3D_LAYER_ID);

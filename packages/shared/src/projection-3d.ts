@@ -157,7 +157,7 @@ export interface GroundRayOptions {
 
 /**
  * The first ground point the view ray through a screen point meets, on uneven ground
- * (`heightAt(x, y)` in world units, e.g. `groundHeightService`). The ray is followed
+ * (`heightAt(x, y)` in world units, e.g. `BoardHeightApi.groundAt`). The ray is followed
  * from `maxHeight` down to `minHeight`; the first place it passes below the ground is
  * refined by bisection. On flat ground (`maxHeight === minHeight`) this is
  * {@link unprojectWorld} at that height. `null` when the ray meets no ground in range

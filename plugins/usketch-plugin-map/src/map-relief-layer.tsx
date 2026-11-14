@@ -198,6 +198,7 @@ export function MapReliefLayer({
 	tile,
 	stage,
 	overscan,
+	ownsGround,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
@@ -206,6 +207,8 @@ export function MapReliefLayer({
 	stage: ReactiveStore<{ active: boolean }>;
 	/** The ground's 3D overscan (as given to MapTerrainLayer), to stay inside its extent. */
 	overscan?: ReactiveStore<{ px: number }>;
+	/** Whether the map's ground is the board's ground now (another terrain can rank above). */
+	ownsGround?: ReactiveStore<{ on: boolean }>;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -219,16 +222,18 @@ export function MapReliefLayer({
 		const u2 = renderConfigStore.subscribe(rerender);
 		const u3 = stage.subscribe(rerender);
 		const u4 = overscan?.subscribe(rerender);
+		const u5 = ownsGround?.subscribe(rerender);
 		window.addEventListener("resize", rerender);
 		return () => {
 			u1();
 			u2();
 			u3();
 			u4?.();
+			u5?.();
 			window.removeEventListener("resize", rerender);
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [store, stage, overscan]);
+	}, [store, stage, overscan, ownsGround]);
 
 	const vp = store.getViewport();
 	const zoom = vp.zoom;
@@ -236,6 +241,7 @@ export function MapReliefLayer({
 	// Zoomed out the terrain itself drops to flat coarse blocks; so does the relief.
 	const on =
 		cfg.heightEnabled &&
+		(ownsGround?.get().on ?? true) &&
 		stage.get().active &&
 		tileDetail(tile * zoom, renderMode, cfg.fullDetailMinPx) === "full";
 	// Drawn chunk by chunk like the ground, over the on-screen rect — or the ground's whole

@@ -182,8 +182,9 @@ createCharacterPlugin({
   render props' `controlScheme`, e.g. to draw a car for `"vehicle"`) and others are eased between
   updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
-- **Ground height**: when a plugin provides `groundHeightService` (from
-  `@edv4h/usketch-shared`, e.g. the map plugin's raised terrain), moving onto
+- **Ground height**: read from the board's height (`ctx.height`, or `boardHeight` from
+  `@edv4h/usketch-shared`) when a plugin registers a ground there (e.g. the map
+  plugin's raised terrain, the elevation field), moving onto
   ground more than `motion.maxStep` (default 24 world units, HUD "登れる段差") higher
   than where the character stands is blocked; it slides along the cliff instead.
   The step is measured from the feet, so mid-jump taller cliffs are reachable; a ledge
@@ -191,8 +192,8 @@ createCharacterPlugin({
   down; a bigger drop falls (gravity applies even with jumping off). The render props
   carry `elevation` (the ground) and `z` (the feet), and under a 3D view (Mode 7) the
   character is lifted to its feet height.
-- **Solids**: when a plugin provides `solidHeightService` (e.g. shape-3d's shapes with
-  a `collision`), its answer is combined with the ground: a wall (`Infinity`) blocks
+- **Solids**: when a plugin registers a solid on the board's height (e.g. shape-3d's
+  shapes with a `collision`), the highest one is combined with the ground: a wall (`Infinity`) blocks
   every move into it (sliding along it like a cliff), and a finite top is a ledge that
   is stepped or jumped onto and stood on (`blockingHeight` / `standingHeight`). A move
   is checked in stretches of at most `SWEEP_STEP` (4) world units (`sweepToGround`), so
