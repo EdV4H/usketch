@@ -265,6 +265,12 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				const stage = { width: el.clientWidth, height: el.clientHeight };
 				return pointer3d.pick(screen, stage, renderModeRef.current);
 			},
+			outlineOf: (shapeId) => {
+				const el = containerRef.current;
+				if (!el) return null;
+				const stage = { width: el.clientWidth, height: el.clientHeight };
+				return pointer3d.outline(shapeId, stage, renderModeRef.current);
+			},
 		});
 	}, [app.services, pointer3d]);
 	const map3d = useCallback(
