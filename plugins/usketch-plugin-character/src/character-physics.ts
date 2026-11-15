@@ -290,6 +290,9 @@ export const clampAirControl = (v: number): number =>
  *   at 1 they set it at once, as on the ground), and a car keeps its speed (no throttle
  *   or brakes) while steering at `airControl` × the ground's — the way it travels
  *   turns with it.
+ * - `backpedal` (a walk in a view that turns with the heading, camera `rotate`): a key
+ *   toward screen-down walks backward, still facing forward. Turning round to face it
+ *   would turn the view, and the screen-down way with it, so the walk would circle.
  */
 export function stepCharacter(
 	pose: CharacterPose,
@@ -300,6 +303,7 @@ export function stepCharacter(
 	cameraRotation = 0,
 	driftParams: DriftParams | null = null,
 	airControl = DEFAULT_JUMP.airControl,
+	backpedal = false,
 ): CharacterPose {
 	if (dt <= 0) return pose;
 	const control = clampAirControl(airControl);
@@ -310,6 +314,9 @@ export function stepCharacter(
 		// Screen direction → world direction: undo the camera rotation.
 		const target = held ? wrapDeg(vectorHeading(sx, sy) - cameraRotation) : pose.heading;
 		const dir = headingVector(target);
+		// Walking backward: face the way mirrored to screen-up (straight back = keep facing).
+		const face =
+			held && backpedal && sy > 0 ? wrapDeg(vectorHeading(sx, -sy) - cameraRotation) : target;
 		// Keys are always full speed (diagonals normalized); an analog stick scales it.
 		const want = held ? params.moveSpeed * Math.min(1, Math.hypot(sx, sy)) : 0;
 		let vx = dir.x * want;
@@ -329,7 +336,7 @@ export function stepCharacter(
 			x: pose.x + vx * dt,
 			y: pose.y + vy * dt,
 			// Faces the keys while they are held, else keeps its facing (drifting on in the air).
-			heading: held ? turnToward(pose.heading, target, params.turnRate * dt) : pose.heading,
+			heading: held ? turnToward(pose.heading, face, params.turnRate * dt) : pose.heading,
 			speed,
 			moving: true,
 			steering: 0,
