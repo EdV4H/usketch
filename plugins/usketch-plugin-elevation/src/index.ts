@@ -82,7 +82,16 @@ export {
 	tileIndices,
 	VERTEX_FLOATS,
 } from "./elevation-mesh.js";
-export { ElevationMeshLayer, MESH_LAYER_ID, type MeshState } from "./elevation-mesh-layer.js";
+export {
+	COVER_DEPTH_BIAS,
+	COVER_LAYER_ID,
+	COVER_VERTEX_FLOATS,
+	coverLift,
+	coverVertices,
+	ElevationMeshLayer,
+	MESH_LAYER_ID,
+	type MeshState,
+} from "./elevation-mesh-layer.js";
 export {
 	boardElevation,
 	boardField,
@@ -144,6 +153,7 @@ export {
 } from "./elevation-tool.js";
 export {
 	createElevationPlugin,
+	DEFAULT_COVER_ORDER,
 	DEFAULT_GROUND_ORDER,
 	DEFAULT_MESH_ORDER,
 	ELEVATION_GROUND_PRIORITY,
