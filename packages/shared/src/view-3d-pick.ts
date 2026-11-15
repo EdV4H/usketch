@@ -12,6 +12,7 @@ import {
 	type View3dProjection,
 } from "./projection-3d.js";
 import { defineService } from "./service.js";
+import { shapeView3dAnchor } from "./shape-solids.js";
 import type { ShapeView3d } from "./shape-view-3d.js";
 import {
 	flatQuad3d,
@@ -20,7 +21,7 @@ import {
 	shapeView3dFaces,
 	type Vec3,
 } from "./shape-view-3d-faces.js";
-import type { Point, Viewport } from "./types/geometry.js";
+import type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 import type { ShapeData } from "./types/shape.js";
 import { safeRotation } from "./utils/rotation.js";
 import type { View3dState } from "./view-3d-state.js";
@@ -358,6 +359,70 @@ export function quadOutlineRuns(
 	return runs;
 }
 
+/** Where one shape is drawn in a 3D view: its faces (world units, height up). */
+export interface View3dShapeFaces {
+	shapeId: string;
+	/** The face with its drawing, then a box's walls. */
+	quads: Quad3d[];
+}
+
+/**
+ * The faces of the shapes drawn in a 3D view whose anchor is inside `bounds` (world): a
+ * shape with a 3D look (in `view3d`) where `shapeView3dFaces` puts its drawing and walls,
+ * any other lying flat on the board (height 0, where the tilted layer draws it). Hidden
+ * shapes are left out. Lets a ground drawn by itself (a WebGL terrain under the DOM)
+ * cover the parts of the shapes it hides. Pure.
+ */
+export function view3dShapeFacesIn(input: {
+	shapes: readonly ShapeData[];
+	/** The shapes drawn with a 3D look and how (see `selectView3dShapes`). */
+	view3d: ReadonlyMap<string, ShapeView3d>;
+	amount: number;
+	yaw: number;
+	viewportRotation: number;
+	bounds: BoundingBox;
+	groundAt: (x: number, y: number) => number;
+}): View3dShapeFaces[] {
+	const { bounds: b } = input;
+	const x1 = b.x + b.width;
+	const y1 = b.y + b.height;
+	const out: View3dShapeFaces[] = [];
+	for (const shape of input.shapes) {
+		if (!shape || typeof shape.id !== "string" || shape.hidden) continue;
+		if (!(shape.width > 0 && shape.height > 0)) continue;
+		const params = input.view3d.get(shape.id);
+		const at = shapeView3dAnchor(shape, params?.mode ?? "float");
+		if (!(at.x >= b.x && at.x <= x1 && at.y >= b.y && at.y <= y1)) continue;
+		if (params) {
+			const ground = params.ground ? input.groundAt(at.x, at.y) : 0;
+			const faces = shapeView3dFaces(shape, params, {
+				amount: input.amount,
+				yaw: input.yaw,
+				viewportRotation: input.viewportRotation,
+				groundHeight: Number.isFinite(ground) ? ground : 0,
+				pad: 0,
+			});
+			out.push({ shapeId: shape.id, quads: [faces.picture, ...faces.walls.map((w) => w.quad)] });
+			continue;
+		}
+		const rad = (safeRotation(shape.rotation) * Math.PI) / 180;
+		out.push({
+			shapeId: shape.id,
+			quads: [
+				flatQuad3d(
+					shape.x + shape.width / 2,
+					shape.y + shape.height / 2,
+					0,
+					shape.width,
+					shape.height,
+					rad,
+				),
+			],
+		});
+	}
+	return out;
+}
+
 /** What is under a point of the board's stage in its 3D view, as the canvas sees it. */
 export interface View3dPickApi {
 	/**
@@ -377,6 +442,12 @@ export interface View3dPickApi {
 	 * Optional: a canvas from before it has none.
 	 */
 	outlineRunsOf?(shapeId: string): OutlineRun[] | null;
+	/**
+	 * The faces of the shapes drawn in the 3D view now, in view or just past it (the 3D
+	 * overscan) — see {@link view3dShapeFacesIn}. Empty while the board is flat.
+	 * Optional: a canvas from before it has none.
+	 */
+	facesInView?(): View3dShapeFaces[];
 }
 
 /** The canvas's 3D pick (provided while a canvas is mounted). */
