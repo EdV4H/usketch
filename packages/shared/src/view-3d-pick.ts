@@ -5,6 +5,7 @@ import {
 	cameraEye,
 	isOccluded,
 	type ProjectionCamera,
+	projectWorld,
 	type StageSize,
 	unprojectOnGround,
 	unprojectWorld,
@@ -13,6 +14,7 @@ import {
 import { defineService } from "./service.js";
 import type { ShapeView3d } from "./shape-view-3d.js";
 import {
+	flatQuad3d,
 	flatShapeView3dHeight,
 	type Quad3d,
 	shapeView3dFaces,
@@ -221,6 +223,71 @@ export function view3dDragPoint(
 	return p ? { x: p.x + start.offset.x, y: p.y + start.offset.y } : null;
 }
 
+/** The view a shape's drawn quad is placed for (see {@link shapeView3dQuad}). */
+export interface ShapeView3dQuadView {
+	/** How far into 3D the view is (0 … 1). */
+	amount: number;
+	/** The camera's full yaw (deg), for shapes facing the camera. */
+	yaw: number;
+	/** The viewport's rotation (deg). */
+	viewportRotation: number;
+	/** The ground's height (world units). */
+	groundAt(x: number, y: number): number;
+}
+
+/**
+ * The quad a shape is drawn on in a 3D view (world units, height up): the face with the
+ * drawing of a shape standing in 3D (`params`), else the shape lying flat on the ground
+ * under its centre — where the pick finds it. Pure.
+ */
+export function shapeView3dQuad(
+	shape: ShapeData,
+	params: ShapeView3d | undefined,
+	view: ShapeView3dQuadView,
+): Quad3d {
+	const cx = shape.x + shape.width / 2;
+	const cy = shape.y + shape.height / 2;
+	if (params) {
+		const faces = shapeView3dFaces(shape, params, {
+			amount: view.amount,
+			yaw: view.yaw,
+			viewportRotation: view.viewportRotation,
+			groundHeight: params.ground ? view.groundAt(cx, cy) : 0,
+			pad: 0,
+		});
+		if (!faces.flat) return faces.picture;
+	}
+	const rad = (safeRotation(shape.rotation) * Math.PI) / 180;
+	return flatQuad3d(
+		cx,
+		cy,
+		flatShapeView3dHeight(shape, view.groundAt),
+		shape.width,
+		shape.height,
+		rad,
+	);
+}
+
+/**
+ * A world quad's corners on the stage (px), in order: its top-left, top-right,
+ * bottom-right, bottom-left. `null` when a corner is behind the eye. Pure.
+ */
+export function projectQuad3d(q: Quad3d, view: View3dProjection): Point[] | null {
+	const corners: Vec3[] = [
+		q.at,
+		[q.at[0] + q.u[0], q.at[1] + q.u[1], q.at[2] + q.u[2]],
+		[q.at[0] + q.u[0] + q.v[0], q.at[1] + q.u[1] + q.v[1], q.at[2] + q.u[2] + q.v[2]],
+		[q.at[0] + q.v[0], q.at[1] + q.v[1], q.at[2] + q.v[2]],
+	];
+	const out: Point[] = [];
+	for (const c of corners) {
+		const p = projectWorld(c[0], c[1], view, c[2]);
+		if (!p) return null;
+		out.push({ x: p.x, y: p.y });
+	}
+	return out;
+}
+
 /** What is under a point of the board's stage in its 3D view, as the canvas sees it. */
 export interface View3dPickApi {
 	/**
@@ -228,6 +295,13 @@ export interface View3dPickApi {
 	 * in 3D, or `null` when it is flat or the point shows only sky.
 	 */
 	pickAt(screen: Point): View3dPick | null;
+	/**
+	 * Where a shape is drawn on the stage while the board is shown in 3D: the corners (px
+	 * from the canvas's top-left) of the face with its drawing, or of where it lies on the
+	 * ground (see {@link shapeView3dQuad}). `null` when flat, unknown, or partly behind the
+	 * eye. Optional: a canvas from before it has none.
+	 */
+	outlineOf?(shapeId: string): Point[] | null;
 }
 
 /** The canvas's 3D pick (provided while a canvas is mounted). */
