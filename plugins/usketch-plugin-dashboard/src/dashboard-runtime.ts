@@ -33,6 +33,7 @@ import {
 	targetIndexFromPoint,
 } from "./grid.js";
 import { allDashboardItems, dashboardItems, isGridItem, isWithinGrid } from "./items.js";
+import { applyItemPatches, type ItemPatch } from "./move-items.js";
 import { readingOrder } from "./order.js";
 import {
 	clearSlideExclude,
@@ -57,19 +58,27 @@ export function runGuarded(fn: () => void): void {
 
 type Move = { id: string; from: { x: number; y: number }; to: { x: number; y: number } };
 
+/** Guarded item writes: each moved item carries its children along (see
+ *  `move-items.ts`), and the reflow runtime ignores every write it produces. */
+function writeItems(ctx: PluginContext, patches: readonly ItemPatch[]): void {
+	runGuarded(() => applyItemPatches(ctx.store, ctx.shapes, patches));
+}
+
 /** A batch move command whose execute AND undo are guarded — so neither applying
  *  nor undoing it is mistaken for a user drag. */
-function guardedBatchCommand(store: BoardStore, moves: readonly Move[]): Command {
+function guardedBatchCommand(ctx: PluginContext, moves: readonly Move[]): Command {
 	return {
 		execute() {
-			runGuarded(() => {
-				for (const m of moves) store.updateShape(m.id, m.to);
-			});
+			writeItems(
+				ctx,
+				moves.map((m) => ({ id: m.id, patch: m.to })),
+			);
 		},
 		undo() {
-			runGuarded(() => {
-				for (const m of moves) store.updateShape(m.id, m.from);
-			});
+			writeItems(
+				ctx,
+				moves.map((m) => ({ id: m.id, patch: m.from })),
+			);
 		},
 	};
 }
@@ -234,7 +243,7 @@ export function repackBoard(ctx: PluginContext, includeAll = false): void {
 		moves.push({ id: p.id, from: { x: cur.x, y: cur.y }, to: { x: p.x, y: p.y } });
 	}
 	if (moves.length === 0) return;
-	ctx.commands.execute(guardedBatchCommand(ctx.store, moves));
+	ctx.commands.execute(guardedBatchCommand(ctx, moves));
 }
 
 /**
@@ -252,13 +261,13 @@ export function repackBoardTransient(ctx: PluginContext): void {
 		modeOf(ctx.store) === "absolute"
 			? packAbsolute(boxesOf(ctx.store, order), spec)
 			: packSpans(sizedOrder(ctx.store, order), spec);
-	runGuarded(() => {
-		for (const p of placements) {
-			const cur = ctx.store.getShape(p.id);
-			if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
-			ctx.store.updateShape(p.id, { x: p.x, y: p.y });
-		}
-	});
+	const patches: ItemPatch[] = [];
+	for (const p of placements) {
+		const cur = ctx.store.getShape(p.id);
+		if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
+		patches.push({ id: p.id, patch: { x: p.x, y: p.y } });
+	}
+	writeItems(ctx, patches);
 }
 
 /**
@@ -413,16 +422,16 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 		const command: Command = {
 			execute() {
-				runGuarded(() => {
-					ctx.store.updateShape(id, fit);
-					for (const p of placements) ctx.store.updateShape(p.id, { x: p.x, y: p.y });
-				});
+				writeItems(ctx, [
+					{ id, patch: fit },
+					...placements.map((p) => ({ id: p.id, patch: { x: p.x, y: p.y } })),
+				]);
 			},
 			undo() {
-				runGuarded(() => {
-					ctx.store.updateShape(id, oldSize);
-					for (const [iid, pos] of oldPos) ctx.store.updateShape(iid, pos);
-				});
+				writeItems(ctx, [
+					{ id, patch: oldSize },
+					...[...oldPos].map(([iid, pos]) => ({ id: iid, patch: pos })),
+				]);
 			},
 		};
 		ctx.commands.execute(command);
@@ -550,18 +559,18 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const delay = swapDelayOf(ctx.store);
 			const dwell = nowMs() - avoidCandidateSince;
 			const active = targetId !== null && dwell >= delay;
-			runGuarded(() => {
-				for (const id of otherIds) {
-					const rest = dragBefore.get(id);
-					if (!rest) continue;
-					const cur = ctx.store.getShape(id);
-					if (cur && (cur.x !== rest.x || cur.y !== rest.y)) ctx.store.updateShape(id, rest);
-				}
-				if (active && res) {
-					const tl = cellXY(res.avoid.col, res.avoid.row, spec);
-					ctx.store.updateShape(res.best.id, { x: tl.x, y: tl.y });
-				}
-			});
+			const patches: ItemPatch[] = [];
+			for (const id of otherIds) {
+				const rest = dragBefore.get(id);
+				if (!rest) continue;
+				const cur = ctx.store.getShape(id);
+				if (cur && (cur.x !== rest.x || cur.y !== rest.y)) patches.push({ id, patch: rest });
+			}
+			if (active && res) {
+				const tl = cellXY(res.avoid.col, res.avoid.row, spec);
+				patches.push({ id: res.best.id, patch: { x: tl.x, y: tl.y } });
+			}
+			writeItems(ctx, patches);
 			// Candidate pending but not yet due → re-check after the remaining dwell (the
 			// pointer may hold still, firing no further reflow).
 			clearAvoidTimer();
@@ -590,14 +599,14 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const placements = packSpans(sizedOrder(ctx.store, order), spec);
 		const dp = placements.find((p) => p.id === dragged);
 		if (dp) publishHighlight(spec, dp, draggedShape.width, draggedShape.height);
-		runGuarded(() => {
-			for (const p of placements) {
-				if (p.id === dragged) continue;
-				const cur = ctx.store.getShape(p.id);
-				if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
-				ctx.store.updateShape(p.id, { x: p.x, y: p.y });
-			}
-		});
+		const patches: ItemPatch[] = [];
+		for (const p of placements) {
+			if (p.id === dragged) continue;
+			const cur = ctx.store.getShape(p.id);
+			if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
+			patches.push({ id: p.id, patch: { x: p.x, y: p.y } });
+		}
+		writeItems(ctx, patches);
 	}
 
 	function scheduleReflow(): void {
@@ -623,7 +632,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			if (atTarget && fromTarget) continue;
 			moves.push({ id: p.id, from: { x: from.x, y: from.y }, to: { x: p.x, y: p.y } });
 		}
-		if (moves.length > 0) ctx.commands.execute(guardedBatchCommand(ctx.store, moves));
+		if (moves.length > 0) ctx.commands.execute(guardedBatchCommand(ctx, moves));
 	}
 
 	function endDrag(): void {
