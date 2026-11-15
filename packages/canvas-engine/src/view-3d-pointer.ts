@@ -63,8 +63,19 @@ export interface View3dPointerDeps {
 /** The pointer's 3D mapping for a board (see the file comment). */
 export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 	const cell = view3dCellOf(deps.store);
-	const tracker = createView3dTracker(deps.services, deps.events);
-	const declared = declaredView3dShapeTypes(deps.shapes, () => {});
+	// Built on first use in 3D, so a canvas that never goes 3D (or a bare test app
+	// without services) never watches for it.
+	let tracker: ReturnType<typeof createView3dTracker> | null = null;
+	let declared: ReturnType<typeof declaredView3dShapeTypes> | null = null;
+	const yawNow = (): number => {
+		if (!deps.services) return 0;
+		tracker ??= createView3dTracker(deps.services, deps.events);
+		return tracker.get().yaw;
+	};
+	const declaredTypes = () => {
+		declared ??= declaredView3dShapeTypes(deps.shapes, () => {});
+		return declared.get();
+	};
 	let drag: { pointerId: number; height: number; offset: Point } | null = null;
 
 	const shapesIn3d = (
@@ -72,11 +83,11 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 		amount: number,
 		renderMode: RenderMode,
 	): Map<string, ShapeView3d> => {
-		const source = view3dShapeSourceService.get(deps.services);
+		const source = deps.services ? view3dShapeSourceService.get(deps.services) : undefined;
 		const { viewport, stage } = view;
 		const entries = selectView3dShapes({
 			shapes: deps.store.getShapesSorted(),
-			types: source?.types?.() ?? declared.get(),
+			types: source?.types?.() ?? declaredTypes(),
 			viewport,
 			viewportBounds: screenRectToWorldBounds(stage.width, stage.height, viewport),
 			overscanPx: cell ? view3dOverscanPx(cell.get(), viewport.zoom, stage.height) : 0,
@@ -101,7 +112,7 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 			shapes: deps.store.getShapesSorted(),
 			view3d: shapesIn3d(view, amount, renderMode),
 			amount,
-			yaw: tracker.get().yaw,
+			yaw: yawNow(),
 			hitTest: (shape, point) => deps.shapes.get(shape.type)?.hitTest(shape, point) ?? false,
 			groundAt: (x, y) => deps.height.groundAt(x, y),
 		});
@@ -146,8 +157,10 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 			return now ? pickIn(screen, now.view, now.amount, renderMode) : null;
 		},
 		dispose() {
-			tracker.dispose();
-			declared.dispose();
+			tracker?.dispose();
+			declared?.dispose();
+			tracker = null;
+			declared = null;
 			drag = null;
 		},
 	};
