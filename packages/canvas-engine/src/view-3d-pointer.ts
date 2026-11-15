@@ -13,6 +13,7 @@ import {
 	type EventBus,
 	type Point,
 	pickView3d,
+	projectQuad3d,
 	type RenderMode,
 	type ServiceRegistry,
 	type ShapeRegistry,
@@ -21,6 +22,7 @@ import {
 	sanitizeView3dShapeLimits,
 	screenRectToWorldBounds,
 	selectView3dShapes,
+	shapeView3dQuad,
 	unprojectWorld,
 	type View3dPick,
 	type View3dProjection,
@@ -49,6 +51,8 @@ export interface View3dPointer {
 	): Point | null;
 	/** What is under a stage point in the 3D view, or `null` (flat, or only sky). */
 	pick(screen: Point, stage: StageSize, renderMode: RenderMode): View3dPick | null;
+	/** Where a shape is drawn on the stage in the 3D view (corners), or `null`. */
+	outline(shapeId: string, stage: StageSize, renderMode: RenderMode): Point[] | null;
 	dispose(): void;
 }
 
@@ -155,6 +159,19 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 		pick(screen, stage, renderMode) {
 			const now = viewNow(stage);
 			return now ? pickIn(screen, now.view, now.amount, renderMode) : null;
+		},
+		outline(shapeId, stage, renderMode) {
+			const now = viewNow(stage);
+			const shape = now ? deps.store.getShape(shapeId) : undefined;
+			if (!now || !shape || shape.hidden) return null;
+			const params = shapesIn3d(now.view, now.amount, renderMode).get(shapeId);
+			const quad = shapeView3dQuad(shape, params, {
+				amount: now.amount,
+				yaw: params ? yawNow() : 0,
+				viewportRotation: now.view.viewport.rotation ?? 0,
+				groundAt: (x, y) => deps.height.groundAt(x, y),
+			});
+			return projectQuad3d(quad, now.view);
 		},
 		dispose() {
 			tracker?.dispose();

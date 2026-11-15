@@ -17,6 +17,7 @@ function setup(shapes: ShapeData[] = []) {
 	const store = {
 		getViewport: () => viewport,
 		getShapes: () => map,
+		getShape: (id: string) => map.get(id),
 		getShapesSorted: () => shapes,
 		getView3d: () => view3d.get(),
 		setView3d: (p: Parameters<typeof view3d.set>[0]) => view3d.set(p),
@@ -65,8 +66,14 @@ describe("createView3dPointer", () => {
 		const g = projectWorld(300, -150, view);
 		if (!g) throw new Error("not in view");
 		expect(pointer.pick({ x: g.x, y: g.y }, stage, "dom")?.shapeId).toBeNull();
+		const corners = pointer.outline("a", stage, "dom");
+		const tl = projectWorld(0, -200, view);
+		expect(corners?.[0].x).toBeCloseTo(tl?.x ?? Number.NaN, 6);
+		expect(corners?.[0].y).toBeCloseTo(tl?.y ?? Number.NaN, 6);
+		expect(pointer.outline("missing", stage, "dom")).toBeNull();
 		view3d.set({ amount: 0 });
 		expect(pointer.pick({ x: s.x, y: s.y }, stage, "dom")).toBeNull();
+		expect(pointer.outline("a", stage, "dom")).toBeNull();
 		pointer.dispose();
 	});
 

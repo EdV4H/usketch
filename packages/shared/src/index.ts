@@ -374,7 +374,10 @@ export {
 } from "./view-3d-gl.js";
 export {
 	pickView3d,
+	projectQuad3d,
 	rayQuad,
+	type ShapeView3dQuadView,
+	shapeView3dQuad,
 	type View3dPick,
 	type View3dPickApi,
 	type View3dPickInput,
