@@ -1,5 +1,30 @@
 # @edv4h/usketch-sync
 
+## 1.5.0
+
+### Minor Changes
+
+- 77babb1: マルチページ: 履歴をページ対応
+  
+  - `@edv4h/usketch-shared`: `HistoryCommit.layout` を追加。`"pages"` のコミットは tree がページ（pageId → そのページの tree）で並ぶ。無いコミット（今までのもの）はハッシュも中身も変わらない
+  - `@edv4h/usketch-sync`: `LEGACY_PAGE_ID_KEY` と `getLegacyPageId(root)` を追加。ページ形式にする前の中身が移ったページ（記録が無ければ先頭ページ）
+- 572a76b: マルチページ: 既存ボードの移行関数を追加
+  
+  ページ形式にする前のボード（ルート doc の `shapes`）を、1 枚目のページ doc へ移す純関数。自前のサーバーを持つ利用先も、自分のサーバーで同じ手順を使える。
+  
+  - `needsPagesMigration(root)`: 移行が要るボードか（`meta.pagesVersion` が無い）
+  - `copyRootShapesToPage(root, pageDoc)`: 手順 1。ルートの `shapes` を 1 枚目のページ doc へ写す（ルートは変えない）
+  - `finishPagesMigration(root, pageDoc, { pageId, name? })`: 手順 2。ページ doc を保存してから呼ぶ。ルートに 1 枚目と版・`meta.legacyPageId` を書き、写し終えたシェイプをルートから消す
+  - `moveRootShapesToPage(root, pageDoc)`: 移行後にルートへ書かれたシェイプ（古いクライアントなど）を 1 枚目へ移す
+  - `checkPagesMigration(before, root, pageDoc)`: 移行前のシェイプが全部 1 枚目に同じ中身であり、ルートが空かを確かめる
+  - `countRootShapes(root)`、`DEFAULT_FIRST_PAGE_NAME`
+  
+  移行の手順（自前のサーバーを持つ利用先向け）: https://edv4h.github.io/usketch/docs/ja/guides/multi-page-migration/
+- 3c434bc: マルチページ: ページの操作と pages プラグイン
+  
+  - `@edv4h/usketch-sync`: `renamePage` / `reorderPage` / `deletePage`（印を付けるだけ、最後の 1 枚は消せない）/ `restorePage` を追加
+  - `@edv4h/usketch-plugin-pages`（新規）: HUD のページパネル（一覧・切り替え・追加・名前変更・並べ替え・複製・削除・復元）、`getPagesApi`、アクションとキー（`Alt+PageDown` / `Alt+PageUp`）
+
 ## 1.4.0
 
 ### Minor Changes

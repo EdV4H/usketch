@@ -1,5 +1,56 @@
 # @edv4h/usketch-core
 
+## 2.6.0
+
+### Minor Changes
+
+- 8ff6829: 高さの窓口を 1 つにしました（3D 標準対応 P3a、#1469）。今の動きは変わりません。
+  
+  - **shared**: `boardHeight(services)` を追加。地面（`ground`）と固体（`solid`）の提供元を `register({ id, kind, priority, active, heightAt })` で登録し、`groundAt` / `solidAt` / `surfaceAt` / `owner` / `subscribe` で読みます。地面は優先度が一番高い有効な提供元が答え、固体は全部の中で一番高いものです
+  - **core**: プラグインの `ctx.height` と `app.height` に同じ窓口を入れます（`ctx.height` は次のメジャーまで省略可。古い core と組むプラグインは `boardHeight(ctx.services)` を使います）
+  - `groundHeightService` / `solidHeightService` は次のメジャーまでこの窓口の互換層です。窓口が答え、まだこれらを provide するプラグインの高さも窓口に入ります
+- 7b1ec3c: Plugins can add their own handles to the select tool. `ctx.ui.selectionHandles` (`SelectionHandleProvider`, `app.selectionHandles`) takes a provider that lists handles for the current selection / hover, draws them, and runs a drag when one is pressed. The select tool hit-tests them after its own rotation / resize handles (which always win; a handle sitting on one is not shown), draws them in one layer above the selection frame (`SELECT_TOOL_LAYER_IDS.handles`, order 81), sets their cursor through its own cursor override, passes them its overlay colors, and hides them while it moves, resizes or rotates shapes or draws a marquee. A press on a handle that does nothing selects the handle's shape.
+  
+  The connector's end handles and anchor dots now use it (`CONNECTOR_HANDLE_IDS`), instead of their own layers. This fixes: a dot drawn on top of a resize handle stealing the press; a click on a hovered shape's edge dot doing nothing; the shape under the pointer showing its dots during an end drag; handles drawn in a fixed blue instead of the selection color; and drag state shared between two boards on one page. The `connector-endpoints` and `connector-anchor-handles` layers are gone (`CONNECTOR_LAYER_IDS.endpoints` / `.anchorHandles` are deprecated); to turn the dots off at runtime, use `app.selectionHandles.unregister(CONNECTOR_HANDLE_IDS.anchors)`. The handles need a select tool from this release.
+  
+  mode7 tilts the new handles layer with the board.
+- cf04198: 3D の Shape の当たり判定（壁・乗れるブロック）をコアに移しました（3D 標準対応 P4b、#1473）。動きは変わりません。
+  
+  - **shared**: 当たり判定を `shape-solids.ts` に移しました。`createShapeSolids()` は Shape の `view3d` と型ごとの 3D 設定から固体の高さを答えます（`shapeSolidsService`）。`shapeView3dFoot` / `shapeView3dAnchor` も公開します
+  - **core**: ボードの Shape の固体を `ctx.height` に登録し、`shapeSolidsService` で提供します。shape-3d プラグインが無くても、`view3d` を持つ Shape にキャラクターがぶつかります
+  - **shape-3d**: コアの固体を使い、自分の型の設定と「3D のときだけ当たる」設定を渡すだけになりました。古いコアでは今まで通り自分で登録します。`shape-3d-collision` の export は shared からの再 export として次のメジャーまで残します
+- 5916c16: Shape の 3D をコアのデータにしました（3D 標準対応 P4a、#1473）。絵は変わりません。
+  
+  - **shared**
+    - `ShapeData.view3d`（stand / box / float、高さ、向き、影、当たり判定）を追加
+    - 読み書きの純関数（`readShapeView3d`、`resolveShapeView3d`、`storedShapeView3d`、`shapeView3dPatch` など）を追加
+    - `ShapeDefinition.view3d`（`modes` / `default` / `render3d`）を追加
+    - 次のメジャーまで、書くときは `view3d` と `x-shape-3d` の両方に書きます。読むときは、まだ `x-shape-3d` があればそちらを読みます（古いクライアントはそちらにしか書かないため）
+  - **core**: `ctx.shapes.configureView3d(type, view3d)` で、ホストが種別ごとの 3D を上書きできます（`getView3d` / `subscribeView3d` も追加。次のメジャーまで省略可）
+  - **shape-3d**: 各種別の宣言とホストの上書きを読みます。`types` オプション・`registerType`・組み込みの表は、まだ宣言していない種別のため次のメジャーまで残します
+  - **各 Shape プラグイン**: 自分の 3D を宣言します
+    - rectangle・rounded-rect・sticky・card・frame・image は箱にもなれます
+    - embed・openui は 3D にしません
+
+### Patch Changes
+
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+
 ## 2.5.0
 
 ### Minor Changes

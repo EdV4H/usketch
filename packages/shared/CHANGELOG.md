@@ -1,5 +1,101 @@
 # @edv4h/usketch-shared
 
+## 4.25.0
+
+### Minor Changes
+
+- 8ff6829: 高さの窓口を 1 つにしました（3D 標準対応 P3a、#1469）。今の動きは変わりません。
+  
+  - **shared**: `boardHeight(services)` を追加。地面（`ground`）と固体（`solid`）の提供元を `register({ id, kind, priority, active, heightAt })` で登録し、`groundAt` / `solidAt` / `surfaceAt` / `owner` / `subscribe` で読みます。地面は優先度が一番高い有効な提供元が答え、固体は全部の中で一番高いものです
+  - **core**: プラグインの `ctx.height` と `app.height` に同じ窓口を入れます（`ctx.height` は次のメジャーまで省略可。古い core と組むプラグインは `boardHeight(ctx.services)` を使います）
+  - `groundHeightService` / `solidHeightService` は次のメジャーまでこの窓口の互換層です。窓口が答え、まだこれらを provide するプラグインの高さも窓口に入ります
+- 1884f5a: 3D 表示で、層をまたいで奥行きどおりに重ねる「奥行きステージ」を実験的に追加しました（3D 標準対応 P6a）。既定はオフで、今の見た目は変わりません。
+  
+  - **shared**: 層の 3D での見え方 `LayerView3d` に `ground`（自分で地面を描く層。傾けず、奥行きで並べるレンダラーでは地面に立つものより奥に置く）を追加しました
+  - **css3d-renderer**: `setDepthStage(on)` / `isDepthStage()`、オプション `depthStage` / `hud`、HUD の設定「奥行きで重ねる（実験）」を追加しました。オンにすると、立てた看板の後ろにいるキャラクターが看板に隠れるなど、傾けた層の中身が層の順ではなく実際の奥行きで重なります。純関数 `depthStageRules` も公開します
+  - **elevation**: 3D の地形メッシュの層が `view3d: "ground"` を宣言します
+- 2f8aab7: 3D の Shape を CSS 3D レンダラーが描くようにしました（3D 標準対応 P4c、#1473）。絵は変わりません。
+  
+  - **shared**: `shapeClaims(services)` を足しました。3D などで別に描く Shape を、2D のレンダラーが飛ばすための宣言です（`claim(source, ids)`）。shape-3d の `createView3dTracker` / `STAGE_3D_EVENT` もここへ移しました
+  - **dom-renderer**: `shapeClaims` で宣言された Shape を描きません。`renderer:hide-shapes` イベントも次のメジャーまで聞きます
+  - **css3d-renderer**: stand / box / float と種別ごとの `render3d` を描く層（`shape-3d`）を持つようになりました。種別の 3D は `ShapeDefinition.view3d`（と `ctx.shapes.configureView3d`）から読むので、shape-3d プラグインが無くても 3D の Shape が立ちます。起伏のある地形の上の平らな Shape を地形の高さに乗せる処理も既定で行います。React と dom-renderer に依存するようになりました
+  - **shape-3d**: 自分では描かず、種別の表と描画の上限を `css3dShapeSourceService` でレンダラーに渡します。配置の関数（`shapePose` など）と `SHAPE_3D_LAYER_ID` はレンダラーからの再 export として次のメジャーまで残します
+- 1db8c0c: 3D 表示で、丘や崖の陰に入った看板やキャラクターを薄くするようにしました（3D 標準対応 P6b）。これまでは標高の丘の向こうにあるものが丘の手前に描かれていました。
+  
+  - **shared**: 視点の位置 `cameraEye(view)` と、地面が点を隠すかを調べる `isOccluded(point, view, heightAt)` を追加しました。レンダラーが「地形の陰」を答える `view3dOcclusionService`（`hidden` / `look` / `subscribe`）と `occludedStyle`・`OCCLUDED_OPACITY` も追加しました
+  - **css3d-renderer**: `view3dOcclusionService` を出し、3D の Shape は上端が陰に入ると薄くします（箱は面ごと、自前の 3D 表現は隠す）。オプション `occlusion`（`"fade"` 既定 / `"hide"` / `"none"`）、`setOcclusion` / `getOcclusion`、HUD の「地形の陰」を追加しました。答えは 100ms 使い回し、1 フレームで調べ直すのは 40 個までです
+  - **character**: 体の中ほどが陰に入ると、描き手に `occluded`（`"fade"` / `"hide"`）を渡します。`"hide"` のときはプラグインが隠し、影も一緒に薄く／隠します
+- 34232b1: 追従カメラをコア（shared）に置きました（3D 標準対応 P5、#1478）。動きは変わりません。
+  
+  - **shared**: `follow-view` を足しました。動くものを画面の決まった位置に置き続け（`fixed` / 向きに合わせて回す `rotate`）、3D 表示中はカメラの高さを足元の地面に合わせます。自分でフレームを回す呼び手向けの `createFollowView({ store, services })`（`step` / `reset` / `releaseHeight` / `onPan` / `viewTurn`）と、目標だけ渡せば自分のループで追う `followView(board, target, options)` があります。計算は純関数（`followRotation` / `easeFollowFocus` / `followCameraHeight` / `followViewport` / `smoothingAlpha` ほか）でも使えます
+  - **character**: 追従カメラを shared の `createFollowView` で動かすようになりました。`character-camera` の export（`targetRotation` / `easeFocus` / `CameraFocus` など）は次のメジャーまで残します
+- 458decc: 3D 表示を WebGL2 で描く GPU レンダラーを、実験として追加しました（3D 標準対応 P6g-1、#1304）。既定の描画（CSS 3D）は変わりません。
+  
+  - **gpu3d-renderer（新規・実験中）**: CSS 3D レンダラーの代わりに追加すると、地面（背景色とグリッド）と GPU で描くプラグインの絵を、深度バッファ付きの 1 枚のキャンバスに描きます。この版では Shape やキャラはまだ描きません
+  - **shared**: どの 3D レンダラーでも同じ形で取れる `view3dRendererService`（`View3dRendererApi`）と、プラグインが GPU レンダラーのキャンバスに描くための描画フック `view3dGl` / `view3dGlService`（`View3dGlApi`・`View3dGlDrawable`）、深度の揃え方 `VIEW3D_DEPTH_GLSL` / `VIEW3D_DEPTH_RANGE_PX` を追加しました
+  - **css3d-renderer**: `view3dRendererService` も提供します（`Css3dRendererApi` はその拡張）。もう 3D レンダラーがあるボードでは何もしません
+  - **mode7**: 3D レンダラーを `view3dRendererService` から取ります（無ければ従来どおり CSS 3D レンダラーを探し、それも無ければ自分で用意）
+  - **elevation**: GPU レンダラーが描いている間は、地形のメッシュを自分のキャンバスではなく GPU レンダラーのキャンバスに描きます
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- 77babb1: マルチページ: 履歴をページ対応
+  
+  - `@edv4h/usketch-shared`: `HistoryCommit.layout` を追加。`"pages"` のコミットは tree がページ（pageId → そのページの tree）で並ぶ。無いコミット（今までのもの）はハッシュも中身も変わらない
+  - `@edv4h/usketch-sync`: `LEGACY_PAGE_ID_KEY` と `getLegacyPageId(root)` を追加。ページ形式にする前の中身が移ったページ（記録が無ければ先頭ページ）
+- 4846cdc: 3D 表示の投影をコアの 1 か所にまとめた（3D 標準対応の P1、#1304）:
+  
+  - shared: Mode 7 の投影の純関数を追加。`projectStagePoint` / `unprojectStagePoint`（傾ける前の画面の px）、`projectWorld` / `unprojectWorld`（world 座標と高さ）、凹凸のある地面でポインターの下の地点を探す `unprojectOnGround`、層の CSS の `tiltCss`、シェーダー用の 4×4 行列 `viewMatrix`（タイルの角などを原点にでき、遠くの座標でも float32 の精度を落とさない）。
+  - mode7: `projectToGround` / `unprojectFromGround` / `tiltOrigin` / `tiltTransform` は shared の関数を使うようにした（名前と結果は同じ）。
+  - elevation: Mode 7 のメッシュの頂点シェーダーを shared の `viewMatrix` に置き換え、`projectLifted` も shared の関数を使うようにした（絵は同じ）。
+- 7b1ec3c: Plugins can add their own handles to the select tool. `ctx.ui.selectionHandles` (`SelectionHandleProvider`, `app.selectionHandles`) takes a provider that lists handles for the current selection / hover, draws them, and runs a drag when one is pressed. The select tool hit-tests them after its own rotation / resize handles (which always win; a handle sitting on one is not shown), draws them in one layer above the selection frame (`SELECT_TOOL_LAYER_IDS.handles`, order 81), sets their cursor through its own cursor override, passes them its overlay colors, and hides them while it moves, resizes or rotates shapes or draws a marquee. A press on a handle that does nothing selects the handle's shape.
+  
+  The connector's end handles and anchor dots now use it (`CONNECTOR_HANDLE_IDS`), instead of their own layers. This fixes: a dot drawn on top of a resize handle stealing the press; a click on a hovered shape's edge dot doing nothing; the shape under the pointer showing its dots during an end drag; handles drawn in a fixed blue instead of the selection color; and drag state shared between two boards on one page. The `connector-endpoints` and `connector-anchor-handles` layers are gone (`CONNECTOR_LAYER_IDS.endpoints` / `.anchorHandles` are deprecated); to turn the dots off at runtime, use `app.selectionHandles.unregister(CONNECTOR_HANDLE_IDS.anchors)`. The handles need a select tool from this release.
+  
+  mode7 tilts the new handles layer with the board.
+- cf04198: 3D の Shape の当たり判定（壁・乗れるブロック）をコアに移しました（3D 標準対応 P4b、#1473）。動きは変わりません。
+  
+  - **shared**: 当たり判定を `shape-solids.ts` に移しました。`createShapeSolids()` は Shape の `view3d` と型ごとの 3D 設定から固体の高さを答えます（`shapeSolidsService`）。`shapeView3dFoot` / `shapeView3dAnchor` も公開します
+  - **core**: ボードの Shape の固体を `ctx.height` に登録し、`shapeSolidsService` で提供します。shape-3d プラグインが無くても、`view3d` を持つ Shape にキャラクターがぶつかります
+  - **shape-3d**: コアの固体を使い、自分の型の設定と「3D のときだけ当たる」設定を渡すだけになりました。古いコアでは今まで通り自分で登録します。`shape-3d-collision` の export は shared からの再 export として次のメジャーまで残します
+- 5916c16: Shape の 3D をコアのデータにしました（3D 標準対応 P4a、#1473）。絵は変わりません。
+  
+  - **shared**
+    - `ShapeData.view3d`（stand / box / float、高さ、向き、影、当たり判定）を追加
+    - 読み書きの純関数（`readShapeView3d`、`resolveShapeView3d`、`storedShapeView3d`、`shapeView3dPatch` など）を追加
+    - `ShapeDefinition.view3d`（`modes` / `default` / `render3d`）を追加
+    - 次のメジャーまで、書くときは `view3d` と `x-shape-3d` の両方に書きます。読むときは、まだ `x-shape-3d` があればそちらを読みます（古いクライアントはそちらにしか書かないため）
+  - **core**: `ctx.shapes.configureView3d(type, view3d)` で、ホストが種別ごとの 3D を上書きできます（`getView3d` / `subscribeView3d` も追加。次のメジャーまで省略可）
+  - **shape-3d**: 各種別の宣言とホストの上書きを読みます。`types` オプション・`registerType`・組み込みの表は、まだ宣言していない種別のため次のメジャーまで残します
+  - **各 Shape プラグイン**: 自分の 3D を宣言します
+    - rectangle・rounded-rect・sticky・card・frame・image は箱にもなれます
+    - embed・openui は 3D にしません
+- b41ea96: 3D 表示の状態（カメラと 3D の度合い）をコアの状態にしました（3D 標準対応 P1、#1304）。
+  
+  - **shared**: `Camera3d`（pitch / fov / horizon / height）と `View3dState`（camera ＋ amount）、範囲 `CAMERA_3D_LIMITS`、`createView3dCell` / `view3dCellOf` を追加。`BoardStore` に `getView3d` / `setView3d` / `subscribeView3d` を追加（次のメジャーまでは省略可）。`View3dApi` に `turn()`（3D 表示が viewport を回した角度）を追加
+  - **store**: `createBoardStore` が 3D 表示の状態を持ちます。viewport と同じく見る人ごとで同期しません。通知は `subscribe` とは別です
+  - **mode7**: カメラと遷移量をコアの状態に置きます。yaw は傾ける層を回すのをやめ、3D の間は viewport の回転（`Viewport.rotation`）として地平線の中央を軸に回し、平らに戻るときに回した分だけ戻します。絵は変わりません。`getRenderedCamera()` と `view3dService` の `camera().yaw` は常に `0` になります
+  - **character**: 追従カメラが 3D 表示の回転（`turn()`）を足して追従するので、3D 中に yaw を変えても追従が止まらず、yaw が保たれます
+- d0635ab: 3D の Shape を GPU 3D レンダラー（実験中）でも立てて描くようになりました（3D 標準対応 P6g-2b、#1304）。CSS 3D の絵は変わりません。
+  
+  - **shared**: どの Shape をどう 3D で描くかの決め方を、2 つの 3D レンダラーで共通にしました。`selectView3dShapes` / `View3dShapeLimits` / `DEFAULT_VIEW3D_SHAPE_LIMITS` / `sanitizeView3dShapeLimits` / `GROUND_FLAT_VIEW3D` / `view3dShapeSourceService`（キーは css3d-renderer のまま）/ `declaredView3dShapeTypes` / `view3dShapeHeading` / `view3dShapeWallColor` / `lerpAngle` を追加
+  - **css3d-renderer**: 上を使うようにしました。`selectShapes3d` / `Css3dShapeLimits` / `DEFAULT_CSS3D_SHAPE_LIMITS` / `GROUND_FLAT_PARAMS` / `css3dShapeSourceService` / `sanitizeCss3dShapeLimits` / `lerpAngle` / `wallColor` は shared の同じものの別名として残ります
+  - **gpu3d-renderer**: 立てる・箱・浮かせるの Shape を、CSS 3D レンダラーと同じ位置・向き・高さで描きます。深度を持つので、地形や他の 3D の Shape と前後で隠し合います。影も描きます
+
+### Patch Changes
+
+- 4a0ff52: 地面と固体の高さを、ボードの高さの窓口（`ctx.height` / `boardHeight`）から読み書きするようにしました（3D 標準対応 P3b、#1469）。今の動きは変わりません。
+  
+  - **map**: 地形を地面の提供元（優先度 0、`heightEnabled` のときだけ）として登録します。崖は「地面の持ち主が map のとき」だけ描きます
+  - **elevation**: 標高を地面の提供元（優先度 `ELEVATION_GROUND_PRIORITY` = 10、場があるときだけ）として登録します。map を包む処理をやめたので、プラグインの並び順によりません。古い map のために `setHeightEnabled` での切り替えは次のメジャーまで続けます
+  - **shape-3d**: 当たり判定を固体の提供元として登録し、地面の高さを窓口から読みます
+  - **character**: 地面と固体の高さを窓口から読みます
+  - `groundHeightService` / `solidHeightService` は窓口が答え続けるので、これらを読む・provide する古いプラグインとも組めます
+
 ## 4.24.0
 
 ### Minor Changes

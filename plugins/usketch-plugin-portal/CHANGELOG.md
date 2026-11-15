@@ -1,5 +1,44 @@
 # @edv4h/usketch-plugin-portal
 
+## 0.4.0
+
+### Minor Changes
+
+- 59d9186: マルチページ: シェイプを別のページへ移す・コピーする
+  
+  - `@edv4h/usketch-plugin-pages`
+    - ページパネルに「選択中の N 個を別のページへ」（移す / コピー）を追加。API は `moveShapes` / `copyShapes`、純関数は `moveShapesToPage` / `copyShapesToPage`
+    - 子シェイプと、両端が含まれるコネクタも一緒に移す。移さなかったものへの参照（親・コネクタの端）は外す
+    - 移したシェイプは id を変えずに移動先の一番手前へ置く。移動元のページ doc の `movedOut` に印を残し、同時編集で戻ってきたものは消す（`watchMovedOutShapes`）
+  - `@edv4h/usketch-plugin-portal`: `pageId` / `legacyPageId` オプション。ページを使うボードでは、今のページで作ったポータルだけを出す
+    - 他のページのシェイプを指すポータルを「シェイプが無い」とみなして消さない
+
+### Patch Changes
+
+- b86508c: 層が 3D 表示での見え方を宣言できるようにし、描画距離をコアの状態にしました（3D 標準対応 P2a、#1466）。絵は変わりません。
+  
+  - **shared**: `Layer.view3d`（`tilt` / `depth` / `screen` / `hidden`、型 `LayerView3d`）と `SelectionForeground.view3d` を追加。`View3dState.drawDistance`、`view3dOverscanPx`、`LayerRenderContext.view3dOverscan` を追加
+  - **canvas-engine**: 層の wrapper に `data-view3d` を付け、3D 表示中は背景を奥まで敷く幅（オーバースキャン）を `view3dOverscan` で各層に渡します。カメラの高さが毎フレーム変わっても、この値が変わらなければ層を描き直しません
+  - **mode7**: 描画距離をコアの状態に置きます。`view3d` を宣言した層も傾けます（`tiltLayerIds` を渡したときはその一覧のまま）。`hidden` を宣言した層は 3D の間は出しません
+  - **bg-grid / elevation**: オーバースキャンを `view3dOverscan` から読みます（`bg-grid:set-overscan` イベントも次のメジャーまで読みます）
+  - **各プラグイン**: Mode 7 が既定で傾けていた層に `view3d` を宣言しました（崖・3D Shape・キャラは `depth`）
+- Updated dependencies [4a0ff52]
+- Updated dependencies [8ff6829]
+- Updated dependencies [1884f5a]
+- Updated dependencies [2f8aab7]
+- Updated dependencies [1db8c0c]
+- Updated dependencies [34232b1]
+- Updated dependencies [458decc]
+- Updated dependencies [b86508c]
+- Updated dependencies [77babb1]
+- Updated dependencies [4846cdc]
+- Updated dependencies [7b1ec3c]
+- Updated dependencies [cf04198]
+- Updated dependencies [5916c16]
+- Updated dependencies [b41ea96]
+- Updated dependencies [d0635ab]
+  - @edv4h/usketch-shared@4.25.0
+
 ## 0.3.15
 
 ### Patch Changes

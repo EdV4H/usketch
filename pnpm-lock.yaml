@@ -190,7 +190,7 @@ importers:
     dependencies:
       '@astrojs/mdx':
         specifier: ^7.0.0
-        version: 7.0.8(@astrojs/markdown-satteri@0.3.8)(astro@7.4.11(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))(supports-color@10.2.2)
+        version: 7.0.8(@astrojs/markdown-satteri@0.3.8)(astro@7.4.12(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))(supports-color@10.2.2)
       '@astrojs/react':
         specifier: ^6.0.0
         version: 6.0.6(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tsx@4.21.0)(yaml@2.8.3)
@@ -205,7 +205,7 @@ importers:
         version: 5.3.1
       astro:
         specifier: ^7.0.0
-        version: 7.4.11(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
+        version: 7.4.12(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
       cmdk:
         specifier: ^1.1
         version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -279,7 +279,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   apps/server:
     dependencies:
@@ -318,7 +318,7 @@ importers:
         version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       better-auth:
         specifier: 1.6.29
-        version: 1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
+        version: 1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3)
@@ -343,10 +343,10 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
       wrangler:
-        specifier: 4.161.0
-        version: 4.161.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6)
+        specifier: 4.162.0
+        version: 4.162.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6)
 
   apps/web:
     dependencies:
@@ -622,7 +622,7 @@ importers:
         version: link:../../packages/sync
       better-auth:
         specifier: 1.6.29
-        version: 1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
+        version: 1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
       pdfjs-dist:
         specifier: 6.5.438
         version: 6.5.438
@@ -643,8 +643,8 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-debug-hud
       '@playwright/test':
-        specifier: 1.65.0
-        version: 1.65.0
+        specifier: 1.65.1
+        version: 1.65.1
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -662,10 +662,10 @@ importers:
         version: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
       wrangler:
-        specifier: 4.161.0
-        version: 4.161.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6)
+        specifier: 4.162.0
+        version: 4.162.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6)
 
   examples/usketch-plugin-acme-shape-basic:
     dependencies:
@@ -708,14 +708,14 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/core:
     dependencies:
@@ -728,7 +728,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/css3d-renderer:
     dependencies:
@@ -749,8 +749,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       react-dom:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
@@ -759,7 +759,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/dom-renderer:
     dependencies:
@@ -780,14 +780,14 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/gpu-renderer:
     dependencies:
@@ -815,7 +815,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/gpu3d-renderer:
     dependencies:
@@ -836,8 +836,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       react-dom:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
@@ -846,7 +846,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/map-icons:
     devDependencies:
@@ -855,7 +855,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/server-core:
     dependencies:
@@ -874,7 +874,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/shared:
     dependencies:
@@ -896,7 +896,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/store:
     dependencies:
@@ -912,7 +912,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/sync:
     dependencies:
@@ -931,7 +931,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/ui:
     dependencies:
@@ -947,7 +947,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/usketch-connector-anchor:
     dependencies:
@@ -960,7 +960,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/usketch-session-protocol:
     devDependencies:
@@ -969,7 +969,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/usketch-session-voting:
     dependencies:
@@ -991,7 +991,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/usketch-shape-utils:
     dependencies:
@@ -1000,10 +1000,10 @@ importers:
         version: link:../shared
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -1016,7 +1016,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/usketch-tool-helpers:
     dependencies:
@@ -1032,7 +1032,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-activity-feed:
     dependencies:
@@ -1054,7 +1054,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-actions:
     dependencies:
@@ -1079,7 +1079,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-agent:
     dependencies:
@@ -1092,7 +1092,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-chat:
     dependencies:
@@ -1117,7 +1117,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-copilot:
     dependencies:
@@ -1139,7 +1139,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-image:
     dependencies:
@@ -1155,7 +1155,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-recognize:
     dependencies:
@@ -1171,7 +1171,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-ai-voice:
     dependencies:
@@ -1187,7 +1187,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-asset-store:
     dependencies:
@@ -1203,7 +1203,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-avatar:
     dependencies:
@@ -1225,7 +1225,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-bg-dots:
     dependencies:
@@ -1247,7 +1247,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-bg-grid:
     dependencies:
@@ -1269,7 +1269,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-board-info-panel:
     dependencies:
@@ -1294,7 +1294,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-canvas-filter:
     dependencies:
@@ -1316,7 +1316,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-character:
     dependencies:
@@ -1344,7 +1344,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-comments:
     dependencies:
@@ -1366,7 +1366,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-community-chat:
     dependencies:
@@ -1391,7 +1391,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-container:
     dependencies:
@@ -1407,7 +1407,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-croupier:
     dependencies:
@@ -1438,7 +1438,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-dashboard:
     dependencies:
@@ -1460,7 +1460,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-debug-hud:
     dependencies:
@@ -1479,7 +1479,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-deep-link:
     dependencies:
@@ -1498,7 +1498,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-domain-design:
     dependencies:
@@ -1522,10 +1522,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -1538,7 +1538,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-edge-pan:
     dependencies:
@@ -1551,7 +1551,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-effect-ripple:
     dependencies:
@@ -1573,7 +1573,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-elevation:
     dependencies:
@@ -1597,8 +1597,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       react-dom:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
@@ -1607,7 +1607,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-export:
     dependencies:
@@ -1638,7 +1638,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-follow-me:
     dependencies:
@@ -1660,7 +1660,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-free-position:
     dependencies:
@@ -1676,7 +1676,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-history:
     dependencies:
@@ -1695,7 +1695,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-key-settings:
     dependencies:
@@ -1717,7 +1717,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-keyboard-shortcuts:
     dependencies:
@@ -1742,7 +1742,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-laser:
     dependencies:
@@ -1764,7 +1764,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-map:
     dependencies:
@@ -1789,7 +1789,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-markdown-to-shape:
     dependencies:
@@ -1817,7 +1817,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-mode7:
     dependencies:
@@ -1845,7 +1845,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-pages:
     dependencies:
@@ -1873,7 +1873,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-pdf-import:
     dependencies:
@@ -1900,14 +1900,14 @@ importers:
         specifier: 19.3.0
         version: 19.3.0
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-portal:
     dependencies:
@@ -1929,7 +1929,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-presence-activity:
     dependencies:
@@ -1951,7 +1951,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-presence-cursor:
     dependencies:
@@ -1973,7 +1973,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-presence-enhanced:
     dependencies:
@@ -1995,7 +1995,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-presentation:
     dependencies:
@@ -2023,7 +2023,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-reactions:
     dependencies:
@@ -2045,7 +2045,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-scatter:
     dependencies:
@@ -2061,7 +2061,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-server-ai:
     dependencies:
@@ -2089,7 +2089,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-server-auth:
     dependencies:
@@ -2108,7 +2108,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-server-boards:
     dependencies:
@@ -2136,7 +2136,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-server-chat:
     dependencies:
@@ -2164,7 +2164,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-server-comments:
     dependencies:
@@ -2192,7 +2192,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-session:
     dependencies:
@@ -2217,7 +2217,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-3d:
     dependencies:
@@ -2238,8 +2238,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       react-dom:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
@@ -2248,7 +2248,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-basic:
     dependencies:
@@ -2276,7 +2276,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-board-portal:
     dependencies:
@@ -2298,7 +2298,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-card:
     dependencies:
@@ -2329,7 +2329,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-community-region:
     dependencies:
@@ -2348,7 +2348,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-connector:
     dependencies:
@@ -2379,7 +2379,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-counter:
     dependencies:
@@ -2404,7 +2404,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-embed:
     dependencies:
@@ -2429,7 +2429,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-frame:
     dependencies:
@@ -2454,7 +2454,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-freedraw:
     dependencies:
@@ -2485,7 +2485,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-group:
     dependencies:
@@ -2510,7 +2510,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-image:
     dependencies:
@@ -2534,14 +2534,14 @@ importers:
         specifier: 19.3.0
         version: 19.3.0
       jsdom:
-        specifier: 31.0.0
-        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+        specifier: 31.0.1
+        version: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-markdown:
     dependencies:
@@ -2553,10 +2553,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.47.0
+        version: 1.48.0
       mermaid:
         specifier: ^12.0.0
         version: 12.3.0
@@ -2581,7 +2581,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-openui:
     dependencies:
@@ -2609,7 +2609,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-sticky:
     dependencies:
@@ -2634,7 +2634,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-text:
     dependencies:
@@ -2659,7 +2659,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-shape-wireframe:
     dependencies:
@@ -2681,7 +2681,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-side-panel:
     dependencies:
@@ -2700,7 +2700,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-snap:
     dependencies:
@@ -2722,7 +2722,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-spatial-chat:
     dependencies:
@@ -2744,7 +2744,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-spotlight:
     dependencies:
@@ -2766,7 +2766,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-start-position:
     dependencies:
@@ -2785,7 +2785,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-sync-localstorage-yjs:
     dependencies:
@@ -2807,7 +2807,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-sync-ywebsocket:
     dependencies:
@@ -2838,7 +2838,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-timter:
     dependencies:
@@ -2863,7 +2863,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-tool-openui:
     dependencies:
@@ -2903,7 +2903,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-tool-pan:
     dependencies:
@@ -2928,7 +2928,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-tool-select:
     dependencies:
@@ -2956,7 +2956,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-tool-vim:
     dependencies:
@@ -2990,7 +2990,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-viewport-nav:
     dependencies:
@@ -3009,7 +3009,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-voice-notes:
     dependencies:
@@ -3031,7 +3031,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-voting:
     dependencies:
@@ -3053,7 +3053,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-whistle:
     dependencies:
@@ -3075,7 +3075,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-window-system:
     dependencies:
@@ -3097,7 +3097,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
 packages:
 
@@ -3212,8 +3212,8 @@ packages:
   '@astrojs/markdown-satteri@0.3.8':
     resolution: {integrity: sha512-n8ItpFTCmlDsVR5+rwDmehSf+jFCYLWmZiisZNGuF7xILqYhsVeBfcha4qgS2Seq3fAc9Tm58ZVrvqFQ6RQgRQ==}
 
-  '@astrojs/markdown-satteri@0.4.9':
-    resolution: {integrity: sha512-ixhXGrlvYNdVvSLU3L+ju+tGoMbRdH1iXee593xReVAcDhXJ7yvuNIV8M0KzCQAeiZo1VIleaaI9lH4RzCKYWA==}
+  '@astrojs/markdown-satteri@0.4.10':
+    resolution: {integrity: sha512-3h/wheVjZIcP/m295nkiUjOvCsCs6QpvZ3l4BfDU4ghNQcrcFrNVu1+K+I+YT61hH9tuCDQiGdF8QDzfDoG42w==}
 
   '@astrojs/mdx@7.0.8':
     resolution: {integrity: sha512-RNuwq2ccTSi7NX9YqlR0noaWoVdOrZuJvdfWXotAzdhMVB0b0zEMLnNU+xar7le0GwTMlTObD/QAu8jeHA/3nA==}
@@ -3249,8 +3249,8 @@ packages:
     resolution: {integrity: sha512-2JOMRUxJrBSfiVDfeKLv1wBmvSIx1Y6u2YEO8awZ9qSq3u/rNAiUyFdOYi8dHv91kHrmYEQX7pRDw0J4xyj3UA==}
     engines: {node: '>=22.23.4'}
 
-  '@astrojs/vite-plugin-astro@0.1.2':
-    resolution: {integrity: sha512-tDlT8Gp6fX3Km7yGeZSG1xaPfVhcXgmYHp/lKcXf3Rc3fZF4NTeWMwtXVbJy40lvrD7iDxpXN7vAHH2tQSZGWg==}
+  '@astrojs/vite-plugin-astro@0.1.3':
+    resolution: {integrity: sha512-yj+xGnr3HeHUtIdra/tWizJuisBoxAuWlBTElMlf22FpSxinrTwTl/dqftG0D2BsQTcn4/shgCCUwcnkcZ8buA==}
     peerDependencies:
       vite: ^8.3.3
 
@@ -3699,32 +3699,32 @@ packages:
       workerd:
         optional: true
 
-  '@cloudflare/workerd-darwin-64@1.20261110.1':
-    resolution: {integrity: sha512-RazOdADqTgwYhE60+i6c/R5BA1J5aC//39oousnWBxmoVAiqUh1qsXNCGMbaEV6UC5RnZyWsIBRIcAYNDe1xTg==}
+  '@cloudflare/workerd-darwin-64@1.20261113.1':
+    resolution: {integrity: sha512-UcShHyWJVZNbuI8jL3F5QZXMrJm7oScge33D5p3hAyhIIkoVj72+bior+VcUcr1SBWkh5w3Umnrx179WE7Wvpw==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [darwin]
 
-  '@cloudflare/workerd-darwin-arm64@1.20261110.1':
-    resolution: {integrity: sha512-TFsn/t+wczWnWdm+ytlWe+xHEO9sDgfIBmtMo8OxujuS2DXCmGimiyvJHmuv+6+N9OhUb0dM+fveXJI9yjuzew==}
+  '@cloudflare/workerd-darwin-arm64@1.20261113.1':
+    resolution: {integrity: sha512-bKfFcpueb9GOg0NZSR4x7dpEJZMsQOwCk0XzsAoXoBfG4osFRQcFxtAhrXvB1y445zXFLhrEkDJ/+LvGAMkPSg==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [darwin]
 
-  '@cloudflare/workerd-linux-64@1.20261110.1':
-    resolution: {integrity: sha512-i4080Pp6Q0nwS8OMqt3cbpJoWvbCrIlFKa+4Inbn+y2pWKTVsq6F9bgdi0l8CBZPMszd03gDlQR++dqMbErh2Q==}
+  '@cloudflare/workerd-linux-64@1.20261113.1':
+    resolution: {integrity: sha512-3VCnXzi7apwPSMwkiTIeEc5z/UWWGQXBZZNHCBBCXPlavWCR06SQ77tO0rEoKonfjBGW0MQaHNZ7U1pCPe4v3g==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [linux]
 
-  '@cloudflare/workerd-linux-arm64@1.20261110.1':
-    resolution: {integrity: sha512-0l+JyYWOhEzTs7yOkIdf1ZzcXd9WalPZ1kD0bBAobFvDhO/1jBnQkS4rzzyUkGV7g8pb3dkfrBP9c2ZiRLOfdw==}
+  '@cloudflare/workerd-linux-arm64@1.20261113.1':
+    resolution: {integrity: sha512-phnb1686FTIVSr4qxQFOt7MyiWMotqsVUyZVnQl579/bCrqWaYUcRnikN5f6bBpDbxCk1OvOvYz0ykjT1lvYpg==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [linux]
 
-  '@cloudflare/workerd-windows-64@1.20261110.1':
-    resolution: {integrity: sha512-zP8IGyWvohyJhbNjHOnTA9anRQtGN7X01T/dG+R9IA4vu2egRODsD02aoYzv0a0qImjt7tTpOOA+uVotDJPcSA==}
+  '@cloudflare/workerd-windows-64@1.20261113.1':
+    resolution: {integrity: sha512-WtQakCAIzUQJ6dQDPn7kIGlFJ9yjB0ooNx2WFqEHLYNAT7TLCNyaORem2WVM38TceVR8flCP5UWgYm6ht3dlIw==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
@@ -4856,8 +4856,8 @@ packages:
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
 
-  '@playwright/test@1.65.0':
-    resolution: {integrity: sha512-iGURLGuKDLakSEl7Pgfv8h7f+XLT+V861Wfhz0zlEl5nyFuKUopdkFBPKqTllTUp06aOwPuH8iuUEb3yp3MpbQ==}
+  '@playwright/test@1.65.1':
+    resolution: {integrity: sha512-y+NCIRm2LvY4slUVWvGh1nujJ8RF/hEisIsq2mtUPgdQC4L701bq5hZGMhrpeXjACvwvO9tj5dJqhvM6TP9lbw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -5693,23 +5693,23 @@ packages:
   '@webgpu/types@0.1.74':
     resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
 
-  '@zag-js/core@1.47.0':
-    resolution: {integrity: sha512-VOlDoXvB43DoHsSJHrBTXBP0gQRPA8nTZY2dIG328iL+U70vu2cYNUDMTBBxHlexJPE3JDAt9kFIoEmfZCNPew==}
+  '@zag-js/core@1.48.0':
+    resolution: {integrity: sha512-PEDJ9/Ogc0dWmiRtwzwtt/f8Aiaxi0Q0snOXVVtK8fkA2/y6OVRwvn8/8nzeszefgLwVFalyEql4AmVByAjDBQ==}
 
-  '@zag-js/dom-query@1.47.0':
-    resolution: {integrity: sha512-wbwzQDYikjRa6IQ+it0Qu6ndpvWiCRoPlaDGiFiZxnzX3IDOR5Bfio+BdQ319+incovMfaYEeuW7sbal91lu4g==}
+  '@zag-js/dom-query@1.48.0':
+    resolution: {integrity: sha512-ttq4SJUCzYoeZT6jyR+u9i9kNtvbR//40TnFYnB9k2T5DUGeQhlpX9jHewDOun1n1DM8lYOO97vAlCrX7aM2Vg==}
 
-  '@zag-js/store@1.47.0':
-    resolution: {integrity: sha512-uHkrNEJhtRf5xbBBreTX5vXBGT6RfOfKDcRs02u9yhatk9DJRTgk5DQGLKcqH/X+SIeRU5smzUKH4OPT8wR42A==}
+  '@zag-js/store@1.48.0':
+    resolution: {integrity: sha512-B//W9xhxdomu4fYMuw31Fltu3zaeAy88oSj9LmlsojIiKxgRE5n2ttcYvtmUGJ/etI2lHxGl4WPyhneqRinvdQ==}
 
-  '@zag-js/types@1.47.0':
-    resolution: {integrity: sha512-3TTiZR+PnODKSLl5PgpzS7QjBTQfB5K+M6q6NHXpr80Z9Rn2UxNoMFK3TA68lec5mryOvvum1P3EIS8Ho9NCGA==}
+  '@zag-js/types@1.48.0':
+    resolution: {integrity: sha512-kvwCyS7BgOG1xaEGip2RaB2RUaDBQ+omAxKmzxaotSQX8uGZ966OEwMsgHeMtkWa8ZyrxUqclFvqvOdeMNZFSg==}
 
-  '@zag-js/utils@1.47.0':
-    resolution: {integrity: sha512-vD4JoPJkFBGA2C5/HcfKrhkxqjFlJrfQj0wSoypvYghP1nJYaa6PNJs0zo3EeI4/NJ0EuJSnUg0zsCo+Dhm4iQ==}
+  '@zag-js/utils@1.48.0':
+    resolution: {integrity: sha512-HQ0B1T0EUc7EmJXN0slJCUj7PyYUOi4tS977/7scdm0uFdzJmZtOx2aO+UKr/PITYgl8igkEOFe3IIopcsDTvA==}
 
-  '@zag-js/vanilla@1.47.0':
-    resolution: {integrity: sha512-J5dk4cROHBQwpTD+8T6MJ3RZ0RkIl6rSYUHP7IwnB627sXZD2ehDQXgb/qXrBgcBDxYDRredFF2lu1SdWORWjw==}
+  '@zag-js/vanilla@1.48.0':
+    resolution: {integrity: sha512-zY29/XEZrsurfCbGav460Yg24He7d3227KCaLHay3unFsl0m/mXZIynedAd3EqntoaaX2P6ZKExLrJAJ0SQlZQ==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -5787,8 +5787,8 @@ packages:
     resolution: {integrity: sha512-LElXdjswlqjWrPpJFg1Fx4wpkOCxj1TDHlSV4PlaRxHGWko024xICaa97ZkMfs6DRKlCguiAI+rbXv5GWwXIkg==}
     hasBin: true
 
-  astro@7.4.11:
-    resolution: {integrity: sha512-c8gibLFCnzuXCXqsvTiMXbjCnuIjxGhWw6TO5n11cXzNrw36P3ZgBzsOoRUR4raG1r6cKWeE5oXQu4F3GCBofg==}
+  astro@7.4.12:
+    resolution: {integrity: sha512-DKX+Ds0rqV49HrLwEB9JFrCyfvQeC16FCe1HrPK8S3osiJH/e2vQ22CHIDOpI48UaeiPbxPT26peXgGTy6w0ig==}
     engines: {node: '>=22.23.4', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
     peerDependencies:
@@ -6901,8 +6901,8 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
-  jsdom@31.0.0:
-    resolution: {integrity: sha512-xAkhD9z1eyFC5+QUi9K24CaZJgdCQ2GOGLW1GdVDoQvkp/AxEH9TQ0pAplPOlIiV92hfcgnFOADZypbjgbBT6Q==}
+  jsdom@31.0.1:
+    resolution: {integrity: sha512-CbhJL8ZQg3eKswxSZth4QO9tW0jPIhmR0vtSXQSbKSfWbwIT6hoRc17wdHIVTQ43KI0mdV5iTJr3281IDgVZ5g==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
     peerDependencies:
       '@napi-rs/canvas': ^1.0.13
@@ -7269,8 +7269,8 @@ packages:
     resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
     engines: {node: '>=18'}
 
-  miniflare@5.20261110.2-beta:
-    resolution: {integrity: sha512-vzUwcal5OtR/1nr5cmjCbZSrsR3QRA1cDnRUDVgET17HeDkdpQNG2QxeIkuHFLyszjdBqme59w8Nrrj4FkuFsQ==}
+  miniflare@5.20261113.0-beta:
+    resolution: {integrity: sha512-Kg+SarKNSn0lkhR88OHI29rIXJvmKs/c9hmxFXvEqK1J9aHu+AFl6CdaBq/k3iOTyMbm2p4h1HGLs7vXaLYMWA==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       kerberos: ^2.0.0
@@ -7478,13 +7478,13 @@ packages:
     resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
     engines: {node: '>=16.20.0'}
 
-  playwright-core@1.65.0:
-    resolution: {integrity: sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==}
+  playwright-core@1.65.1:
+    resolution: {integrity: sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw==}
     engines: {node: '>=20'}
     hasBin: true
 
-  playwright@1.65.0:
-    resolution: {integrity: sha512-F3AMWcR44qMBt4kq+6Kb6mX7bjGXshktKFOPULd7reED6ZJWevjbNRqysP7q+AATE9kdPEZBibex1BYsvpVoeA==}
+  playwright@1.65.1:
+    resolution: {integrity: sha512-vJ1FuoOrNwOKHUIVEvSt3jT1L+wjjDpwhwIstKtfvTh8XIG4FG4bIFuvNdMxi81LGfAhUgUZleVFaOLY4RIUUw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -8389,17 +8389,17 @@ packages:
     engines: {node: '>=20.11'}
     hasBin: true
 
-  workerd@1.20261110.1:
-    resolution: {integrity: sha512-GKdtki7t19f16vegol8Iw5Dh0mnjHLuwLx8rlhTPvyRBEXM0Osl9eYexWAW8uZD7OMw4WKNq9yvENg5kPDUJ9w==}
+  workerd@1.20261113.1:
+    resolution: {integrity: sha512-FJP8Bm1jiiJTE2xpSIhT9JkMaKzU54y9Jk0q7n3BLWyWdUNsn35QGCqARcqXGwO3FGkvahhYqUEG2bJzlgcfhw==}
     engines: {node: '>=16'}
     hasBin: true
 
-  wrangler@4.161.0:
-    resolution: {integrity: sha512-yOHZUYEq9AP7vutWmkCADzCKAH9ynfvZdoKJRIGTzkiailf9/L+jhT7WRb+9p6jRDtuBXVFtCzLo7kGAcGw+pA==}
+  wrangler@4.162.0:
+    resolution: {integrity: sha512-jUnlzHKlWdW4MFXPgeYbe0+c4oTy/AAZfL/IUz921+dZBY5nJ48xjpvwff5djUR1MXoJRevzntAP/U97TUhPEw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
     peerDependencies:
-      '@cloudflare/workers-types': ^5.20261110.1
+      '@cloudflare/workers-types': ^5.20261113.1
     peerDependenciesMeta:
       '@cloudflare/workers-types':
         optional: true
@@ -8693,20 +8693,20 @@ snapshots:
       satteri: 0.10.5
     optional: true
 
-  '@astrojs/markdown-satteri@0.4.9':
+  '@astrojs/markdown-satteri@0.4.10':
     dependencies:
       '@astrojs/internal-helpers': 0.13.2
       '@astrojs/prism': 4.1.2
       github-slugger: 2.0.0
       satteri: 0.11.6
 
-  '@astrojs/mdx@7.0.8(@astrojs/markdown-satteri@0.3.8)(astro@7.4.11(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))(supports-color@10.2.2)':
+  '@astrojs/mdx@7.0.8(@astrojs/markdown-satteri@0.3.8)(astro@7.4.12(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))(supports-color@10.2.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.10.4
       '@astrojs/markdown-remark': 7.2.4(supports-color@10.2.2)
       '@mdx-js/mdx': 3.1.1(supports-color@10.2.2)
       acorn: 8.18.0
-      astro: 7.4.11(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
+      astro: 7.4.12(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
       es-module-lexer: 2.3.2
       estree-util-visit: 2.0.0
       hast-util-to-html: 9.0.5
@@ -8768,7 +8768,7 @@ snapshots:
       is-docker: 4.0.0
       package-manager-detector: 1.9.0
 
-  '@astrojs/vite-plugin-astro@0.1.2(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))':
+  '@astrojs/vite-plugin-astro@0.1.3(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@astrojs/compiler-rs': 0.5.2
       '@astrojs/internal-helpers': 0.13.2
@@ -9212,25 +9212,25 @@ snapshots:
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
-  '@cloudflare/unenv-preset@2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261110.1)':
+  '@cloudflare/unenv-preset@2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261113.1)':
     dependencies:
       unenv: 2.0.0-rc.24
     optionalDependencies:
-      workerd: 1.20261110.1
+      workerd: 1.20261113.1
 
-  '@cloudflare/workerd-darwin-64@1.20261110.1':
+  '@cloudflare/workerd-darwin-64@1.20261113.1':
     optional: true
 
-  '@cloudflare/workerd-darwin-arm64@1.20261110.1':
+  '@cloudflare/workerd-darwin-arm64@1.20261113.1':
     optional: true
 
-  '@cloudflare/workerd-linux-64@1.20261110.1':
+  '@cloudflare/workerd-linux-64@1.20261113.1':
     optional: true
 
-  '@cloudflare/workerd-linux-arm64@1.20261110.1':
+  '@cloudflare/workerd-linux-arm64@1.20261113.1':
     optional: true
 
-  '@cloudflare/workerd-windows-64@1.20261110.1':
+  '@cloudflare/workerd-windows-64@1.20261113.1':
     optional: true
 
   '@cloudflare/workers-types@5.20261113.1': {}
@@ -9996,9 +9996,9 @@ snapshots:
 
   '@oxc-project/types@0.156.0': {}
 
-  '@playwright/test@1.65.0':
+  '@playwright/test@1.65.1':
     dependencies:
-      playwright: 1.65.0
+      playwright: 1.65.1
 
   '@pnpm/deps.graph-sequencer@1100.0.1': {}
 
@@ -10742,31 +10742,31 @@ snapshots:
 
   '@webgpu/types@0.1.74': {}
 
-  '@zag-js/core@1.47.0':
+  '@zag-js/core@1.48.0':
     dependencies:
-      '@zag-js/dom-query': 1.47.0
-      '@zag-js/utils': 1.47.0
+      '@zag-js/dom-query': 1.48.0
+      '@zag-js/utils': 1.48.0
 
-  '@zag-js/dom-query@1.47.0':
+  '@zag-js/dom-query@1.48.0':
     dependencies:
-      '@zag-js/types': 1.47.0
+      '@zag-js/types': 1.48.0
 
-  '@zag-js/store@1.47.0':
+  '@zag-js/store@1.48.0':
     dependencies:
       proxy-compare: 3.0.1
 
-  '@zag-js/types@1.47.0':
+  '@zag-js/types@1.48.0':
     dependencies:
       csstype: 3.2.3
 
-  '@zag-js/utils@1.47.0': {}
+  '@zag-js/utils@1.48.0': {}
 
-  '@zag-js/vanilla@1.47.0':
+  '@zag-js/vanilla@1.48.0':
     dependencies:
-      '@zag-js/core': 1.47.0
-      '@zag-js/store': 1.47.0
-      '@zag-js/types': 1.47.0
-      '@zag-js/utils': 1.47.0
+      '@zag-js/core': 1.48.0
+      '@zag-js/store': 1.48.0
+      '@zag-js/types': 1.48.0
+      '@zag-js/utils': 1.48.0
 
   accepts@2.0.0:
     dependencies:
@@ -10825,14 +10825,14 @@ snapshots:
 
   astring@1.9.0: {}
 
-  astro@7.4.11(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3):
+  astro@7.4.12(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@astrojs/compiler-rs': 0.5.2
       '@astrojs/internal-helpers': 0.13.2
-      '@astrojs/markdown-satteri': 0.4.9
+      '@astrojs/markdown-satteri': 0.4.10
       '@astrojs/runtime': 0.1.1
       '@astrojs/telemetry': 3.4.2
-      '@astrojs/vite-plugin-astro': 0.1.2(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+      '@astrojs/vite-plugin-astro': 0.1.3(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
       '@capsizecss/unpack': 4.0.1
       '@clack/prompts': 1.8.1
       '@oslojs/encoding': 1.1.0
@@ -10930,7 +10930,7 @@ snapshots:
       is-alphanumerical: 2.0.1
       is-decimal: 2.0.1
 
-  better-auth@1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))):
+  better-auth@1.6.29(@cloudflare/workers-types@5.20261113.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))):
     dependencies:
       '@better-auth/core': 1.6.29(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@cloudflare/workers-types@5.20261113.1)(better-call@1.4.0(zod@4.6.7))(jose@6.2.4)(kysely@0.29.3)(nanostores@1.2.0)
       '@better-auth/drizzle-adapter': 1.6.29(@better-auth/core@1.6.29(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@cloudflare/workers-types@5.20261113.1)(better-call@1.4.0(zod@4.6.7))(jose@6.2.4)(kysely@0.29.3)(nanostores@1.2.0))(@better-auth/utils@0.4.2)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261113.1)(kysely@0.29.3))
@@ -10955,7 +10955,7 @@ snapshots:
       mongodb: 7.1.0
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      vitest: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
@@ -12069,7 +12069,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1):
+  jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1):
     dependencies:
       '@exodus/bytes': 1.16.0(@noble/hashes@2.0.1)
       bcp-47: 2.1.2
@@ -12700,12 +12700,12 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  miniflare@5.20261110.2-beta(@types/node@26.6.6):
+  miniflare@5.20261113.0-beta(@types/node@26.6.6):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.6)
       undici: 7.30.1
-      workerd: 1.20261110.1
+      workerd: 1.20261113.1
       ws: 8.21.0
       youch: 4.1.0-beta.10
     transitivePeerDependencies:
@@ -12875,11 +12875,11 @@ snapshots:
 
   pkce-challenge@5.0.1: {}
 
-  playwright-core@1.65.0: {}
+  playwright-core@1.65.1: {}
 
-  playwright@1.65.0:
+  playwright@1.65.1:
     dependencies:
-      playwright-core: 1.65.0
+      playwright-core: 1.65.1
 
   points-on-curve@0.2.0: {}
 
@@ -13733,7 +13733,7 @@ snapshots:
     optionalDependencies:
       vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
 
-  vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)):
+  vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.1.0(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
@@ -13751,7 +13751,7 @@ snapshots:
       why-is-node-running: 3.2.1
     optionalDependencies:
       '@types/node': 26.6.6
-      jsdom: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
+      jsdom: 31.0.1(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
     transitivePeerDependencies:
       - msw
 
@@ -13887,25 +13887,25 @@ snapshots:
 
   why-is-node-running@3.2.1: {}
 
-  workerd@1.20261110.1:
+  workerd@1.20261113.1:
     optionalDependencies:
-      '@cloudflare/workerd-darwin-64': 1.20261110.1
-      '@cloudflare/workerd-darwin-arm64': 1.20261110.1
-      '@cloudflare/workerd-linux-64': 1.20261110.1
-      '@cloudflare/workerd-linux-arm64': 1.20261110.1
-      '@cloudflare/workerd-windows-64': 1.20261110.1
+      '@cloudflare/workerd-darwin-64': 1.20261113.1
+      '@cloudflare/workerd-darwin-arm64': 1.20261113.1
+      '@cloudflare/workerd-linux-64': 1.20261113.1
+      '@cloudflare/workerd-linux-arm64': 1.20261113.1
+      '@cloudflare/workerd-windows-64': 1.20261113.1
 
-  wrangler@4.161.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6):
+  wrangler@4.162.0(@cloudflare/workers-types@5.20261113.1)(@types/node@26.6.6):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
-      '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261110.1)
+      '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261113.1)
       '@cspotcode/source-map-support': 0.8.1
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261110.2-beta(@types/node@26.6.6)
+      miniflare: 5.20261113.0-beta(@types/node@26.6.6)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
-      workerd: 1.20261110.1
+      workerd: 1.20261113.1
     optionalDependencies:
       '@cloudflare/workers-types': 5.20261113.1
       fsevents: 2.3.3
