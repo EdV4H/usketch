@@ -255,18 +255,18 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 	const renderModeRef = useRef(renderMode);
 	renderModeRef.current = renderMode;
 	// Plugins over the canvas (the 3D view's camera layer) ask what a point shows in 3D.
-	useEffect(
-		() =>
-			view3dPickService.provide(app.services, {
-				pickAt: (screen) => {
-					const el = containerRef.current;
-					if (!el) return null;
-					const stage = { width: el.clientWidth, height: el.clientHeight };
-					return pointer3d.pick(screen, stage, renderModeRef.current);
-				},
-			}),
-		[app.services, pointer3d],
-	);
+	useEffect(() => {
+		// A host without a service registry (a bare test app) has no one to ask.
+		if (!app.services) return;
+		return view3dPickService.provide(app.services, {
+			pickAt: (screen) => {
+				const el = containerRef.current;
+				if (!el) return null;
+				const stage = { width: el.clientWidth, height: el.clientHeight };
+				return pointer3d.pick(screen, stage, renderModeRef.current);
+			},
+		});
+	}, [app.services, pointer3d]);
 	const map3d = useCallback(
 		(phase: View3dPointerPhase) =>
 			(screen: Point, pointerId: number): Point | null => {
