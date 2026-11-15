@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-ai-chat
 
+## 2.0.27
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+  - @edv4h/usketch-plugin-ai-agent@3.1.2
+  - @edv4h/usketch-plugin-side-panel@2.0.27
+
 ## 2.0.26
 
 ### Patch Changes

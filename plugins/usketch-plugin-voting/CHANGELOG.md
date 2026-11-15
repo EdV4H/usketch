@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-voting
 
+## 2.1.20
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+
 ## 2.1.19
 
 ### Patch Changes

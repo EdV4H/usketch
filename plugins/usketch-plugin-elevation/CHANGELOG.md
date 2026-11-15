@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-elevation
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+
 ## 0.5.0
 
 ### Minor Changes

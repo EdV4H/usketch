@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-ai-actions
 
+## 2.1.23
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-canvas-engine@1.7.0
+  - @edv4h/usketch-shared@4.26.0
+  - @edv4h/usketch-plugin-ai-agent@3.1.2
+
 ## 2.1.22
 
 ### Patch Changes

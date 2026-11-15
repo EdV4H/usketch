@@ -1,5 +1,17 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.7.0
+
+### Minor Changes
+
+- db5c6f9: ボードが 3D で見えている間、ポインターの `worldPoint` が見た目どおりの点（立った Shape の面、平らな Shape、地面）になりました（3D 標準対応 P7、#1304）。ドラッグは押した高さを保つので、掴んだ点がポインターについてきます。平面のときは今までどおりです。`view3dPickService` を提供します。
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+  - @edv4h/usketch-core@2.6.1
+
 ## 1.6.0
 
 ### Minor Changes

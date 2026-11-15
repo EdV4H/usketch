@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-comments
 
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+  - @edv4h/usketch-plugin-side-panel@2.0.27
+
 ## 2.1.0
 
 ### Minor Changes
