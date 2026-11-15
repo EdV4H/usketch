@@ -6,8 +6,21 @@
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
 //   4. Turns the viewport by the camera yaw while in 3D (see `mode7-yaw.ts`).
-import type { BoundingBox, PluginContext, View3dRendererApi } from "@edv4h/usketch-shared";
-import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
+import {
+	type BoardStore,
+	type BoundingBox,
+	type PluginContext,
+	type ServiceRegistry,
+	type View3dRendererApi,
+	view3dPickService,
+} from "@edv4h/usketch-shared";
+import {
+	CaptureFrameLayer,
+	type CaptureHandlers,
+	CaptureLayer,
+	FogLayer,
+	SkyLayer,
+} from "./mode7-layers.js";
 import { DEFAULT_DEPTH_LAYER_IDS, type Mode7State, type Mode7Store } from "./mode7-store.js";
 import { createYawTurner, type YawTurner, yawPivot } from "./mode7-yaw.js";
 
@@ -16,6 +29,9 @@ export const SKY_LAYER_ID = "mode7-sky";
 export const FOG_LAYER_ID = "mode7-fog";
 export const CAPTURE_LAYER_ID = "mode7-capture";
 export const CAPTURE_FRAME_LAYER_ID = "mode7-capture-frame";
+
+/** The tool whose presses on a shape go on to the canvas in 3D (select and move). */
+export const EDIT_TOOL_ID = "select";
 
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
@@ -75,6 +91,41 @@ function mainContainer(): HTMLElement | null {
 }
 
 /**
+ * What the capture layer does with input (pure over its parts): a drag over the ground
+ * moves the camera (reusing the affine viewport), the wheel zooms; with the select tool,
+ * a press on a shape (as the canvas picks it in 3D) goes on to the tool, a click on the
+ * bare ground clears the selection, and a double click on a shape leaves for flat.
+ */
+export function mode7CaptureHandlers(deps: {
+	board: Pick<
+		BoardStore,
+		"panBy" | "zoomTo" | "getViewport" | "getActiveToolId" | "clearSelection"
+	>;
+	services: ServiceRegistry;
+	mode7: Mode7Store;
+	exit?: () => void;
+}): CaptureHandlers {
+	const { board, services, mode7 } = deps;
+	const shapeAt = (point: { x: number; y: number }): string | null =>
+		view3dPickService.get(services)?.pickAt(point)?.shapeId ?? null;
+	const editing = () => board.getActiveToolId() === EDIT_TOOL_ID;
+	return {
+		onPan: (dx, dy) => board.panBy(dx, dy),
+		onZoom: (deltaY, center) => {
+			const factor = Math.exp(-deltaY * WHEEL_ZOOM);
+			board.zoomTo(board.getViewport().zoom * factor, center);
+		},
+		editsAt: (point) => editing() && mode7.getState().active && shapeAt(point) !== null,
+		onGroundTap: () => {
+			if (editing()) board.clearSelection();
+		},
+		onShapeDoubleClick: (point) => {
+			if (deps.exit && shapeAt(point) !== null) deps.exit();
+		},
+	};
+}
+
+/**
  * Wire the runtime to a store. The set of tilted layers is read live from the
  * store (user-selectable via the HUD). Returns a teardown that clears every
  * injected transform, unregisters the overlay layers, and drops all listeners.
@@ -96,6 +147,8 @@ export function setupMode7Runtime(
 		adoptDeclared?: boolean;
 		/** Layers never tilted, even when they declare it. */
 		excludedLayerIds?: readonly string[];
+		/** Leaves the 3D view (a double click on a shape: edit it flat). */
+		exit?: () => void;
 	},
 ): () => void {
 	const { renderer } = options;
@@ -208,14 +261,13 @@ export function setupMode7Runtime(
 		maybeCapture();
 	};
 
-	// Camera drive from the capture layer (reuse the affine viewport).
-	const handlers = {
-		onPan: (dx: number, dy: number) => ctx.store.panBy(dx, dy),
-		onZoom: (deltaY: number, center: { x: number; y: number }) => {
-			const factor = Math.exp(-deltaY * WHEEL_ZOOM);
-			ctx.store.zoomTo(ctx.store.getViewport().zoom * factor, center);
-		},
-	};
+	// Camera drive from the capture layer; a press on a shape goes on to the select tool.
+	const handlers = mode7CaptureHandlers({
+		board: ctx.store,
+		services: ctx.services,
+		mode7: store,
+		exit: options.exit,
+	});
 
 	// Register the three overlay layers once; they self-hide when inactive.
 	ctx.layers.register({

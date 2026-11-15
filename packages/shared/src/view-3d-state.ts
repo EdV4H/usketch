@@ -167,3 +167,13 @@ export function view3dCellOf(store: View3dHolder): View3dCell | null {
 		subscribe: (listener) => subscribeView3d.call(store, listener),
 	};
 }
+
+/**
+ * Whether a store's board is shown in 3D now (its 3D view state's amount is above 0):
+ * tools then work on what the view shows, and screen-space handles drawn flat are not
+ * there to hit. Pure.
+ */
+export function isView3dShown(store: View3dHolder): boolean {
+	const amount = store.getView3d?.call(store).amount;
+	return typeof amount === "number" && amount > 0;
+}

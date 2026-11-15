@@ -153,6 +153,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				yaw,
 				adoptDeclared: options.tiltLayerIds === undefined,
 				excludedLayerIds,
+				exit: () => api.disable(),
 			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.

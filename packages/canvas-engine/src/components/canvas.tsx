@@ -1,10 +1,11 @@
-import type { CanvasPointerEvent, RenderMode, ShapeData } from "@edv4h/usketch-shared";
+import type { CanvasPointerEvent, Point, RenderMode, ShapeData } from "@edv4h/usketch-shared";
 import {
 	compareZIndex,
 	DEFAULT_THEME,
 	overlayFrameStyle,
 	screenRectToWorldBounds,
 	unrotatedViewport,
+	view3dPickService,
 } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
@@ -16,6 +17,7 @@ import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
 import { useView3dOverscan } from "../hooks/use-view-3d-overscan.js";
+import { createView3dPointer, type View3dPointerPhase } from "../view-3d-pointer.js";
 
 /**
  * Effectively hidden = the shape's own `hidden` flag OR any ancestor's (hiding a
@@ -103,6 +105,8 @@ function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
 	viewport: { x: number; y: number; zoom: number },
 	e: React.PointerEvent,
+	/** The world point in a 3D view (`null`: flat, use the viewport). */
+	map3d?: (screen: Point, pointerId: number) => Point | null,
 ): CanvasPointerEvent {
 	const rect = containerRef.current?.getBoundingClientRect();
 	const screenPoint = {
@@ -110,7 +114,7 @@ function toCanvasEvent(
 		y: rect ? e.clientY - rect.top : e.clientY,
 	};
 	return {
-		worldPoint: screenToWorld(screenPoint, viewport),
+		worldPoint: map3d?.(screenPoint, e.pointerId) ?? screenToWorld(screenPoint, viewport),
 		screenPoint,
 		shiftKey: e.shiftKey,
 		ctrlKey: e.ctrlKey,
@@ -235,11 +239,50 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		};
 	}, []);
 
+	// While the board is shown in 3D, pointers hit what is drawn there (see view-3d-pointer).
+	const pointer3d = useMemo(
+		() =>
+			createView3dPointer({
+				store: app.store,
+				shapes: app.shapes,
+				services: app.services,
+				events: app.events,
+				height: app.height,
+			}),
+		[app.store, app.shapes, app.services, app.events, app.height],
+	);
+	useEffect(() => () => pointer3d.dispose(), [pointer3d]);
+	const renderModeRef = useRef(renderMode);
+	renderModeRef.current = renderMode;
+	// Plugins over the canvas (the 3D view's camera layer) ask what a point shows in 3D.
+	useEffect(() => {
+		// A host without a service registry (a bare test app) has no one to ask.
+		if (!app.services) return;
+		return view3dPickService.provide(app.services, {
+			pickAt: (screen) => {
+				const el = containerRef.current;
+				if (!el) return null;
+				const stage = { width: el.clientWidth, height: el.clientHeight };
+				return pointer3d.pick(screen, stage, renderModeRef.current);
+			},
+		});
+	}, [app.services, pointer3d]);
+	const map3d = useCallback(
+		(phase: View3dPointerPhase) =>
+			(screen: Point, pointerId: number): Point | null => {
+				const el = containerRef.current;
+				if (!el) return null;
+				const stage = { width: el.clientWidth, height: el.clientHeight };
+				return pointer3d.map(screen, stage, phase, pointerId, renderModeRef.current);
+			},
+		[pointer3d],
+	);
+
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
 			// Mouse / pen (and touch when gestures are off): unchanged single-pointer path.
 			if (!touchGestures || e.pointerType !== "touch") {
-				const canvasEvent = toCanvasEvent(containerRef, viewport, e);
+				const canvasEvent = toCanvasEvent(containerRef, viewport, e, map3d("down"));
 				if (e.button === 1) {
 					app.events.emit("canvas:middle-down", canvasEvent);
 					return;
@@ -280,18 +323,18 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				pendingRef.current = {
 					id: e.pointerId,
 					downPt: pt,
-					down: toCanvasEvent(containerRef, viewport, e),
+					down: toCanvasEvent(containerRef, viewport, e, map3d("down")),
 				};
 			}
 			// size > 2: extra finger, tracked for the count but otherwise ignored.
 		},
-		[viewport, activeTool, toolCtx, app.events, touchGestures, screenPointOf],
+		[viewport, activeTool, toolCtx, app.events, touchGestures, screenPointOf, map3d],
 	);
 
 	const handlePointerMove = useCallback(
 		(e: React.PointerEvent) => {
 			if (!touchGestures || e.pointerType !== "touch") {
-				const canvasEvent = toCanvasEvent(containerRef, viewport, e);
+				const canvasEvent = toCanvasEvent(containerRef, viewport, e, map3d("move"));
 				activeTool?.onPointerMove?.(toolCtx, canvasEvent);
 				app.events.emit("canvas:pointermove", canvasEvent);
 				return;
@@ -334,7 +377,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				// Materialize: dispatch the deferred pointerdown, then this move.
 				activeTool?.onPointerDown?.(toolCtx, pending.down);
 				app.events.emit("canvas:pointerdown", pending.down);
-				const moveEvent = toCanvasEvent(containerRef, viewport, e);
+				const moveEvent = toCanvasEvent(containerRef, viewport, e, map3d("move"));
 				activeTool?.onPointerMove?.(toolCtx, moveEvent);
 				app.events.emit("canvas:pointermove", moveEvent);
 				activeTouchRef.current = { id, last: moveEvent };
@@ -343,19 +386,19 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			}
 
 			if (activeTouchRef.current?.id === id) {
-				const moveEvent = toCanvasEvent(containerRef, viewport, e);
+				const moveEvent = toCanvasEvent(containerRef, viewport, e, map3d("move"));
 				activeTool?.onPointerMove?.(toolCtx, moveEvent);
 				app.events.emit("canvas:pointermove", moveEvent);
 				activeTouchRef.current.last = moveEvent;
 			}
 		},
-		[viewport, activeTool, toolCtx, app.events, app.store, touchGestures, screenPointOf],
+		[viewport, activeTool, toolCtx, app.events, app.store, touchGestures, screenPointOf, map3d],
 	);
 
 	const handlePointerUp = useCallback(
 		(e: React.PointerEvent) => {
 			if (!touchGestures || e.pointerType !== "touch") {
-				const canvasEvent = toCanvasEvent(containerRef, viewport, e);
+				const canvasEvent = toCanvasEvent(containerRef, viewport, e, map3d("up"));
 				activeTool?.onPointerUp?.(toolCtx, canvasEvent);
 				app.events.emit("canvas:pointerup", canvasEvent);
 				return;
@@ -384,20 +427,20 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				// Tap: never crossed the drag threshold → emit down+up so a click registers.
 				activeTool?.onPointerDown?.(toolCtx, pending.down);
 				app.events.emit("canvas:pointerdown", pending.down);
-				const upEvent = toCanvasEvent(containerRef, viewport, e);
+				const upEvent = toCanvasEvent(containerRef, viewport, e, map3d("up"));
 				activeTool?.onPointerUp?.(toolCtx, upEvent);
 				app.events.emit("canvas:pointerup", upEvent);
 				pendingRef.current = null;
 				return;
 			}
 			if (activeTouchRef.current?.id === id) {
-				const upEvent = toCanvasEvent(containerRef, viewport, e);
+				const upEvent = toCanvasEvent(containerRef, viewport, e, map3d("up"));
 				activeTool?.onPointerUp?.(toolCtx, upEvent);
 				app.events.emit("canvas:pointerup", upEvent);
 				activeTouchRef.current = null;
 			}
 		},
-		[viewport, activeTool, toolCtx, app.events, touchGestures],
+		[viewport, activeTool, toolCtx, app.events, touchGestures, map3d],
 	);
 
 	const handleDragOver = useCallback((e: React.DragEvent) => {

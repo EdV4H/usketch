@@ -7,7 +7,7 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { isContainerAutoAttach, safeRotation } from "@edv4h/usketch-shared";
+import { isContainerAutoAttach, isView3dShown, safeRotation } from "@edv4h/usketch-shared";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -354,14 +354,19 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				cancelHandleDrag();
 				disableTextSelection();
 				const viewport = toolCtx.store.getViewport();
+				// In a 3D view the handles drawn flat aren't where the pointer sees them:
+				// select and move only (resize, rotate and the like go back to flat first).
+				const handlesShown = !isView3dShown(toolCtx.store);
 
 				// 0. Rotation handle (outside bbox, no conflict with resize)
-				const rotationHit = findRotationHandleAtScreenPoint(
-					event.screenPoint,
-					toolCtx.shapes,
-					toolCtx.store,
-					viewport,
-				);
+				const rotationHit =
+					handlesShown &&
+					findRotationHandleAtScreenPoint(
+						event.screenPoint,
+						toolCtx.shapes,
+						toolCtx.store,
+						viewport,
+					);
 				if (rotationHit) {
 					const shape = toolCtx.store.getShape(rotationHit.shapeId);
 					if (shape) {
@@ -386,7 +391,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				// 0b. Multi-selection rotation (outside a corner of the group bbox)
 				const preSelection = toolCtx.store.getSelection();
-				if (preSelection.size > 1) {
+				if (handlesShown && preSelection.size > 1) {
 					const groupBounds = getMultiSelectionBounds(toolCtx.store, toolCtx.shapes, preSelection);
 					if (
 						groupBounds &&
@@ -411,12 +416,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				}
 
 				// 1. Single-shape resize handle
-				const handleHit = findHandleAtScreenPoint(
-					event.screenPoint,
-					toolCtx.shapes,
-					toolCtx.store,
-					viewport,
-				);
+				const handleHit =
+					handlesShown &&
+					findHandleAtScreenPoint(event.screenPoint, toolCtx.shapes, toolCtx.store, viewport);
 				if (handleHit) {
 					const shape = toolCtx.store.getShape(handleHit.shapeId);
 					if (shape) {
@@ -451,7 +453,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				// 1b. Multi-selection resize handle
 				const selection = toolCtx.store.getSelection();
-				if (selection.size > 1) {
+				if (handlesShown && selection.size > 1) {
 					const groupBounds = getMultiSelectionBounds(toolCtx.store, toolCtx.shapes, selection);
 					if (groupBounds) {
 						const multiHandle = findMultiHandleAtScreenPoint(
@@ -479,7 +481,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				// 1c. A handle another plugin added (after the built-in handles, which
 				// win; one sitting on a built-in handle isn't shown or hit at all).
-				if (handleRegistry) {
+				if (handlesShown && handleRegistry) {
 					const hit = findHandleAt(handleRegistry, toolCtx, event.screenPoint);
 					const drag = hit?.provider.startDrag(hit.handle, event, toolCtx);
 					if (hit && drag) {

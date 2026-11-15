@@ -154,6 +154,15 @@ export {
 	VIEW_3D_COLLISIONS_BY_MODE,
 } from "./shape-view-3d.js";
 export {
+	flatQuad3d,
+	flatShapeView3dHeight,
+	type Quad3d,
+	type ShapeView3dFaces,
+	type ShapeView3dFacesView,
+	shapeView3dFaces,
+	type Vec3,
+} from "./shape-view-3d-faces.js";
+export {
 	DEFAULT_VIEW3D_SHAPE_LIMITS,
 	declaredView3dShapeTypes,
 	GROUND_FLAT_VIEW3D,
@@ -363,6 +372,18 @@ export {
 	view3dGl,
 	view3dGlService,
 } from "./view-3d-gl.js";
+export {
+	pickView3d,
+	rayQuad,
+	type View3dPick,
+	type View3dPickApi,
+	type View3dPickInput,
+	view3dCamera,
+	view3dDragPoint,
+	view3dPickService,
+	view3dProjection,
+	view3dRay,
+} from "./view-3d-pick.js";
 export { type View3dRendererApi, view3dRendererService } from "./view-3d-renderer.js";
 export {
 	CAMERA_3D_LIMITS,
@@ -373,6 +394,7 @@ export {
 	DEFAULT_CAMERA_3D,
 	DEFAULT_DRAW_DISTANCE,
 	FLAT_VIEW_3D,
+	isView3dShown,
 	OVERSCAN_BUFFER_PX,
 	patchView3d,
 	sameView3d,

@@ -148,7 +148,19 @@ export interface CaptureHandlers {
 	onPan(dx: number, dy: number): void;
 	/** Wheel zoom: raw deltaY and the zoom center in container-local px. */
 	onZoom(deltaY: number, center: { x: number; y: number }): void;
+	/**
+	 * Whether a press at a container-local point is for the board's tools (it picks a
+	 * shape the select tool can take): it then goes on to the canvas instead of the camera.
+	 */
+	editsAt?(point: { x: number; y: number }): boolean;
+	/** A click on the bare ground (no drag): clears the selection. */
+	onGroundTap?(): void;
+	/** A double click on a shape: back to flat, where it can be edited. */
+	onShapeDoubleClick?(point: { x: number; y: number }): void;
 }
+
+/** How far (px) a press may move and still be a click. */
+const TAP_SLOP = 4;
 
 export function CaptureLayer({
 	store,
@@ -158,34 +170,56 @@ export function CaptureLayer({
 	handlers: CaptureHandlers;
 }) {
 	const { active } = useMode7(store);
-	const drag = useRef<{ x: number; y: number } | null>(null);
+	// A camera drag (its last point, and whether it is still a click), or a press handed
+	// on to the canvas (its pointer), so its moves and release go there too.
+	const drag = useRef<{ x: number; y: number; sx: number; sy: number; tap: boolean } | null>(null);
+	const editing = useRef<number | null>(null);
 	if (!active) return null;
 
 	const end = (e: ReactPointerEvent) => {
+		if (editing.current === e.pointerId) {
+			editing.current = null;
+			return;
+		}
 		e.stopPropagation();
+		const d = drag.current;
 		drag.current = null;
+		if (d?.tap && e.type === "pointerup") handlers.onGroundTap?.();
 	};
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: the 3D view's pointer surface over the canvas
 		<div
-			// Full-viewport capture surface. `stopPropagation` keeps the container's
-			// tool handlers (draw/select) from firing — editing is suspended in this view.
+			// Full-viewport capture surface. A press on a shape the select tool can take goes
+			// on to the canvas (select and move it in 3D); anything else drives the camera and
+			// is kept from the tools (`stopPropagation`).
 			style={{ position: "absolute", inset: 0, cursor: "grab", touchAction: "none" }}
 			onPointerDown={(e) => {
+				if (e.button === 0 && handlers.editsAt?.(localCenter(e))) {
+					editing.current = e.pointerId;
+					return;
+				}
 				e.stopPropagation();
 				e.currentTarget.setPointerCapture?.(e.pointerId);
-				drag.current = { x: e.clientX, y: e.clientY };
+				drag.current = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, tap: true };
 			}}
 			onPointerMove={(e) => {
-				if (!drag.current) return;
+				const d = drag.current;
+				if (!d) return;
 				e.stopPropagation();
-				const dx = e.clientX - drag.current.x;
-				const dy = e.clientY - drag.current.y;
-				drag.current = { x: e.clientX, y: e.clientY };
+				const dx = e.clientX - d.x;
+				const dy = e.clientY - d.y;
+				d.x = e.clientX;
+				d.y = e.clientY;
+				if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > TAP_SLOP) d.tap = false;
 				handlers.onPan(dx, dy);
 			}}
 			onPointerUp={end}
 			onPointerCancel={end}
+			onDoubleClick={(e) => {
+				e.stopPropagation();
+				handlers.onShapeDoubleClick?.(localCenter(e));
+			}}
 			onWheel={(e) => {
 				e.stopPropagation();
 				handlers.onZoom(e.deltaY, localCenter(e));

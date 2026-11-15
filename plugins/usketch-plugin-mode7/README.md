@@ -1,7 +1,8 @@
 # @edv4h/usketch-plugin-mode7
 
 ファミコン/SNES の **Mode 7** のように、Canvas を「奥へ傾く地平面」として擬似3D視点で見る
-**ビューモード**プラグイン。実際の Shape をそのまま傾けて表示する（編集ではなく閲覧）。ON/OFF トグル、既定 OFF。
+**ビューモード**プラグイン。実際の Shape をそのまま傾けて表示する。3D のままでも選択ツールで Shape を
+選んで動かせる（文字の編集・リサイズ・回転は平面に戻ってから）。ON/OFF トグル、既定 OFF。
 
 ## 仕組み
 
@@ -16,8 +17,10 @@
   `side-panel`/`presentation-overlay` の固定UI）。**HUD の「Mode 7 レイヤー」パネルから実行時に選択できる**
   （例: Shape 層のオン/オフ）。HUD 自身やプラグインの sky/fog/capture 層は選択肢から除外され、絶対に
   傾かない（`skipLayerIds` で除外を追加可）。既定一覧は `DEFAULT_TILT_LAYER_IDS` を参照。
-- **sky / fog / capture** の3つの非傾斜オーバーレイ層を追加。capture 層が板のポインタを捕捉して
-  3D 下での編集破綻を防ぎ、ドラッグ=地上移動（viewport pan）・wheel=ズームでカメラを操作する。
+- **sky / fog / capture** の3つの非傾斜オーバーレイ層を追加。capture 層が板のポインタを受けて
+  ドラッグ=地上移動（viewport pan）・wheel=ズームでカメラを操作する。選択ツールのとき、Shape の上で
+  押すとキャンバスへ通す（キャンバスが 3D の見た目どおりに当たりを取り、選択・移動になる。
+  `view3dPickService`）。地面をクリックすると選択を外し、Shape をダブルクリックすると平面へ戻る。
 - **取り込み範囲（capture frame）**: 3Dビューが地面として映すのは「切替時のビューポート世界矩形」だけで、
   その外の Shape は初期3Dビューに出ない（本方式は遠方を描画しない＝現ビューポート分のみ。前進パンで到達は可）。
   これを可視化するため、切替 ON の瞬間にビューポート世界矩形をスナップショットし、**フラットモードで
@@ -164,7 +167,7 @@ unprojectFromGround(x, y, cam, size, z); // → { x, y } | null（地平線よ�
 
 ## スコープ外（v2 送り）
 
-3D 中の編集（perspective 逆投影して `screenToWorld` を補正）／WebGPU 真3D／
+3D 中の文字編集・リサイズ・回転・描画ツール／
 視差・霧・地平線もやの高度化／minimap の3Dプレビュー。
 
 Shape を立てて描くのは `@edv4h/usketch-plugin-shape-3d`（別プラグイン）。
