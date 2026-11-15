@@ -17,6 +17,7 @@ import {
 	getShapeBounds,
 	HANDLE_SIZE,
 } from "./resize-utils.js";
+import { useView3dShown } from "./selection-outline-3d.js";
 
 interface SelectionOverlayProps {
 	store: BoardStore;
@@ -101,8 +102,10 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 		() => store.getHoveredShapeId(),
 	);
 	const dropTargetId = useSyncExternalStore(subscribeDropTarget, getDropTargetId, getDropTargetId);
+	// In 3D the selection is outlined where each shape is drawn (selection-outline-3d).
+	const in3d = useView3dShown(store);
 
-	if (activeToolId !== "select") return null;
+	if (activeToolId !== "select" || in3d) return null;
 
 	// Drop target indicator: shown during move even when isMoving is true
 	const dropBounds = dropTargetId ? getShapeBounds(store, shapes, dropTargetId) : null;

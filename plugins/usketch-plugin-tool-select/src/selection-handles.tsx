@@ -23,6 +23,7 @@ import {
 } from "@edv4h/usketch-tool-helpers";
 import { Fragment, useCallback, useRef, useSyncExternalStore } from "react";
 import type { OverlayColorStore } from "./overlay-colors.js";
+import { useView3dShown } from "./selection-outline-3d.js";
 
 /** Stable ids of the layers this plugin registers. */
 export const SELECT_TOOL_LAYER_IDS = {
@@ -218,7 +219,10 @@ export function SelectionHandlesOverlay({
 		colors.getSnapshot,
 	);
 	useStoreVersion(store);
-	if (busy) return null;
+	// The handles lie flat on the ground, away from shapes drawn in 3D (and the tool doesn't
+	// take them there): hidden while the board is shown in 3D.
+	const in3d = useView3dShown(store);
+	if (busy || in3d) return null;
 
 	const ctx = { store, shapes };
 	const groups = collectHandles(registry, ctx, viewport);
