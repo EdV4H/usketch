@@ -3,8 +3,9 @@
 // shape. While the board is shown in 3D this screen layer outlines each selected (and
 // hovered) shape where it is drawn instead — the corners the canvas projects for it
 // (`view3dPickService.outlineOf`) — and the flat frame and handles step aside. What the
-// ground hides from the eye is drawn faint and dashed, so a selected shape behind a hill
-// can still be found without looking as if it shows through.
+// ground hides from the eye is drawn faint and dashed (so a selected shape behind a hill
+// can still be found without looking as if it shows through), or left out: the select
+// tool's `occludedOutline` option.
 import {
 	type BoardStore,
 	isView3dShown,
@@ -53,6 +54,41 @@ function useBoardVersion(store: BoardStore): number {
 	return useSyncExternalStore(subscribe, get, get);
 }
 
+/** How the part of a 3D selection outline the ground hides is drawn. */
+export type OccludedOutline = "dashed" | "hidden";
+
+/** The select tool's 3D outline settings (per setup, like the overlay colors). */
+export interface Outline3dSettings {
+	getSnapshot(): OccludedOutline;
+	subscribe(listener: () => void): () => void;
+	/** Ignores anything but `"dashed"` / `"hidden"`. */
+	set(value: OccludedOutline | undefined): void;
+}
+
+export function createOutline3dSettings(initial?: OccludedOutline): Outline3dSettings {
+	let value: OccludedOutline = "dashed";
+	const listeners = new Set<() => void>();
+	const settings: Outline3dSettings = {
+		getSnapshot: () => value,
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		set(next) {
+			if ((next !== "dashed" && next !== "hidden") || next === value) return;
+			value = next;
+			for (const l of listeners) l();
+		},
+	};
+	settings.set(initial);
+	return settings;
+}
+
+/** The runs to draw: the hidden ones dropped when they are not shown. Pure. */
+export function visibleRuns(runs: readonly OutlineRun[], occluded: OccludedOutline): OutlineRun[] {
+	return occluded === "hidden" ? runs.filter((r) => !r.hidden) : [...runs];
+}
+
 /** Outlines cut where the ground hides them, up to this many (each costs ground samples). */
 export const MAX_OCCLUSION_OUTLINES = 16;
 
@@ -73,11 +109,19 @@ export interface SelectionOutline3dProps {
 	store: BoardStore;
 	services: ServiceRegistry;
 	colors: OverlayColorStore;
+	/** How the part the ground hides is drawn. */
+	settings: Outline3dSettings;
 	/** The select tool's id (outlines show only while it is active). */
 	toolId: string;
 }
 
-export function SelectionOutline3d({ store, services, colors, toolId }: SelectionOutline3dProps) {
+export function SelectionOutline3d({
+	store,
+	services,
+	colors,
+	settings,
+	toolId,
+}: SelectionOutline3dProps) {
 	const { strokeColor } = useSyncExternalStore(
 		colors.subscribe,
 		colors.getSnapshot,
@@ -87,6 +131,11 @@ export function SelectionOutline3d({ store, services, colors, toolId }: Selectio
 		subscribeMovingSelection,
 		getMovingSelection,
 		getMovingSelection,
+	);
+	const occluded = useSyncExternalStore(
+		settings.subscribe,
+		settings.getSnapshot,
+		settings.getSnapshot,
 	);
 	useBoardVersion(store);
 	if (!isView3dShown(store) || store.getActiveToolId() !== toolId) return null;
@@ -100,7 +149,7 @@ export function SelectionOutline3d({ store, services, colors, toolId }: Selectio
 	const outlines: { id: string; runs: OutlineRun[]; hover: boolean }[] = [];
 	for (const { id, hover } of ids) {
 		const runs = occlusion ? api.outlineRunsOf?.(id) : closedRun(api.outlineOf(id));
-		if (runs) outlines.push({ id, runs, hover });
+		if (runs) outlines.push({ id, runs: visibleRuns(runs, occluded), hover });
 	}
 	if (outlines.length === 0) return null;
 	return (
