@@ -53,6 +53,7 @@ import {
 	SELECT_TOOL_LAYER_IDS,
 	SelectionHandlesOverlay,
 } from "./selection-handles.js";
+import { SELECTION_OUTLINE_3D_LAYER_ID, SelectionOutline3d } from "./selection-outline-3d.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // Hit-test helpers used to live here; they were extracted to
@@ -797,6 +798,23 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				});
 			}
 
+			// In 3D the flat frame lies on the ground at height 0: outline each selected shape
+			// where it is drawn instead, on a layer that isn't tilted.
+			ctx.layers.register({
+				id: SELECTION_OUTLINE_3D_LAYER_ID,
+				view3d: "screen",
+				order: 80,
+				fixed: true,
+				render: () => (
+					<SelectionOutline3d
+						store={ctx.store}
+						services={ctx.services}
+						colors={overlayColors}
+						toolId="select"
+					/>
+				),
+			});
+
 			// ── Selection foreground (default) ──
 			// Registered at priority 0 so any app option or third-party plugin
 			// (recommended: 50) replaces it. See guides/selection-foreground.
@@ -843,6 +861,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				cancelHandleDrag();
 				offHandleRegistry?.();
 				if (handleRegistry) ctx.layers.unregister(SELECT_TOOL_LAYER_IDS.handles);
+				ctx.layers.unregister(SELECTION_OUTLINE_3D_LAYER_ID);
 				for (const off of offShortcuts) off();
 				offConfigure();
 				discardCopies();

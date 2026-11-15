@@ -6,7 +6,9 @@ import type { Point } from "../types/geometry.js";
 import type { ShapeData } from "../types/shape.js";
 import {
 	pickView3d,
+	projectQuad3d,
 	rayQuad,
+	shapeView3dQuad,
 	view3dCamera,
 	view3dDragPoint,
 	view3dProjection,
@@ -132,5 +134,40 @@ describe("view3dDragPoint", () => {
 		expect(p?.x).toBeCloseTo(15, 3);
 		expect(p?.y).toBeCloseTo(-103, 3);
 		expect(view3dRay(s.x, s.y, view)).not.toBeNull();
+	});
+});
+
+describe("shapeView3dQuad / projectQuad3d", () => {
+	const quadView = { amount: 1, yaw: 0, viewportRotation: 0, groundAt: () => 30 };
+
+	it("lays a flat shape on the ground under its centre", () => {
+		const q = shapeView3dQuad(shape("a", 0, -200), undefined, quadView);
+		expect(q.at).toEqual([0, -200, 30]);
+		expect(q.u).toEqual([100, 0, 0]);
+		expect(q.v[1]).toBeCloseTo(80);
+		const corners = projectQuad3d(q, view);
+		const p = projectWorld(100, -120, view, 30);
+		expect(corners?.[2].x).toBeCloseTo(p?.x ?? Number.NaN, 6);
+		expect(corners?.[2].y).toBeCloseTo(p?.y ?? Number.NaN, 6);
+	});
+
+	it("takes a 3D shape's drawn face (a box's top, a sign standing up)", () => {
+		const box = normalizeShapeView3d({ mode: "box", height: 50 }) as ShapeView3d;
+		expect(shapeView3dQuad(shape("b", 0, -200), box, quadView).at[2]).toBeCloseTo(
+			box.ground ? 80 : 50,
+		);
+		const q = shapeView3dQuad(shape("c", 0, -200), stand, quadView);
+		const face = shapeView3dFaces(shape("c", 0, -200), stand, {
+			...quadView,
+			groundHeight: stand.ground ? 30 : 0,
+			pad: 0,
+		}).picture;
+		expect(q).toEqual(face);
+	});
+
+	it("gives no outline for a corner behind the eye", () => {
+		const eye = cameraEye(view);
+		const q = shapeView3dQuad(shape("d", eye.x - 50, eye.y + 100), undefined, quadView);
+		expect(projectQuad3d(q, view)).toBeNull();
 	});
 });
