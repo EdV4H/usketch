@@ -1,0 +1,234 @@
+// What is under the pointer in a 3D view of the board: a 3D shape's face (nearest the
+// eye), a flat shape lying on its ground, or the ground itself. Every 3D renderer draws
+// shapes where `shapeView3dFaces` puts them, so one pick serves them all. Pure.
+import {
+	cameraEye,
+	isOccluded,
+	type ProjectionCamera,
+	type StageSize,
+	unprojectOnGround,
+	unprojectWorld,
+	type View3dProjection,
+} from "./projection-3d.js";
+import { defineService } from "./service.js";
+import type { ShapeView3d } from "./shape-view-3d.js";
+import {
+	flatShapeView3dHeight,
+	type Quad3d,
+	shapeView3dFaces,
+	type Vec3,
+} from "./shape-view-3d-faces.js";
+import type { Point, Viewport } from "./types/geometry.js";
+import type { ShapeData } from "./types/shape.js";
+import { safeRotation } from "./utils/rotation.js";
+import type { View3dState } from "./view-3d-state.js";
+
+/** The camera a 3D view state is drawn with, as the projection functions take it. Pure. */
+export function view3dCamera(state: View3dState, zoom: number): ProjectionCamera {
+	const a = Math.min(1, Math.max(0, Number.isFinite(state.amount) ? state.amount : 0));
+	const { pitch, fov, horizon, height } = state.camera;
+	const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+	return { pitch: pitch * a, yaw: 0, fov, horizon, heightPx: height * z * a };
+}
+
+/** The projection of a 3D view state on a stage. Pure. */
+export function view3dProjection(
+	state: View3dState,
+	viewport: Viewport,
+	stage: StageSize,
+): View3dProjection {
+	return { viewport, camera: view3dCamera(state, viewport.zoom), stage };
+}
+
+/** What a pick found. */
+export interface View3dPick {
+	/** A world point on the board: inside the picked shape's own box, or on the ground. */
+	point: Point;
+	/** The height (world units) of what was hit there. */
+	height: number;
+	/** The shape under the pointer, or `null` for the ground. */
+	shapeId: string | null;
+}
+
+export interface View3dPickInput {
+	/** Stage px. */
+	x: number;
+	y: number;
+	view: View3dProjection;
+	/** The shapes drawn, in z-order (bottom first). */
+	shapes: readonly ShapeData[];
+	/** The shapes drawn in 3D now, with their parameters (none: all lie flat). */
+	view3d?: ReadonlyMap<string, ShapeView3d>;
+	/** How far into 3D the view is (0 … 1). Default 1. */
+	amount?: number;
+	/** The camera's full yaw (deg), for shapes facing the camera. Default 0. */
+	yaw?: number;
+	/** Whether a world point is on a (flat) shape, as its type tests it. */
+	hitTest(shape: ShapeData, point: Point): boolean;
+	/** The ground's height (world units). Default: flat. */
+	groundAt?: (x: number, y: number) => number;
+	/** The ground's highest point to look for (world units). Default 1000. */
+	maxGround?: number;
+}
+
+const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a: Vec3, b: Vec3): Vec3 => [
+	a[1] * b[2] - a[2] * b[1],
+	a[2] * b[0] - a[0] * b[2],
+	a[0] * b[1] - a[1] * b[0],
+];
+
+/**
+ * The view ray through a stage point: the eye and a direction (world units, height up).
+ * `null` when the point shows nothing (the stage edge of a degenerate view). Pure.
+ */
+export function view3dRay(
+	x: number,
+	y: number,
+	view: View3dProjection,
+): { eye: Vec3; dir: Vec3 } | null {
+	const e = cameraEye(view);
+	const eye: Vec3 = [e.x, e.y, e.height];
+	for (const h of [0, e.height * 2 + 100, -1000]) {
+		const p = unprojectWorld(x, y, view, h);
+		if (!p) continue;
+		const dir = sub([p.x, p.y, h], eye);
+		if (Math.hypot(dir[0], dir[1], dir[2]) > 1e-9) return { eye, dir };
+	}
+	return null;
+}
+
+/**
+ * Where a ray meets a quad: the distance along the ray (in ray lengths) and the quad's
+ * own coordinates (0 … 1 across `u` and `v`), or `null` when it misses. Pure.
+ */
+export function rayQuad(
+	ray: { eye: Vec3; dir: Vec3 },
+	q: Quad3d,
+): { t: number; s: number; r: number } | null {
+	const n = cross(q.u, q.v);
+	const denom = dot(n, ray.dir);
+	if (Math.abs(denom) < 1e-12) return null;
+	const t = dot(n, sub(q.at, ray.eye)) / denom;
+	if (!(t > 0)) return null;
+	const hit: Vec3 = [
+		ray.eye[0] + ray.dir[0] * t,
+		ray.eye[1] + ray.dir[1] * t,
+		ray.eye[2] + ray.dir[2] * t,
+	];
+	const d = sub(hit, q.at);
+	const uu = dot(q.u, q.u);
+	const vv = dot(q.v, q.v);
+	if (!(uu > 0) || !(vv > 0)) return null;
+	const s = dot(d, q.u) / uu;
+	const r = dot(d, q.v) / vv;
+	if (s < 0 || s > 1 || r < 0 || r > 1) return null;
+	return { t, s, r };
+}
+
+/** A point of a shape's own box (`s`, `r` across its width and height), in the world. */
+function boxPoint(shape: ShapeData, s: number, r: number): Point {
+	const cx = shape.x + shape.width / 2;
+	const cy = shape.y + shape.height / 2;
+	const lx = (s - 0.5) * shape.width;
+	const ly = (r - 0.5) * shape.height;
+	const rad = (safeRotation(shape.rotation) * Math.PI) / 180;
+	const c = Math.cos(rad);
+	const n = Math.sin(rad);
+	return { x: cx + lx * c - ly * n, y: cy + lx * n + ly * c };
+}
+
+/**
+ * What is under a stage point in a 3D view: the nearest face of a shape standing in 3D
+ * (not hidden by the ground), else the topmost flat shape (each on the ground under its
+ * centre, as drawn), else the ground. A face maps back to the point of the shape's own
+ * box it shows, so the shape's ordinary hit test finds it there. `null` for the sky. Pure.
+ */
+export function pickView3d(input: View3dPickInput): View3dPick | null {
+	const { x, y, view, shapes } = input;
+	const groundAt = input.groundAt ?? (() => 0);
+	const amount = input.amount ?? 1;
+	const ray = view3dRay(x, y, view);
+	const rotation = view.viewport.rotation ?? 0;
+	let best: { t: number; pick: View3dPick } | null = null;
+	const flat: ShapeData[] = [];
+	for (const shape of shapes) {
+		if (shape.hidden) continue;
+		const params = input.view3d?.get(shape.id);
+		if (!params) {
+			flat.push(shape);
+			continue;
+		}
+		const at = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+		const faces = shapeView3dFaces(shape, params, {
+			amount,
+			yaw: input.yaw ?? 0,
+			viewportRotation: rotation,
+			groundHeight: params.ground ? groundAt(at.x, at.y) : 0,
+			pad: 0,
+		});
+		if (faces.flat) {
+			flat.push(shape);
+			continue;
+		}
+		if (!ray) continue;
+		const hit = rayQuad(ray, faces.picture);
+		const candidates: { t: number; point: Point }[] = [];
+		if (hit) candidates.push({ t: hit.t, point: boxPoint(shape, hit.s, hit.r) });
+		for (const wall of faces.walls) {
+			const w = rayQuad(ray, wall.quad);
+			// A wall shows the side of the box: it stands for the whole shape.
+			if (w) candidates.push({ t: w.t, point: boxPoint(shape, 0.5, 0.5) });
+		}
+		for (const c of candidates) {
+			if (best && c.t >= best.t) continue;
+			const p: Vec3 = [
+				ray.eye[0] + ray.dir[0] * c.t,
+				ray.eye[1] + ray.dir[1] * c.t,
+				ray.eye[2] + ray.dir[2] * c.t,
+			];
+			if (isOccluded({ x: p[0], y: p[1], height: p[2] }, view, groundAt)) continue;
+			best = { t: c.t, pick: { point: c.point, height: p[2], shapeId: shape.id } };
+		}
+	}
+	if (best) return best.pick;
+	for (let i = flat.length - 1; i >= 0; i--) {
+		const shape = flat[i];
+		const h = flatShapeView3dHeight(shape, groundAt);
+		const p = unprojectWorld(x, y, view, h);
+		if (p && input.hitTest(shape, p)) return { point: p, height: h, shapeId: shape.id };
+	}
+	const g = unprojectOnGround(x, y, view, groundAt, {
+		maxHeight: input.groundAt ? (input.maxGround ?? 1000) : 0,
+		minHeight: 0,
+	});
+	return g ? { point: { x: g.x, y: g.y }, height: g.height, shapeId: null } : null;
+}
+
+/**
+ * Follows a drag in a 3D view: the pointer's world point at the height it went down at,
+ * kept at the same offset from the point first picked (so a stood-up shape picked by its
+ * face moves with the ground under the pointer, without a jump). Pure.
+ */
+export function view3dDragPoint(
+	x: number,
+	y: number,
+	view: View3dProjection,
+	start: { height: number; offset: Point },
+): Point | null {
+	const p = unprojectWorld(x, y, view, start.height);
+	return p ? { x: p.x + start.offset.x, y: p.y + start.offset.y } : null;
+}
+
+/** What is under a point of the board's stage in its 3D view, as the canvas sees it. */
+export interface View3dPickApi {
+	/**
+	 * What is under a stage point (px from the canvas's top-left) while the board is shown
+	 * in 3D, or `null` when it is flat or the point shows only sky.
+	 */
+	pickAt(screen: Point): View3dPick | null;
+}
+
+/** The canvas's 3D pick (provided while a canvas is mounted). */
+export const view3dPickService = defineService<View3dPickApi>("usketch:view-3d-pick");
