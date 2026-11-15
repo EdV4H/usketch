@@ -277,6 +277,12 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				const stage = { width: el.clientWidth, height: el.clientHeight };
 				return pointer3d.outlineRuns(shapeId, stage, renderModeRef.current);
 			},
+			facesInView: () => {
+				const el = containerRef.current;
+				if (!el) return [];
+				const stage = { width: el.clientWidth, height: el.clientHeight };
+				return pointer3d.facesInView(stage, renderModeRef.current);
+			},
 		});
 	}, [app.services, pointer3d]);
 	const map3d = useCallback(

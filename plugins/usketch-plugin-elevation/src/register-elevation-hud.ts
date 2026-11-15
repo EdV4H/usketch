@@ -33,6 +33,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 			fields: [
 				{ name: "tint", label: "高さで色分け", type: "boolean" },
 				{ name: "shade", label: "陰影", type: "boolean" },
+				{ name: "coverShapes", label: "3D で丘の陰の Shape を隠す", type: "boolean" },
 				{
 					name: "contour",
 					label: "等高線の間隔（0 で なし）",
@@ -47,7 +48,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 				if (name === "contour") {
 					const n = Number(value);
 					api.display.set({ contour: Number.isFinite(n) ? Math.min(512, Math.max(0, n)) : 0 });
-				} else if (name === "tint" || name === "shade") {
+				} else if (name === "tint" || name === "shade" || name === "coverShapes") {
 					api.display.set({ [name]: value === true || value === "true" });
 				}
 			},

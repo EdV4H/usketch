@@ -14,6 +14,7 @@ import {
 	view3dDragPoint,
 	view3dProjection,
 	view3dRay,
+	view3dShapeFacesIn,
 } from "../view-3d-pick.js";
 import { FLAT_VIEW_3D } from "../view-3d-state.js";
 
@@ -200,5 +201,51 @@ describe("quadOutlineRuns", () => {
 		const hiddenYs = runs.filter((r) => r.hidden).flatMap((r) => r.points.map((p) => p.y));
 		expect(Math.min(...hiddenYs)).toBeCloseTo(far?.y ?? Number.NaN, 0);
 		expect(Math.max(...hiddenYs)).toBeLessThan(near?.y ?? Number.NaN);
+	});
+});
+
+describe("view3dShapeFacesIn", () => {
+	const bounds = { x: -500, y: -500, width: 1000, height: 1000 };
+	const base = {
+		amount: 1,
+		yaw: 0,
+		viewportRotation: 0,
+		bounds,
+		groundAt: () => 50,
+	};
+	const sticky = (id: string, x: number, extra: Partial<ShapeData> = {}) =>
+		({ id, type: "sticky", x, y: 0, width: 100, height: 60, ...extra }) as ShapeData;
+
+	it("lays a shape without a 3D look flat at height 0, and skips hidden or far ones", () => {
+		const faces = view3dShapeFacesIn({
+			...base,
+			shapes: [sticky("a", 0), sticky("hidden", 0, { hidden: true }), sticky("far", 4000)],
+			view3d: new Map(),
+		});
+		expect(faces.map((f) => f.shapeId)).toEqual(["a"]);
+		expect(faces[0]?.quads).toHaveLength(1);
+		const q = faces[0]?.quads[0];
+		expect(q?.at[2]).toBe(0);
+		expect(q?.u[0]).toBeCloseTo(100, 9);
+		expect(q?.v[1]).toBeCloseTo(60, 9);
+	});
+
+	it("places a shape with a 3D look where its faces are drawn, with a box's walls", () => {
+		const params = normalizeShapeView3d({ mode: "box", height: 40, ground: true }) as ShapeView3d;
+		const shape = sticky("b", 0);
+		const faces = view3dShapeFacesIn({
+			...base,
+			shapes: [shape],
+			view3d: new Map([["b", params]]),
+		});
+		const expected = shapeView3dFaces(shape, params, {
+			amount: 1,
+			yaw: 0,
+			viewportRotation: 0,
+			groundHeight: 50,
+			pad: 0,
+		});
+		expect(faces[0]?.quads).toEqual([expected.picture, ...expected.walls.map((w) => w.quad)]);
+		expect(faces[0]?.quads.length).toBeGreaterThan(1);
 	});
 });

@@ -29,10 +29,12 @@ import {
 	unprojectWorld,
 	type View3dPick,
 	type View3dProjection,
+	type View3dShapeFaces,
 	view3dCellOf,
 	view3dDragPoint,
 	view3dOverscanPx,
 	view3dProjection,
+	view3dShapeFacesIn,
 	view3dShapeSourceService,
 } from "@edv4h/usketch-shared";
 
@@ -58,6 +60,8 @@ export interface View3dPointer {
 	outline(shapeId: string, stage: StageSize, renderMode: RenderMode): Point[] | null;
 	/** The same outline, cut where the ground hides it from the eye, or `null`. */
 	outlineRuns(shapeId: string, stage: StageSize, renderMode: RenderMode): OutlineRun[] | null;
+	/** The faces of the shapes drawn in the 3D view now (in view + overscan); `[]` when flat. */
+	facesInView(stage: StageSize, renderMode: RenderMode): View3dShapeFaces[];
 	dispose(): void;
 }
 
@@ -193,6 +197,29 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 		outlineRuns(shapeId, stage, renderMode) {
 			const drawn = drawnQuad(shapeId, stage, renderMode);
 			return drawn ? quadOutlineRuns(drawn.quad, drawn.view, groundAt) : null;
+		},
+		facesInView(stage, renderMode) {
+			const now = viewNow(stage);
+			if (!now) return [];
+			const { viewport } = now.view;
+			const view3d = shapesIn3d(now.view, now.amount, renderMode);
+			const b = screenRectToWorldBounds(stage.width, stage.height, viewport);
+			const overscan = cell ? view3dOverscanPx(cell.get(), viewport.zoom, stage.height) : 0;
+			const pad = viewport.zoom > 0 && overscan > 0 ? overscan / viewport.zoom : 0;
+			return view3dShapeFacesIn({
+				shapes: deps.store.getShapesSorted(),
+				view3d,
+				amount: now.amount,
+				yaw: view3d.size > 0 ? yawNow() : 0,
+				viewportRotation: viewport.rotation ?? 0,
+				bounds: {
+					x: b.x - pad,
+					y: b.y - pad,
+					width: b.width + 2 * pad,
+					height: b.height + 2 * pad,
+				},
+				groundAt,
+			});
 		},
 		dispose() {
 			tracker?.dispose();

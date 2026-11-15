@@ -5,20 +5,26 @@
 // meanwhile the flat ground layer is hidden. Without WebGL2 nothing is drawn here and
 // the flat layer stays (its shading tilted with the board, as before).
 //
-// The canvas is one layer: DOM layers above it (shapes, characters) are always drawn
-// in front of the hills, even behind one.
+// The canvas is one layer: DOM layers above it (shapes, characters) are drawn in front
+// of the hills, even behind one. So that a hill hides the shapes behind it, a second,
+// "cover" canvas over the shapes gets the hills again — only where the ground is nearer
+// the eye than every shape drawn there (the shapes' faces, from the canvas's 3D pick,
+// are drawn into the depth and stencil buffers first). Everywhere else it is clear.
 import {
 	type BoardStore,
+	cameraEye,
 	type GroundDecalApi,
+	type Quad3d,
 	type View3dApi,
 	type View3dGlApi,
 	type View3dGlDrawable,
 	type View3dProjection,
+	type View3dShapeFaces,
 	type Viewport,
 	view3dOverscanPx,
 	viewMatrix,
 } from "@edv4h/usketch-shared";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	DECAL_MARGIN,
 	decalLookupArea,
@@ -50,6 +56,141 @@ export const MESH_LAYER_ID = "usketch-elevation:mesh";
 /** Whether the mesh is drawing the ground now (the flat layer hides meanwhile). */
 export interface MeshState {
 	drawing: boolean;
+}
+
+/** The layer with the cover canvas: the hills drawn again over the shapes they hide. */
+export const COVER_LAYER_ID = "usketch-elevation:cover";
+
+/** The cover canvas, while its layer is mounted. */
+export interface CoverTarget {
+	canvas: HTMLCanvasElement | null;
+}
+
+/** What the mesh needs to cover the shapes the hills hide. */
+export interface MeshCover {
+	target: ReactiveStore<CoverTarget>;
+	/** The shapes' faces drawn in the 3D view now (the canvas's 3D pick). */
+	faces: () => readonly View3dShapeFaces[];
+}
+
+/**
+ * How much nearer the eye (px of depth) the ground must be than a shape to cover it: a
+ * shape lying on the ground isn't swallowed by the ground just around it.
+ */
+export const COVER_DEPTH_BIAS = 6;
+
+/** Most ground samples along a side of a lying face, to find how high the ground rises under it. */
+const MAX_LIFT_SAMPLES = 17;
+
+/**
+ * How far the ground rises above a face lying flat (both its sides level), world units:
+ * the highest of a grid of samples over it, above the face. `0` for a face that isn't
+ * level. A lying shape is judged as if that much higher, so the slope it lies on doesn't
+ * swallow it — only a hill between it and the eye covers it. Pure.
+ */
+export function coverLift(
+	q: Quad3d,
+	groundAt: (x: number, y: number) => number,
+	/** World units between samples (the terrain's spacing); more past {@link MAX_LIFT_SAMPLES}. */
+	step = 32,
+): number {
+	if (Math.abs(q.u[2]) > 1e-6 || Math.abs(q.v[2]) > 1e-6) return 0;
+	const count = (len: number) =>
+		Math.min(MAX_LIFT_SAMPLES, Math.max(2, Math.ceil(len / Math.max(1, step)) + 1));
+	const nu = count(Math.hypot(q.u[0], q.u[1]));
+	const nv = count(Math.hypot(q.v[0], q.v[1]));
+	let top = Number.NEGATIVE_INFINITY;
+	for (let i = 0; i < nu; i++) {
+		for (let j = 0; j < nv; j++) {
+			const a = i / (nu - 1);
+			const b = j / (nv - 1);
+			const h = groundAt(q.at[0] + q.u[0] * a + q.v[0] * b, q.at[1] + q.u[1] * a + q.v[1] * b);
+			if (Number.isFinite(h) && h > top) top = h;
+		}
+	}
+	return Number.isFinite(top) ? Math.max(0, top - q.at[2]) : 0;
+}
+
+/** Floats per cover vertex: where it is drawn (x, y, height), then where its depth is taken. */
+export const COVER_VERTEX_FLOATS = 6;
+/** Largest cell a face is cut into (world units), and most cells along a side. */
+const COVER_CELL = 32;
+const MAX_COVER_CELLS = 16;
+
+/**
+ * The triangles of the shapes' faces, 6 vertices per cell of a quad, each {@link COVER_VERTEX_FLOATS}
+ * floats: where it is drawn — x, y relative to `origin`, height — then the point its
+ * depth is taken at: the same, or for a lying face with {@link coverLift} above 0 the
+ * point toward `eye` on its line of sight that is that much higher (drawn on the same
+ * pixel, so the ground just around the face isn't nearer than it). Pure.
+ */
+export function coverVertices(
+	faces: readonly View3dShapeFaces[],
+	origin: { x: number; y: number },
+	ground?: {
+		/** A lying face's {@link coverLift}. */
+		liftOf: (q: Quad3d) => number;
+		/** The view's eye (`cameraEye`). */
+		eye: { x: number; y: number; height: number };
+	},
+	/**
+	 * Largest cell, world units: a face is cut into cells so its depth (linear in depth,
+	 * as the mesh's) is right across it, not only at its corners.
+	 */
+	cell = COVER_CELL,
+): Float32Array {
+	const cells = (q: Quad3d) => {
+		const n = (v: readonly number[]) =>
+			Math.min(MAX_COVER_CELLS, Math.max(1, Math.ceil(Math.hypot(v[0], v[1], v[2]) / cell)));
+		return { nu: n(q.u), nv: n(q.v) };
+	};
+	let n = 0;
+	for (const f of faces) {
+		for (const q of f.quads) {
+			const { nu, nv } = cells(q);
+			n += nu * nv;
+		}
+	}
+	const out = new Float32Array(n * 6 * COVER_VERTEX_FLOATS);
+	let i = 0;
+	for (const f of faces) {
+		for (const q of f.quads) {
+			const lift = ground ? ground.liftOf(q) : 0;
+			const corner = (a: number, b: number) => {
+				const x = q.at[0] + q.u[0] * a + q.v[0] * b;
+				const y = q.at[1] + q.u[1] * a + q.v[1] * b;
+				const z = q.at[2] + q.u[2] * a + q.v[2] * b;
+				out[i++] = x - origin.x;
+				out[i++] = y - origin.y;
+				out[i++] = z;
+				let t = 0;
+				if (ground && lift > 0) {
+					const rise = ground.eye.height - z;
+					t = rise > 0 ? Math.min(0.99, lift / rise) : 0;
+				}
+				const e = ground?.eye;
+				out[i++] = (e ? x + (e.x - x) * t : x) - origin.x;
+				out[i++] = (e ? y + (e.y - y) * t : y) - origin.y;
+				out[i++] = e ? z + (e.height - z) * t : z;
+			};
+			const { nu, nv } = cells(q);
+			for (let a = 0; a < nu; a++) {
+				for (let b = 0; b < nv; b++) {
+					const a0 = a / nu;
+					const a1 = (a + 1) / nu;
+					const b0 = b / nv;
+					const b1 = (b + 1) / nv;
+					corner(a0, b0);
+					corner(a1, b0);
+					corner(a1, b1);
+					corner(a0, b0);
+					corner(a1, b1);
+					corner(a0, b1);
+				}
+			}
+		}
+	}
+	return out;
 }
 
 /** Depth range in px: depth values are scaled by 1 / this into the depth buffer. */
@@ -113,6 +254,24 @@ void main() {
 	}
 	outColor = vec4(rgb, a);
 }`;
+const COVER_VERTEX = `#version 300 es
+in vec3 aPos;      // x, y relative to the view's origin, height
+in vec3 aDepthPos; // the point its depth is taken at (see coverVertices)
+uniform mat4 uView;
+uniform float uBias;
+void main() {
+	vec4 p = uView * vec4(aPos, 1.0);
+	float depth = -(uView * vec4(aDepthPos, 1.0)).z - uBias;
+	gl_Position = vec4(p.x, p.y, clamp(depth / ${DEPTH_RANGE.toFixed(1)}, -1.0, 1.0) * p.w, p.w);
+}`;
+
+const COVER_FRAGMENT = `#version 300 es
+precision mediump float;
+out vec4 outColor;
+void main() {
+	outColor = vec4(0.0);
+}`;
+
 interface TileMesh {
 	revision: string;
 	buffer: WebGLBuffer;
@@ -162,6 +321,35 @@ function meanHeight(vertices: Float32Array, water: number | null): number {
 	return n > 0 ? sum / n : 0;
 }
 
+/** A linked program of two shader sources, its attributes at 0, 1, … Throws on failure. */
+function linkProgram(
+	gl: WebGL2RenderingContext,
+	vertex: string,
+	fragment: string,
+	attributes: readonly string[],
+): WebGLProgram {
+	const shader = (type: number, src: string) => {
+		const s = gl.createShader(type);
+		if (!s) throw new Error("shader");
+		gl.shaderSource(s, src);
+		gl.compileShader(s);
+		if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? "");
+		return s;
+	};
+	const program = gl.createProgram();
+	if (!program) throw new Error("program");
+	gl.attachShader(program, shader(gl.VERTEX_SHADER, vertex));
+	gl.attachShader(program, shader(gl.FRAGMENT_SHADER, fragment));
+	attributes.forEach((name, i) => {
+		gl.bindAttribLocation(program, i, name);
+	});
+	gl.linkProgram(program);
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		throw new Error(gl.getProgramInfoLog(program) ?? "");
+	}
+	return program;
+}
+
 /** Owns the GL objects of one canvas. */
 class MeshRenderer {
 	private readonly gl: WebGL2RenderingContext;
@@ -176,9 +364,26 @@ class MeshRenderer {
 	private scratch: HTMLCanvasElement | null = null;
 	private frame = 0;
 	private readonly u: Record<string, WebGLUniformLocation | null> = {};
+	/** The faces' program and buffer (built on first cover). */
+	private cover: {
+		program: WebGLProgram;
+		vao: WebGLVertexArrayObject;
+		buffer: WebGLBuffer;
+		uView: WebGLUniformLocation | null;
+		uBias: WebGLUniformLocation | null;
+	} | null = null;
+	/** The cover canvas holds a picture (cleared once nothing is covered). */
+	private covered = false;
+	/** Lying faces' lifts, for the terrain they were found on (shapes seldom move). */
+	private lifts: { sampler: unknown; values: Map<string, number> } | null = null;
 
 	static create(canvas: HTMLCanvasElement): MeshRenderer | null {
-		const gl = canvas.getContext("webgl2", { antialias: true, premultipliedAlpha: true });
+		const gl = canvas.getContext("webgl2", {
+			antialias: true,
+			premultipliedAlpha: true,
+			// The shapes' faces mark where the cover may draw.
+			stencil: true,
+		});
 		if (!gl) return null;
 		return MeshRenderer.fromGl(gl);
 	}
@@ -194,25 +399,7 @@ class MeshRenderer {
 
 	private constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
-		const shader = (type: number, src: string) => {
-			const s = gl.createShader(type);
-			if (!s) throw new Error("shader");
-			gl.shaderSource(s, src);
-			gl.compileShader(s);
-			if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-				throw new Error(gl.getShaderInfoLog(s) ?? "");
-			return s;
-		};
-		const program = gl.createProgram();
-		if (!program) throw new Error("program");
-		gl.attachShader(program, shader(gl.VERTEX_SHADER, VERTEX));
-		gl.attachShader(program, shader(gl.FRAGMENT_SHADER, FRAGMENT));
-		gl.bindAttribLocation(program, 0, "aVertex");
-		gl.linkProgram(program);
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-			throw new Error(gl.getProgramInfoLog(program) ?? "");
-		}
-		this.program = program;
+		this.program = linkProgram(gl, VERTEX, FRAGMENT, ["aVertex"]);
 		for (const name of [
 			"uView",
 			"uWater",
@@ -226,7 +413,7 @@ class MeshRenderer {
 			"uDecalOn",
 			"uDecalMap",
 		]) {
-			this.u[name] = gl.getUniformLocation(program, name);
+			this.u[name] = gl.getUniformLocation(this.program, name);
 		}
 		const vao = gl.createVertexArray();
 		const ib = gl.createBuffer();
@@ -256,6 +443,11 @@ class MeshRenderer {
 		decals?: GroundDecalApi;
 		/** Drawing into someone else's frame: leave its canvas size, viewport and buffers. */
 		external?: boolean;
+		/**
+		 * Draw the hills that hide these shapes' faces into `canvas` first (see the file
+		 * comment). Only on our own canvas (not `external`).
+		 */
+		cover?: { canvas: HTMLCanvasElement; faces: readonly View3dShapeFaces[] };
 	}): boolean {
 		let pending = false;
 		const { gl, u } = this;
@@ -276,7 +468,10 @@ class MeshRenderer {
 		}
 		const rect = visibleWorldRect(opts.store, opts.overscanPx);
 		const plan = rect ? planTiles(field, rect, vp.zoom) : null;
-		if (!plan) return false;
+		if (!plan) {
+			if (opts.cover) this.clearCover(opts.cover.canvas);
+			return false;
+		}
 
 		this.frame++;
 		// biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook
@@ -332,61 +527,96 @@ class MeshRenderer {
 		const sampler = elevationSampler(model);
 		const fk = `${field.id}|${field.spacing}|${n}|${field.seed}|${field.waterLevel}|${field.gen.relief}|${field.gen.scale}|${field.gen.roughness}|${field.gen.ridges}|${field.gen.octaves}`;
 		const count = n * n * 6;
-		for (let ty = plan.ty0; ty <= plan.ty1; ty++) {
-			for (let tx = plan.tx0; tx <= plan.tx1; tx++) {
-				const key = `${plan.level}:${chunkKey(tx, ty)}`;
-				const revision = `${fk}#${tileRevision(model, plan.level, tx, ty)}`;
-				let tile = this.tiles.get(key);
-				if (!tile || tile.revision !== revision) {
-					const buffer = tile?.buffer ?? gl.createBuffer();
-					if (!buffer) continue;
-					gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-					const vertices = buildTileMesh(sampler, plan.level, tx, ty);
-					gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-					tile = {
-						revision,
-						buffer,
-						used: this.frame,
-						meanHeight: meanHeight(vertices, field.waterLevel),
-					};
-					this.tiles.set(key, tile);
+		const drawTiles = (): void => {
+			for (let ty = plan.ty0; ty <= plan.ty1; ty++) {
+				for (let tx = plan.tx0; tx <= plan.tx1; tx++) {
+					const key = `${plan.level}:${chunkKey(tx, ty)}`;
+					const revision = `${fk}#${tileRevision(model, plan.level, tx, ty)}`;
+					let tile = this.tiles.get(key);
+					if (!tile || tile.revision !== revision) {
+						const buffer = tile?.buffer ?? gl.createBuffer();
+						if (!buffer) continue;
+						gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+						const vertices = buildTileMesh(sampler, plan.level, tx, ty);
+						gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+						tile = {
+							revision,
+							buffer,
+							used: this.frame,
+							meanHeight: meanHeight(vertices, field.waterLevel),
+						};
+						this.tiles.set(key, tile);
+					}
+					tile.used = this.frame;
+					gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer);
+					gl.enableVertexAttribArray(0);
+					gl.vertexAttribPointer(0, VERTEX_FLOATS, gl.FLOAT, false, VERTEX_FLOATS * 4, 0);
+					gl.uniformMatrix4fv(
+						u.uView,
+						false,
+						viewMatrix(view, { x: tx * plan.worldSize, y: ty * plan.worldSize }),
+					);
+					const decal = decals
+						? this.decalFor(decals, key, tx, ty, plan.worldSize, {
+								vp,
+								camera,
+								width,
+								height,
+								dpr: opts.dpr,
+								z: tile.meanHeight,
+								canPaint,
+								painted: (cost) => {
+									texels += cost;
+								},
+							})
+						: null;
+					if (decal?.pending) pending = true;
+					if (decal?.texture) {
+						const map = decalTexMapping(plan.worldSize, decal.texture.px);
+						gl.activeTexture(gl.TEXTURE1);
+						gl.bindTexture(gl.TEXTURE_2D, decal.texture.texture);
+						gl.uniform1f(u.uDecalOn, 1);
+						gl.uniform2f(u.uDecalMap, map.scale, map.offset);
+					} else {
+						gl.uniform1f(u.uDecalOn, 0);
+					}
+					gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
 				}
-				tile.used = this.frame;
-				gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer);
-				gl.enableVertexAttribArray(0);
-				gl.vertexAttribPointer(0, VERTEX_FLOATS, gl.FLOAT, false, VERTEX_FLOATS * 4, 0);
-				gl.uniformMatrix4fv(
-					u.uView,
-					false,
-					viewMatrix(view, { x: tx * plan.worldSize, y: ty * plan.worldSize }),
-				);
-				const decal = decals
-					? this.decalFor(decals, key, tx, ty, plan.worldSize, {
-							vp,
-							camera,
-							width,
-							height,
-							dpr: opts.dpr,
-							z: tile.meanHeight,
-							canPaint,
-							painted: (cost) => {
-								texels += cost;
-							},
-						})
-					: null;
-				if (decal?.pending) pending = true;
-				if (decal?.texture) {
-					const map = decalTexMapping(plan.worldSize, decal.texture.px);
-					gl.activeTexture(gl.TEXTURE1);
-					gl.bindTexture(gl.TEXTURE_2D, decal.texture.texture);
-					gl.uniform1f(u.uDecalOn, 1);
-					gl.uniform2f(u.uDecalMap, map.scale, map.offset);
-				} else {
-					gl.uniform1f(u.uDecalOn, 0);
-				}
-				gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
+			}
+		};
+
+		if (opts.cover && !opts.external) {
+			const { canvas: target, faces } = opts.cover;
+			// The ground as drawn: water at its level.
+			const water = field.waterLevel;
+			const groundAt = (x: number, y: number): number => {
+				const h = sampler.heightAt(x, y);
+				return water !== null && h < water ? water : h;
+			};
+			if (
+				faces.length > 0 &&
+				this.drawCoverMask(faces, view, this.liftFor(sampler, groundAt, field.spacing))
+			) {
+				// The hills, only where the faces were and only nearer than them.
+				// biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook
+				gl.useProgram(this.program);
+				gl.bindVertexArray(this.vao);
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+				gl.enable(gl.STENCIL_TEST);
+				gl.stencilFunc(gl.EQUAL, 1, 0xff);
+				gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+				gl.depthFunc(gl.LESS);
+				gl.enable(gl.BLEND);
+				drawTiles();
+				gl.disable(gl.STENCIL_TEST);
+				gl.depthFunc(gl.LEQUAL);
+				this.copyCover(target);
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+			} else {
+				this.clearCover(target);
 			}
 		}
+		drawTiles();
 		// Drop the meshes of tiles no longer drawn (a few frames' grace for panning back).
 		for (const [key, tile] of this.tiles) {
 			if (this.frame - tile.used > 120) {
@@ -397,6 +627,107 @@ class MeshRenderer {
 		this.dropDecalTextures();
 		gl.activeTexture(gl.TEXTURE0);
 		return pending;
+	}
+
+	/**
+	 * The shapes' faces into the depth and stencil buffers (no colour): clears the frame,
+	 * then marks each pixel a face covers with its nearest depth (nudged toward the eye by
+	 * {@link COVER_DEPTH_BIAS}). `false` when the faces program can't be built.
+	 */
+	private drawCoverMask(
+		faces: readonly View3dShapeFaces[],
+		view: View3dProjection,
+		liftOf: (q: Quad3d) => number,
+	): boolean {
+		const { gl } = this;
+		if (!this.cover) {
+			try {
+				const program = linkProgram(gl, COVER_VERTEX, COVER_FRAGMENT, ["aPos", "aDepthPos"]);
+				const vao = gl.createVertexArray();
+				const buffer = gl.createBuffer();
+				if (!vao || !buffer) return false;
+				this.cover = {
+					program,
+					vao,
+					buffer,
+					uView: gl.getUniformLocation(program, "uView"),
+					uBias: gl.getUniformLocation(program, "uBias"),
+				};
+			} catch {
+				return false;
+			}
+		}
+		const c = this.cover;
+		const first = faces.find((f) => f.quads.length > 0)?.quads[0];
+		if (!first) return false;
+		const origin = { x: first.at[0], y: first.at[1] };
+		const vertices = coverVertices(faces, origin, { liftOf, eye: cameraEye(view) });
+		gl.clearStencil(0);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+		// biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook
+		gl.useProgram(c.program);
+		gl.bindVertexArray(c.vao);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.buffer);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+		const stride = COVER_VERTEX_FLOATS * 4;
+		gl.enableVertexAttribArray(0);
+		gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
+		gl.enableVertexAttribArray(1);
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);
+		gl.uniformMatrix4fv(c.uView, false, viewMatrix(view, origin));
+		gl.uniform1f(c.uBias, COVER_DEPTH_BIAS);
+		gl.disable(gl.BLEND);
+		gl.colorMask(false, false, false, false);
+		gl.enable(gl.STENCIL_TEST);
+		gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+		gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+		gl.depthFunc(gl.LESS);
+		gl.drawArrays(gl.TRIANGLES, 0, vertices.length / COVER_VERTEX_FLOATS);
+		gl.colorMask(true, true, true, true);
+		gl.disable(gl.STENCIL_TEST);
+		gl.depthFunc(gl.LEQUAL);
+		gl.enable(gl.BLEND);
+		return true;
+	}
+
+	/** A face's {@link coverLift}, remembered while the terrain stays the same. */
+	private liftFor(
+		sampler: unknown,
+		groundAt: (x: number, y: number) => number,
+		step: number,
+	): (q: Quad3d) => number {
+		if (!this.lifts || this.lifts.sampler !== sampler || this.lifts.values.size > 4096) {
+			this.lifts = { sampler, values: new Map() };
+		}
+		const values = this.lifts.values;
+		return (q) => {
+			const key = `${q.at.join(",")}|${q.u.join(",")}|${q.v.join(",")}`;
+			let lift = values.get(key);
+			if (lift === undefined) {
+				lift = coverLift(q, groundAt, step);
+				values.set(key, lift);
+			}
+			return lift;
+		};
+	}
+
+	/** The frame drawn so far onto the cover canvas (sized like ours). */
+	private copyCover(target: HTMLCanvasElement): void {
+		const source = this.gl.canvas as HTMLCanvasElement;
+		if (target.width !== source.width) target.width = source.width;
+		if (target.height !== source.height) target.height = source.height;
+		const ctx = target.getContext("2d");
+		if (!ctx) return;
+		ctx.clearRect(0, 0, target.width, target.height);
+		ctx.drawImage(source, 0, 0);
+		this.covered = true;
+	}
+
+	/** Nothing covered: a clear cover canvas. */
+	private clearCover(target: HTMLCanvasElement): void {
+		if (!this.covered) return;
+		this.covered = false;
+		target.getContext("2d")?.clearRect(0, 0, target.width, target.height);
 	}
 
 	/**
@@ -516,6 +847,12 @@ class MeshRenderer {
 		for (const tex of this.decalTextures.values()) gl.deleteTexture(tex.texture);
 		this.decalTextures.clear();
 		gl.deleteBuffer(this.indexBuffer);
+		if (this.cover) {
+			gl.deleteBuffer(this.cover.buffer);
+			gl.deleteVertexArray(this.cover.vao);
+			gl.deleteProgram(this.cover.program);
+			this.cover = null;
+		}
 		gl.deleteTexture(this.ramp);
 		gl.deleteVertexArray(this.vao);
 		gl.deleteProgram(this.program);
@@ -530,6 +867,7 @@ export function ElevationMeshLayer({
 	state,
 	decals,
 	gpu,
+	cover,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
@@ -540,6 +878,8 @@ export function ElevationMeshLayer({
 	decals?: GroundDecalApi;
 	/** The board's GPU drawing hook: while a GPU 3D renderer draws, it draws the mesh. */
 	gpu?: View3dGlApi;
+	/** Cover the shapes the hills hide (absent: the shapes stay in front). */
+	cover?: MeshCover;
 }) {
 	const isOn = () =>
 		(view3d()?.amount() ?? 0) > 0 && boardElevation(store) !== null && !gpu?.isDrawing();
@@ -567,6 +907,7 @@ export function ElevationMeshLayer({
 			view3d={view3d}
 			state={state}
 			decals={decals}
+			cover={cover}
 		/>
 	);
 }
@@ -578,6 +919,7 @@ function MeshCanvas({
 	view3d,
 	state,
 	decals,
+	cover,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
@@ -585,6 +927,7 @@ function MeshCanvas({
 	view3d: () => View3dApi | undefined;
 	state: ReactiveStore<MeshState>;
 	decals?: GroundDecalApi;
+	cover?: MeshCover;
 }) {
 	const ref = useRef<HTMLCanvasElement>(null);
 	useEffect(() => {
@@ -601,6 +944,7 @@ function MeshCanvas({
 			const model = boardElevation(store);
 			const v = view3d();
 			if (!model || !v) return;
+			const coverCanvas = cover?.target.get().canvas ?? null;
 			const pending = renderer.draw({
 				model,
 				viewport: store.getViewport(),
@@ -612,6 +956,7 @@ function MeshCanvas({
 				display: display.get(),
 				store,
 				decals,
+				cover: cover && coverCanvas ? { canvas: coverCanvas, faces: cover.faces() } : undefined,
 			});
 			// Decal tiles left for the next frames (the paint budget ran out).
 			if (pending) schedule();
@@ -625,6 +970,7 @@ function MeshCanvas({
 			overscan.subscribe(schedule),
 			view3d()?.subscribe(schedule),
 			decals?.subscribe(schedule),
+			cover?.target.subscribe(schedule),
 		];
 		const onResize = () => schedule();
 		window.addEventListener("resize", onResize);
@@ -637,11 +983,51 @@ function MeshCanvas({
 			renderer.dispose();
 			state.set({ drawing: false });
 		};
-	}, [store, display, overscan, view3d, state, decals]);
+	}, [store, display, overscan, view3d, state, decals, cover]);
 	return (
 		<canvas
 			ref={ref}
 			data-usketch-elevation-mesh=""
+			style={{
+				position: "absolute",
+				inset: 0,
+				width: "100%",
+				height: "100%",
+				pointerEvents: "none",
+			}}
+		/>
+	);
+}
+
+/**
+ * The cover canvas (see the file comment), over the shapes, while the mesh draws the
+ * ground on its own canvas. The mesh paints it; this only mounts it.
+ */
+export function ElevationCoverLayer({
+	target,
+	state,
+}: {
+	target: ReactiveStore<CoverTarget>;
+	state: ReactiveStore<MeshState>;
+}) {
+	const [drawing, setDrawing] = useState(() => state.get().drawing);
+	useEffect(() => {
+		const check = () => setDrawing(state.get().drawing);
+		check();
+		return state.subscribe(check);
+	}, [state]);
+	const ref = useCallback(
+		(el: HTMLCanvasElement | null) => {
+			// `set` skips `undefined` but not `null`: unmounting clears it.
+			if (target.get().canvas !== el) target.set({ canvas: el });
+		},
+		[target],
+	);
+	if (!drawing) return null;
+	return (
+		<canvas
+			ref={ref}
+			data-usketch-elevation-cover=""
 			style={{
 				position: "absolute",
 				inset: 0,

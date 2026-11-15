@@ -14,6 +14,7 @@ import {
 	type PluginContext,
 	type UsketchPlugin,
 	view3dGl,
+	view3dPickService,
 	view3dService,
 } from "@edv4h/usketch-shared";
 import { useLayoutEffect } from "react";
@@ -22,8 +23,12 @@ import { type BrushSettings, DEFAULT_BRUSH, normalizeBrush } from "./elevation-b
 import { CHUNK_TYPE, FIELD_TYPE } from "./elevation-field.js";
 import { ElevationGroundLayer, GROUND_LAYER_ID, type StrokePreview } from "./elevation-layer.js";
 import {
+	COVER_LAYER_ID,
+	type CoverTarget,
+	ElevationCoverLayer,
 	ElevationMeshLayer,
 	MESH_LAYER_ID,
+	type MeshCover,
 	type MeshState,
 	registerElevationGlDrawable,
 } from "./elevation-mesh-layer.js";
@@ -64,6 +69,20 @@ export interface ElevationPluginOptions {
 	 * `groundOrder`, lower it to keep other ground layers drawn over the raised surface.
 	 */
 	meshOrder?: number;
+	/**
+	 * In a 3D view, hide the parts of the shapes behind a hill: the mesh draws the hills
+	 * again over the shapes, where the ground is nearer the eye than they are. Needs a
+	 * canvas with the 3D pick's `facesInView`. `false`: the shapes are always drawn in
+	 * front of the hills, and no cover layer is added. Default on; switched at run time by
+	 * the look's `coverShapes` (`display`, HUD「標高の表示」). A GPU 3D renderer sorts by
+	 * depth itself.
+	 */
+	coverShapes?: boolean;
+	/**
+	 * Stacking order of that cover. Default 52: over the shapes (50) and the 3D shapes
+	 * (51), under the comments, laser and selection UI.
+	 */
+	coverOrder?: number;
 }
 
 /**
@@ -75,6 +94,7 @@ export const ELEVATION_GROUND_PRIORITY = 10;
 /** Default stacking orders of the ground and mesh layers. */
 export const DEFAULT_GROUND_ORDER = 45;
 export const DEFAULT_MESH_ORDER = 46;
+export const DEFAULT_COVER_ORDER = 52;
 
 /** A host's layer order, or the default when it isn't a finite number (the sort would break). */
 const layerOrder = (value: number | undefined, fallback: number): number =>
@@ -176,6 +196,21 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 					</>
 				),
 			});
+			const coverOn = options.mesh !== false && options.coverShapes !== false;
+			const coverTarget = createReactiveStore<CoverTarget>({ canvas: null });
+			const cover: MeshCover | undefined = coverOn
+				? {
+						target: coverTarget,
+						// The board's own shapes (the field and its chunks) draw nothing.
+						faces: () =>
+							!display.get().coverShapes
+								? []
+								: (view3dPickService.get(ctx.services)?.facesInView?.() ?? []).filter((f) => {
+										const type = ctx.store.getShape(f.shapeId)?.type;
+										return type !== CHUNK_TYPE && type !== FIELD_TYPE;
+									}),
+					}
+				: undefined;
 			if (options.mesh !== false) {
 				ctx.layers.register({
 					id: MESH_LAYER_ID,
@@ -195,8 +230,20 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 							state={mesh}
 							decals={decals}
 							gpu={gpu}
+							cover={cover}
 						/>
 					),
+				});
+			}
+			if (coverOn) {
+				ctx.layers.register({
+					id: COVER_LAYER_ID,
+					order: layerOrder(options.coverOrder, DEFAULT_COVER_ORDER),
+					avoidCollision: true,
+					fixed: true,
+					// Placed like the mesh (it is the mesh's picture), not tilted.
+					view3d: "screen",
+					render: () => <ElevationCoverLayer target={coverTarget} state={mesh} />,
 				});
 			}
 			// A GPU 3D renderer draws the mesh into its own canvas (no-op without one).
@@ -281,6 +328,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				stopHud();
 				ctx.layers.unregister(GROUND_LAYER_ID);
 				if (options.mesh !== false) ctx.layers.unregister(MESH_LAYER_ID);
+				if (coverOn) ctx.layers.unregister(COVER_LAYER_ID);
 				unregisterGl?.();
 				ctx.layers.unregister(BRUSH_CURSOR_LAYER_ID);
 				offOverscan();

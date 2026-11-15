@@ -74,10 +74,21 @@ describe("createView3dPointer", () => {
 		const runs = pointer.outlineRuns("a", stage, "dom");
 		expect(runs).toHaveLength(1);
 		expect(runs?.[0]).toMatchObject({ hidden: false, closed: true });
+		const faces = pointer.facesInView(stage, "dom");
+		expect(faces.map((f) => f.shapeId)).toEqual(["a"]);
+		const q = faces[0]?.quads[0];
+		const round = (v: readonly number[] | undefined) =>
+			v?.map((n) => Math.round(n * 1e6) / 1e6 || 0);
+		expect([round(q?.at), round(q?.u), round(q?.v)]).toEqual([
+			[0, -200, 0],
+			[100, 0, 0],
+			[0, 100, 0],
+		]);
 		view3d.set({ amount: 0 });
 		expect(pointer.pick({ x: s.x, y: s.y }, stage, "dom")).toBeNull();
 		expect(pointer.outline("a", stage, "dom")).toBeNull();
 		expect(pointer.outlineRuns("a", stage, "dom")).toBeNull();
+		expect(pointer.facesInView(stage, "dom")).toEqual([]);
 		pointer.dispose();
 	});
 

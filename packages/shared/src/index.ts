@@ -383,11 +383,13 @@ export {
 	type View3dPick,
 	type View3dPickApi,
 	type View3dPickInput,
+	type View3dShapeFaces,
 	view3dCamera,
 	view3dDragPoint,
 	view3dPickService,
 	view3dProjection,
 	view3dRay,
+	view3dShapeFacesIn,
 } from "./view-3d-pick.js";
 export { type View3dRendererApi, view3dRendererService } from "./view-3d-renderer.js";
 export {

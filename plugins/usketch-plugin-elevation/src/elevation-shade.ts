@@ -13,9 +13,19 @@ export interface ElevationDisplay {
 	shade: boolean;
 	/** World units between contour lines; 0 = none. */
 	contour: number;
+	/**
+	 * In a 3D view, the hills hide the parts of the shapes behind them (the mesh draws
+	 * them again over the shapes). Off: the shapes are always drawn in front.
+	 */
+	coverShapes: boolean;
 }
 
-export const DEFAULT_DISPLAY: ElevationDisplay = { tint: true, shade: true, contour: 32 };
+export const DEFAULT_DISPLAY: ElevationDisplay = {
+	tint: true,
+	shade: true,
+	contour: 32,
+	coverShapes: true,
+};
 
 type Rgb = readonly [number, number, number];
 
