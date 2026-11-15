@@ -71,6 +71,23 @@ describe("directional scheme", () => {
 	it("returns the same pose object when idle", () => {
 		expect(stepCharacter(origin, NO_INPUT, 0.1, "directional", DEFAULT_MOTION)).toBe(origin);
 	});
+	it("walks backward facing forward when backpedalling (a view turning with the heading)", () => {
+		// Facing world right, the view turned with it (rotation -90): "down" = world left.
+		const facing = { ...origin, heading: 90 };
+		const step = (p: Partial<MoveInput>, backpedal: boolean) =>
+			stepCharacter(facing, held(p), 0.1, "directional", DEFAULT_MOTION, -90, null, 1, backpedal);
+		const back = step({ down: true }, true);
+		expect(back.x).toBeCloseTo(-DEFAULT_MOTION.moveSpeed * 0.1, 9);
+		expect(back.y).toBeCloseTo(0, 9);
+		expect(back.heading).toBe(90);
+		// Back and left: moves back-left, turns toward forward-left.
+		const backLeft = step({ down: true, left: true }, true);
+		expect(backLeft.x).toBeLessThan(0);
+		expect(backLeft.y).toBeLessThan(0);
+		expect(backLeft.heading).toBeLessThan(90);
+		// Without it, the walk turns round to face the way it goes.
+		expect(step({ down: true }, false).heading).not.toBe(90);
+	});
 });
 
 describe("vehicle scheme", () => {

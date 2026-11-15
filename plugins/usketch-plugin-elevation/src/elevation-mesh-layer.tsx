@@ -939,7 +939,12 @@ function MeshCanvas({
 			return;
 		}
 		let raf = 0;
+		let queued = false;
+		let disposed = false;
 		const draw = () => {
+			if (disposed) return;
+			queued = false;
+			if (raf) cancelAnimationFrame(raf);
 			raf = 0;
 			const model = boardElevation(store);
 			const v = view3d();
@@ -959,10 +964,16 @@ function MeshCanvas({
 				cover: cover && coverCanvas ? { canvas: coverCanvas, faces: cover.faces() } : undefined,
 			});
 			// Decal tiles left for the next frames (the paint budget ran out).
-			if (pending) schedule();
+			if (pending && !raf) raf = requestAnimationFrame(draw);
 		};
+		// Redraw at the end of the task that changed something, so in the same frame: a
+		// follow camera moves the viewport in its own animation frame, and a redraw one frame
+		// later would put the hills (and the cover over the shapes) a frame behind the DOM
+		// shapes on some frames and not others — they would judder against each other.
 		const schedule = () => {
-			if (!raf) raf = requestAnimationFrame(draw);
+			if (queued) return;
+			queued = true;
+			queueMicrotask(draw);
 		};
 		const offs = [
 			store.subscribe(schedule),
@@ -979,6 +990,7 @@ function MeshCanvas({
 		return () => {
 			for (const off of offs) off?.();
 			window.removeEventListener("resize", onResize);
+			disposed = true;
 			if (raf) cancelAnimationFrame(raf);
 			renderer.dispose();
 			state.set({ drawing: false });

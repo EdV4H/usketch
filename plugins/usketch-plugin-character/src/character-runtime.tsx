@@ -272,6 +272,8 @@ export function setupCharacterRuntime(
 				viewportRotation(vp),
 				s.drift,
 				air.airControl,
+				// The view turns with the heading: back keys walk backward (no circling).
+				s.cameraMode === "rotate",
 			);
 			// Cliffs taller than the climbable step, slopes steeper than the climbable one
 			// and walls block the move (slide along them), checked in short stretches so a
