@@ -312,3 +312,48 @@ describe("DashboardApi disable", () => {
 		expect([...store.getShapes().values()].some((s) => s.type === "dashboard-config")).toBe(false);
 	});
 });
+
+describe("DashboardApi repack (整列) — 親子 Shape", () => {
+	it("frame を整列すると子も同じだけ動き、undo で子も元の位置に戻る", () => {
+		const { ctx, store, commands } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		store.addShape({ ...rect("f", 450, 300), type: "frame" });
+		store.addShape({ ...rect("c", 460, 320, 20, 20), parentId: "f" });
+		const api = createDashboardApi(ctx, {
+			mode: "flow",
+			fitToGrid: false,
+			columns: 3,
+			cellW: 100,
+			cellH: 100,
+			gap: 0,
+			padding: 0,
+		});
+		api.enable(); // a → (0,0), f → (100,0)
+		expect(pos(store, "f")).toEqual({ x: 100, y: 0 });
+		expect(pos(store, "c")).toEqual({ x: 110, y: 20 }); // 親との相対位置 (10,20) を保つ
+
+		commands.undo();
+		expect(pos(store, "f")).toEqual({ x: 450, y: 300 });
+		expect(pos(store, "c")).toEqual({ x: 460, y: 320 });
+	});
+
+	it("列数変更（再レイアウト）でも子がついてくる", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		store.addShape({ ...rect("f", 100, 0), type: "frame" });
+		store.addShape({ ...rect("c", 130, 40, 20, 20), parentId: "f" });
+		const api = createDashboardApi(ctx, {
+			mode: "flow",
+			fitToGrid: false,
+			columns: 3,
+			cellW: 100,
+			cellH: 100,
+			gap: 0,
+			padding: 0,
+		});
+		api.enable();
+		api.setColumns(1); // f → (0,100)
+		expect(pos(store, "f")).toEqual({ x: 0, y: 100 });
+		expect(pos(store, "c")).toEqual({ x: 30, y: 140 });
+	});
+});

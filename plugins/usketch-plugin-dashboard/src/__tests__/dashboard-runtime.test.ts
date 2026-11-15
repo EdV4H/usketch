@@ -589,3 +589,44 @@ describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 		stop();
 	});
 });
+
+describe("dashboard runtime — 親子 Shape はリフローでも一緒に動く", () => {
+	it("ドラッグで押し出された frame の子がライブでもドロップ後もついてくる", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				mode: "flow",
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+			}),
+		);
+		store.addShape({ ...rect("f", 0, 0), type: "frame" });
+		store.addShape({ ...rect("c", 10, 20, 20, 20), parentId: "f" });
+		store.addShape(rect("b", 100, 0));
+		store.addShape(rect("d", 200, 0));
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		await faithfulDrag(
+			store,
+			events,
+			"d",
+			[
+				{ x: 140, y: 0 },
+				{ x: 10, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+
+		// [d, f, b] — f は col1 へ押し出され、子 c も (+100, 0)
+		expect(at(store, "d")).toEqual({ x: 0, y: 0 });
+		expect(at(store, "f")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "c")).toEqual({ x: 110, y: 20 });
+		stop();
+	});
+});
