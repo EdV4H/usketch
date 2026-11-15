@@ -71,9 +71,13 @@ describe("createView3dPointer", () => {
 		expect(corners?.[0].x).toBeCloseTo(tl?.x ?? Number.NaN, 6);
 		expect(corners?.[0].y).toBeCloseTo(tl?.y ?? Number.NaN, 6);
 		expect(pointer.outline("missing", stage, "dom")).toBeNull();
+		const runs = pointer.outlineRuns("a", stage, "dom");
+		expect(runs).toHaveLength(1);
+		expect(runs?.[0]).toMatchObject({ hidden: false, closed: true });
 		view3d.set({ amount: 0 });
 		expect(pointer.pick({ x: s.x, y: s.y }, stage, "dom")).toBeNull();
 		expect(pointer.outline("a", stage, "dom")).toBeNull();
+		expect(pointer.outlineRuns("a", stage, "dom")).toBeNull();
 		pointer.dispose();
 	});
 

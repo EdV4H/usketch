@@ -373,8 +373,10 @@ export {
 	view3dGlService,
 } from "./view-3d-gl.js";
 export {
+	type OutlineRun,
 	pickView3d,
 	projectQuad3d,
+	quadOutlineRuns,
 	rayQuad,
 	type ShapeView3dQuadView,
 	shapeView3dQuad,

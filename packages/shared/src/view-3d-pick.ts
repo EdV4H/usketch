@@ -288,6 +288,76 @@ export function projectQuad3d(q: Quad3d, view: View3dProjection): Point[] | null
 	return out;
 }
 
+/** A stretch of a shape's outline on the stage: in view, or hidden behind the ground. */
+export interface OutlineRun {
+	/** Stage px, in order along the outline. */
+	points: Point[];
+	/** The ground hides this stretch from the eye. */
+	hidden: boolean;
+	/** The whole outline in one run (its last point joins its first). */
+	closed: boolean;
+}
+
+/**
+ * A world quad's outline on the stage (px), cut where the ground hides it from the eye:
+ * each edge is split into `perEdge` pieces and a piece is hidden when the ground rises
+ * over the line of sight at its middle. Without `groundAt`, one closed run in view.
+ * `null` when a point of it is behind the eye. Pure.
+ */
+export function quadOutlineRuns(
+	q: Quad3d,
+	view: View3dProjection,
+	groundAt?: (x: number, y: number) => number,
+	opts: { perEdge?: number } = {},
+): OutlineRun[] | null {
+	const corners: Vec3[] = [
+		q.at,
+		[q.at[0] + q.u[0], q.at[1] + q.u[1], q.at[2] + q.u[2]],
+		[q.at[0] + q.u[0] + q.v[0], q.at[1] + q.u[1] + q.v[1], q.at[2] + q.u[2] + q.v[2]],
+		[q.at[0] + q.v[0], q.at[1] + q.v[1], q.at[2] + q.v[2]],
+	];
+	const n = groundAt ? Math.max(1, Math.floor(opts.perEdge ?? 6)) : 1;
+	const lerp = (a: Vec3, b: Vec3, t: number): Vec3 => [
+		a[0] + (b[0] - a[0]) * t,
+		a[1] + (b[1] - a[1]) * t,
+		a[2] + (b[2] - a[2]) * t,
+	];
+	// The outline's points (a loop) and whether the piece after each one is hidden.
+	const pts: Point[] = [];
+	const hidden: boolean[] = [];
+	for (let c = 0; c < 4; c++) {
+		const a = corners[c] as Vec3;
+		const b = corners[(c + 1) % 4] as Vec3;
+		for (let k = 0; k < n; k++) {
+			const w = lerp(a, b, k / n);
+			const p = projectWorld(w[0], w[1], view, w[2]);
+			if (!p) return null;
+			pts.push({ x: p.x, y: p.y });
+			if (!groundAt) {
+				hidden.push(false);
+				continue;
+			}
+			const m = lerp(a, b, (k + 0.5) / n);
+			hidden.push(isOccluded({ x: m[0], y: m[1], height: m[2] }, view, groundAt));
+		}
+	}
+	const count = pts.length;
+	const start = hidden.findIndex((h, i) => h !== hidden[(i + count - 1) % count]);
+	if (start < 0) return [{ points: pts, hidden: hidden[0] ?? false, closed: true }];
+	// Start at a change, so no run is split where the loop begins.
+	const runs: OutlineRun[] = [];
+	for (let i = 0; i < count; i++) {
+		const j = (start + i) % count;
+		const state = hidden[j] as boolean;
+		const last = runs[runs.length - 1];
+		if (!last || last.hidden !== state) {
+			runs.push({ points: [pts[j] as Point], hidden: state, closed: false });
+		}
+		(runs[runs.length - 1] as OutlineRun).points.push(pts[(j + 1) % count] as Point);
+	}
+	return runs;
+}
+
 /** What is under a point of the board's stage in its 3D view, as the canvas sees it. */
 export interface View3dPickApi {
 	/**
@@ -302,6 +372,11 @@ export interface View3dPickApi {
 	 * eye. Optional: a canvas from before it has none.
 	 */
 	outlineOf?(shapeId: string): Point[] | null;
+	/**
+	 * The same outline cut where the ground hides it (see {@link quadOutlineRuns}).
+	 * Optional: a canvas from before it has none.
+	 */
+	outlineRunsOf?(shapeId: string): OutlineRun[] | null;
 }
 
 /** The canvas's 3D pick (provided while a canvas is mounted). */

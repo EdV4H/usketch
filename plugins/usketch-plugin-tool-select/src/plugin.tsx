@@ -53,7 +53,12 @@ import {
 	SELECT_TOOL_LAYER_IDS,
 	SelectionHandlesOverlay,
 } from "./selection-handles.js";
-import { SELECTION_OUTLINE_3D_LAYER_ID, SelectionOutline3d } from "./selection-outline-3d.js";
+import {
+	createOutline3dSettings,
+	type OccludedOutline,
+	SELECTION_OUTLINE_3D_LAYER_ID,
+	SelectionOutline3d,
+} from "./selection-outline-3d.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // Hit-test helpers used to live here; they were extracted to
@@ -150,6 +155,11 @@ export interface SelectToolPluginOptions {
 	 * 既定値は `DEFAULT_SELECT_TOOL_KEYBINDINGS`。
 	 */
 	keybindings?: Partial<SelectToolKeybindings>;
+	/**
+	 * 3D 表示で、選択枠のうち地形に隠れた部分の描き方。`"dashed"`（既定）は薄い点線、
+	 * `"hidden"` は描かない。実行時は `select:configure` の `{ occludedOutline }` で変更。
+	 */
+	occludedOutline?: OccludedOutline;
 }
 
 export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): UsketchPlugin {
@@ -161,6 +171,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// 選択オーバーレイ色は setup(インスタンス)スコープで保持する（#640）。
 			// モジュール共有だと複数 App 同時生成時に teardown が他インスタンスの色を壊す。
 			const overlayColors = createOverlayColorStore(options.overlay);
+			const outline3d = createOutline3dSettings(options.occludedOutline);
 
 			// Wrap setDropTargetId to also emit on EventBus for DomShapeLayer
 			function updateDropTarget(id: string | null) {
@@ -810,6 +821,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						store={ctx.store}
 						services={ctx.services}
 						colors={overlayColors}
+						settings={outline3d}
 						toolId="select"
 					/>
 				),
@@ -852,9 +864,16 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			// 実行時に色を変更（snap:configure と対になる select:configure）。
 			// `{ overlay: { strokeColor, handleFillColor } }` も平坦な形も受け付ける。
+			// `{ occludedOutline }` で 3D の隠れた枠の描き方も変えられる。
 			const offConfigure = ctx.events.on<
-				{ overlay?: Partial<OverlayColors> } & Partial<OverlayColors>
-			>("select:configure", (patch) => overlayColors.set(patch.overlay ?? patch));
+				{
+					overlay?: Partial<OverlayColors>;
+					occludedOutline?: OccludedOutline;
+				} & Partial<OverlayColors>
+			>("select:configure", (patch) => {
+				overlayColors.set(patch.overlay ?? patch);
+				outline3d.set(patch.occludedOutline);
+			});
 
 			// ── Teardown ──
 			return () => {
