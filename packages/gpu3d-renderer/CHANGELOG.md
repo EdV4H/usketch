@@ -1,5 +1,14 @@
 # @edv4h/usketch-gpu3d-renderer
 
+## 0.1.1
+
+### Patch Changes
+
+- db5c6f9: Shape の面の置き方をコアの `shapeView3dFaces` に移しました（ポインターの当たりと同じ置き方になります）。見た目は変わりません。
+- Updated dependencies [db5c6f9]
+  - @edv4h/usketch-shared@4.26.0
+  - @edv4h/usketch-css3d-renderer@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
