@@ -2,10 +2,13 @@
 // at height 0, so on a hill, a box's top or a standing sign it is drawn away from the
 // shape. While the board is shown in 3D this screen layer outlines each selected (and
 // hovered) shape where it is drawn instead — the corners the canvas projects for it
-// (`view3dPickService.outlineOf`) — and the flat frame and handles step aside.
+// (`view3dPickService.outlineOf`) — and the flat frame and handles step aside. What the
+// ground hides from the eye is drawn faint and dashed, so a selected shape behind a hill
+// can still be found without looking as if it shows through.
 import {
 	type BoardStore,
 	isView3dShown,
+	type OutlineRun,
 	type Point,
 	type ServiceRegistry,
 	view3dCellOf,
@@ -50,9 +53,20 @@ function useBoardVersion(store: BoardStore): number {
 	return useSyncExternalStore(subscribe, get, get);
 }
 
+/** Outlines cut where the ground hides them, up to this many (each costs ground samples). */
+export const MAX_OCCLUSION_OUTLINES = 16;
+
 /** An SVG `points` list. Pure. */
 export function polygonPoints(corners: readonly Point[]): string {
 	return corners.map((p) => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`).join(" ");
+}
+
+/** How faint the part of an outline hidden behind the ground is drawn. */
+const HIDDEN_OPACITY = 0.4;
+
+/** Corners as one closed run in view (a canvas without `outlineRunsOf`, or too many). */
+function closedRun(corners: Point[] | null | undefined): OutlineRun[] | null {
+	return corners ? [{ points: corners, hidden: false, closed: true }] : null;
 }
 
 export interface SelectionOutline3dProps {
@@ -80,14 +94,13 @@ export function SelectionOutline3d({ store, services, colors, toolId }: Selectio
 	if (!api?.outlineOf) return null;
 	const selection = store.getSelection();
 	const hovered = store.getHoveredShapeId();
-	const outlines: { id: string; points: string; hover: boolean }[] = [];
-	for (const id of selection) {
-		const corners = api.outlineOf(id);
-		if (corners) outlines.push({ id, points: polygonPoints(corners), hover: false });
-	}
-	if (hovered && !selection.has(hovered) && !isMoving) {
-		const corners = api.outlineOf(hovered);
-		if (corners) outlines.push({ id: hovered, points: polygonPoints(corners), hover: true });
+	const ids: { id: string; hover: boolean }[] = [...selection].map((id) => ({ id, hover: false }));
+	if (hovered && !selection.has(hovered) && !isMoving) ids.push({ id: hovered, hover: true });
+	const occlusion = !!api.outlineRunsOf && ids.length <= MAX_OCCLUSION_OUTLINES;
+	const outlines: { id: string; runs: OutlineRun[]; hover: boolean }[] = [];
+	for (const { id, hover } of ids) {
+		const runs = occlusion ? api.outlineRunsOf?.(id) : closedRun(api.outlineOf(id));
+		if (runs) outlines.push({ id, runs, hover });
 	}
 	if (outlines.length === 0) return null;
 	return (
@@ -102,17 +115,25 @@ export function SelectionOutline3d({ store, services, colors, toolId }: Selectio
 				pointerEvents: "none",
 			}}
 		>
-			{outlines.map((o) => (
-				<polygon
-					key={o.id}
-					points={o.points}
-					fill="none"
-					strokeWidth={o.hover ? 2 : 1.5}
-					strokeLinejoin="round"
-					opacity={o.hover ? 0.8 : 1}
-					style={{ stroke: strokeColor }}
-				/>
-			))}
+			{outlines.flatMap((o) =>
+				o.runs.map((run, i) => {
+					const Tag = run.closed ? "polygon" : "polyline";
+					return (
+						<Tag
+							// biome-ignore lint/suspicious/noArrayIndexKey: runs are positional along the outline
+							key={`${o.id}:${i}`}
+							points={polygonPoints(run.points)}
+							fill="none"
+							strokeWidth={o.hover ? 2 : 1.5}
+							strokeLinejoin="round"
+							strokeLinecap="round"
+							strokeDasharray={run.hidden ? "4 4" : undefined}
+							opacity={(o.hover ? 0.8 : 1) * (run.hidden ? HIDDEN_OPACITY : 1)}
+							style={{ stroke: strokeColor }}
+						/>
+					);
+				}),
+			)}
 		</svg>
 	);
 }

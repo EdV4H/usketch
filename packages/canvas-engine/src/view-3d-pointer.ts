@@ -11,9 +11,12 @@ import {
 	createView3dTracker,
 	declaredView3dShapeTypes,
 	type EventBus,
+	type OutlineRun,
 	type Point,
 	pickView3d,
 	projectQuad3d,
+	type Quad3d,
+	quadOutlineRuns,
 	type RenderMode,
 	type ServiceRegistry,
 	type ShapeRegistry,
@@ -53,6 +56,8 @@ export interface View3dPointer {
 	pick(screen: Point, stage: StageSize, renderMode: RenderMode): View3dPick | null;
 	/** Where a shape is drawn on the stage in the 3D view (corners), or `null`. */
 	outline(shapeId: string, stage: StageSize, renderMode: RenderMode): Point[] | null;
+	/** The same outline, cut where the ground hides it from the eye, or `null`. */
+	outlineRuns(shapeId: string, stage: StageSize, renderMode: RenderMode): OutlineRun[] | null;
 	dispose(): void;
 }
 
@@ -131,6 +136,27 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 		};
 	};
 
+	const groundAt = (x: number, y: number) => deps.height.groundAt(x, y);
+
+	/** Where a shape is drawn in the 3D view now (world units), or `null`. */
+	const drawnQuad = (
+		shapeId: string,
+		stage: StageSize,
+		renderMode: RenderMode,
+	): { quad: Quad3d; view: View3dProjection } | null => {
+		const now = viewNow(stage);
+		const shape = now ? deps.store.getShape(shapeId) : undefined;
+		if (!now || !shape || shape.hidden) return null;
+		const params = shapesIn3d(now.view, now.amount, renderMode).get(shapeId);
+		const quad = shapeView3dQuad(shape, params, {
+			amount: now.amount,
+			yaw: params ? yawNow() : 0,
+			viewportRotation: now.view.viewport.rotation ?? 0,
+			groundAt,
+		});
+		return { quad, view: now.view };
+	};
+
 	return {
 		map(screen, stage, phase, pointerId, renderMode) {
 			const now = viewNow(stage);
@@ -161,17 +187,12 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 			return now ? pickIn(screen, now.view, now.amount, renderMode) : null;
 		},
 		outline(shapeId, stage, renderMode) {
-			const now = viewNow(stage);
-			const shape = now ? deps.store.getShape(shapeId) : undefined;
-			if (!now || !shape || shape.hidden) return null;
-			const params = shapesIn3d(now.view, now.amount, renderMode).get(shapeId);
-			const quad = shapeView3dQuad(shape, params, {
-				amount: now.amount,
-				yaw: params ? yawNow() : 0,
-				viewportRotation: now.view.viewport.rotation ?? 0,
-				groundAt: (x, y) => deps.height.groundAt(x, y),
-			});
-			return projectQuad3d(quad, now.view);
+			const drawn = drawnQuad(shapeId, stage, renderMode);
+			return drawn ? projectQuad3d(drawn.quad, drawn.view) : null;
+		},
+		outlineRuns(shapeId, stage, renderMode) {
+			const drawn = drawnQuad(shapeId, stage, renderMode);
+			return drawn ? quadOutlineRuns(drawn.quad, drawn.view, groundAt) : null;
 		},
 		dispose() {
 			tracker?.dispose();
