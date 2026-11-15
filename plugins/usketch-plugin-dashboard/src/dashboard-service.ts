@@ -36,6 +36,7 @@ import { repackBoard, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
 import { fitSize, packAbsolute, packSpans } from "./grid.js";
 import { allDashboardItems, dashboardItems } from "./items.js";
+import { applyItemPatches } from "./move-items.js";
 import { readingOrder } from "./order.js";
 
 /** The dashboard's host-facing operations. */
@@ -162,25 +163,33 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 		execute() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, patch as Partial<ShapeData>);
-				for (const b of sized) {
-					const p = posById.get(b.id);
-					ctx.store.updateShape(b.id, {
-						...(newFit ? { width: b.w, height: b.h } : {}),
-						...(p ? { x: p.x, y: p.y } : {}),
-					});
-				}
+				applyItemPatches(
+					ctx.store,
+					ctx.shapes,
+					sized.map((b) => {
+						const p = posById.get(b.id);
+						return {
+							id: b.id,
+							patch: {
+								...(newFit ? { width: b.w, height: b.h } : {}),
+								...(p ? { x: p.x, y: p.y } : {}),
+							},
+						};
+					}),
+				);
 			});
 		},
 		undo() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, before as Partial<ShapeData>);
-				for (const b of sized) {
-					ctx.store.updateShape(b.id, {
-						...(newFit ? { width: b.oldW, height: b.oldH } : {}),
-						x: b.x,
-						y: b.y,
-					});
-				}
+				applyItemPatches(
+					ctx.store,
+					ctx.shapes,
+					sized.map((b) => ({
+						id: b.id,
+						patch: { ...(newFit ? { width: b.oldW, height: b.oldH } : {}), x: b.x, y: b.y },
+					})),
+				);
 			});
 		},
 	};
@@ -228,22 +237,30 @@ function applyFitToGrid(ctx: PluginContext, on: boolean): void {
 		execute() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, { fitToGrid: on } as Partial<ShapeData>);
-				for (const b of sized) {
-					const p = posById.get(b.id);
-					ctx.store.updateShape(b.id, {
-						width: b.w,
-						height: b.h,
-						...(p ? { x: p.x, y: p.y } : {}),
-					});
-				}
+				applyItemPatches(
+					ctx.store,
+					ctx.shapes,
+					sized.map((b) => {
+						const p = posById.get(b.id);
+						return {
+							id: b.id,
+							patch: { width: b.w, height: b.h, ...(p ? { x: p.x, y: p.y } : {}) },
+						};
+					}),
+				);
 			});
 		},
 		undo() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, { fitToGrid: config.fitToGrid } as Partial<ShapeData>);
-				for (const b of sized) {
-					ctx.store.updateShape(b.id, { width: b.oldW, height: b.oldH, x: b.x, y: b.y });
-				}
+				applyItemPatches(
+					ctx.store,
+					ctx.shapes,
+					sized.map((b) => ({
+						id: b.id,
+						patch: { width: b.oldW, height: b.oldH, x: b.x, y: b.y },
+					})),
+				);
 			});
 		},
 	};
