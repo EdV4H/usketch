@@ -602,7 +602,7 @@
 		"name": "Mode 7",
 		"category": "effect",
 		"glyph": "M7",
-		"summary": "SNES Mode 7-style pseudo-3D view mode that tilts the canvas into a receding ground plane (view only, off by default).",
+		"summary": "SNES Mode 7-style pseudo-3D view mode that tilts the canvas into a receding ground plane; shapes can still be selected and moved while tilted (off by default).",
 		"install": "pnpm add @edv4h/usketch-plugin-mode7"
 	},
 	{
@@ -634,7 +634,7 @@
 		"name": "3D Shapes",
 		"category": "effect",
 		"glyph": "3D",
-		"summary": "Stands shapes up from the ground in Mode 7 and other 3D views (stand / box / float), with optional collision for the character.",
+		"summary": "HUD and pure operations to stand shapes up in Mode 7 and other 3D views (stand / box / float) and give them character collision; the data (ShapeData.view3d) and the drawing live in core and the CSS 3D renderer.",
 		"install": "pnpm add @edv4h/usketch-plugin-shape-3d"
 	},
 	{
@@ -652,5 +652,21 @@
 		"glyph": "WIN",
 		"summary": "Turns the canvas into a window system: a locked viewport and free or i3 / sway-style tiled layout for top-level shapes.",
 		"install": "pnpm add @edv4h/usketch-plugin-window-system"
+	},
+	{
+		"id": "elevation",
+		"name": "Elevation",
+		"category": "tool",
+		"glyph": "⛰",
+		"summary": "Heightfield terrain: an infinite, seed-generated landscape drawn with tints, shading and contours, brushes to raise, lower, smooth, flatten or terrace it, a WebGL mesh in 3D views, and ground height for characters and shapes.",
+		"install": "pnpm add @edv4h/usketch-plugin-elevation"
+	},
+	{
+		"id": "history",
+		"name": "Board History",
+		"category": "ui",
+		"glyph": "⟲",
+		"summary": "Git-like board versions kept by the board server: a HUD panel to list them, see what changed, preview one on the canvas and restore it as one undoable edit. Not published to npm yet (workspace only).",
+		"install": "pnpm add @edv4h/usketch-plugin-history@workspace:*"
 	}
 ]

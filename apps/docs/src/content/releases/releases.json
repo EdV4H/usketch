@@ -1,5 +1,18 @@
 [
 	{
+		"id": "2026-11-16",
+		"version": "2026-11-16",
+		"date": "2026-11-16",
+		"level": "minor",
+		"highlights": [
+			"✨ Multi-page boards: several pages in one board, each its own Y.Doc loaded only when opened, with a HUD page panel, moving or copying shapes between pages, presenting and exporting across pages, and migration for existing boards (#1432, #1437, #1445, #1446, #1450, #1453).",
+			"✨ Elevation: heightfield terrain with an infinite seed-generated landscape, brushes to raise, lower, smooth, flatten or terrace, a WebGL mesh in 3D views, ground decals and road grading (#1386, #1390, #1393, #1409, #1492).",
+			"✨ 3D in core: the 3D camera, layer and shape 3D data (ShapeData.view3d) and the board height (ctx.height) move into core, drawn by the new CSS 3D renderer or the experimental GPU 3D renderer; shapes can be selected and moved while in 3D and are hidden behind hills (#1465, #1468, #1471, #1474, #1485, #1505, #1511).",
+			"✨ Board history: Git-like versions kept by the board server, with a HUD panel to list, diff, preview and restore them; it replaces the old snapshot Time Travel (#1306, #1428, #1430).",
+			"✨ Keymap: plugins' key conflicts are detected and resolved through ctx.keymap, and a Key Settings panel rebinds every plugin's keys in one place (#1425, #1429, #1431)."
+		]
+	},
+	{
 		"id": "2026-11-08",
 		"version": "2026-11-08",
 		"date": "2026-11-08",
