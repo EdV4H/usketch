@@ -7,6 +7,7 @@ import type { ShapeData } from "../types/shape.js";
 import {
 	pickView3d,
 	projectQuad3d,
+	quadOutlineRuns,
 	rayQuad,
 	shapeView3dQuad,
 	view3dCamera,
@@ -169,5 +170,35 @@ describe("shapeView3dQuad / projectQuad3d", () => {
 		const eye = cameraEye(view);
 		const q = shapeView3dQuad(shape("d", eye.x - 50, eye.y + 100), undefined, quadView);
 		expect(projectQuad3d(q, view)).toBeNull();
+	});
+});
+
+describe("quadOutlineRuns", () => {
+	const quadView = { amount: 1, yaw: 0, viewportRotation: 0, groundAt: () => 0 };
+	const q = shapeView3dQuad(shape("a", -50, -400, 100, 100), undefined, quadView);
+
+	it("is one closed run in view on flat ground", () => {
+		const runs = quadOutlineRuns(q, view);
+		expect(runs).toHaveLength(1);
+		expect(runs?.[0]).toMatchObject({ hidden: false, closed: true });
+		expect(runs?.[0].points).toEqual(projectQuad3d(q, view));
+	});
+
+	it("cuts out what a ridge hides from the eye", () => {
+		// A ridge across the middle of the shape: its far part is behind it.
+		const ridge = (_x: number, y: number) => (Math.abs(y + 350) < 10 ? 500 : 0);
+		const runs = quadOutlineRuns(q, view, ridge, { perEdge: 6 });
+		if (!runs) throw new Error("no outline");
+		expect(runs.some((r) => r.hidden)).toBe(true);
+		expect(runs.some((r) => !r.hidden)).toBe(true);
+		expect(runs.every((r) => !r.closed)).toBe(true);
+		// Every piece is in exactly one run.
+		expect(runs.reduce((n, r) => n + r.points.length - 1, 0)).toBe(24);
+		// The far edge (top of the shape, drawn higher on the stage) is the hidden part.
+		const far = projectWorld(0, -400, view);
+		const near = projectWorld(0, -300, view);
+		const hiddenYs = runs.filter((r) => r.hidden).flatMap((r) => r.points.map((p) => p.y));
+		expect(Math.min(...hiddenYs)).toBeCloseTo(far?.y ?? Number.NaN, 0);
+		expect(Math.max(...hiddenYs)).toBeLessThan(near?.y ?? Number.NaN);
 	});
 });
