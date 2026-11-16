@@ -91,6 +91,7 @@ packages/
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）
   session-gather/   — セッション型「集合」（全員を一つの場所に集める）
+  session-respond/  — セッション型「答える」（お題に答え、まとめで一斉に見せる）
   shape-utils/      — shape プラグイン共通ユーティリティ（bounds / hit-test / resize）
   tool-helpers/     — ツール用 state machine helper（drag / resize / rotate / marquee）
   connector-anchor/ — connector 系の anchor / endpoint / 追従ロジック
@@ -136,6 +137,7 @@ plugins/
 | [`@edv4h/usketch-session-protocol`](packages/usketch-session-protocol/README.md) | セッションの client↔server ワイヤ契約（型のみ） |
 | [`@edv4h/usketch-session-voting`](packages/usketch-session-voting/README.md) | 最初のセッション型「投票」（server / client ペア） |
 | [`@edv4h/usketch-session-gather`](packages/usketch-session-gather/README.md) | セッション型「集合」（誰かが始めると全員がその場所に集まる） |
+| [`@edv4h/usketch-session-respond`](packages/usketch-session-respond/README.md) | セッション型「答える」（お題に答え、主催者がまとめると全員の答えが見える） |
 | [プロダクト企画書](docs/new-product-proposal.md) | ビジョン・MVP スコープ・ビジネスモデル |
 | [ユースケース集](docs/use-cases.md) | 主要ユーザーシナリオ |
 | [開発ロードマップ](docs/roadmap.md) | Phase 0〜4 の開発計画と実績 |

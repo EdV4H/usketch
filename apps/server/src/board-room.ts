@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { gatherServerType } from "@edv4h/usketch-session-gather/server";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
+import { respondServerType } from "@edv4h/usketch-session-respond/server";
 import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
@@ -174,7 +175,7 @@ export class BoardRoom extends DurableObject<Env> {
 		// Registered server-side session types. Add a type's `ServerSessionType`
 		// here (server bundle) to make it playable — the client half is registered
 		// separately in the web app.
-		types: [votingServerType, gatherServerType],
+		types: [votingServerType, gatherServerType, respondServerType],
 	});
 
 	private sessionFrame(msg: ServerToClient): Uint8Array {
