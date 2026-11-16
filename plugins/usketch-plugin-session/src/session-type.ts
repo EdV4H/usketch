@@ -1,5 +1,7 @@
 import type { SessionConfig, SessionView } from "@edv4h/usketch-session-protocol";
+import type { BoardStore, EventBus, ServiceRegistry } from "@edv4h/usketch-shared";
 import type { ReactElement } from "react";
+import type { SessionClient } from "./session-client.js";
 
 /**
  * Client-side contract a **session type** implements to render itself inside the
@@ -17,10 +19,35 @@ export interface ClientSessionType {
 	type: string;
 	/** Human label for the create menu (e.g. "投票"). */
 	label: string;
-	/** Render this type's create form. `ctx.create` sends it; `ctx.dismiss` closes the form. */
-	renderCreateForm(ctx: SessionCreateContext): ReactElement | null;
-	/** Render one live session card. */
-	renderCard(ctx: SessionCardContext): ReactElement | null;
+	/**
+	 * Render this type's create form. `ctx.create` sends it; `ctx.dismiss` closes the form.
+	 * Omit it for a type whose host draws its own UI (via {@link getSessionApi}); the
+	 * HUD panel then offers no create button for it.
+	 */
+	renderCreateForm?(ctx: SessionCreateContext): ReactElement | null;
+	/** Render one live session card. Omit it to keep the type out of the HUD panel's list. */
+	renderCard?(ctx: SessionCardContext): ReactElement | null;
+	/**
+	 * Side effects that follow the session state on this client — e.g. move the
+	 * camera when a session of this type starts. Called once when the plugin is set
+	 * up; return a cleanup. The type subscribes to `ctx.client` itself and picks
+	 * out its own sessions (`session.type === this.type`).
+	 */
+	attach?(ctx: SessionAttachContext): (() => void) | undefined;
+}
+
+/** Context passed to {@link ClientSessionType.attach}. */
+export interface SessionAttachContext {
+	/** The session transport (server or shared document). */
+	client: SessionClient;
+	/** This client's userId. */
+	userId: string;
+	/** The board, for types whose effects touch it (camera, shapes). */
+	store: BoardStore;
+	/** Other plugins' services. */
+	services: ServiceRegistry;
+	/** The board's event bus (e.g. to claim the load-time camera with `viewport:claimed`). */
+	events: EventBus;
 }
 
 /** Context passed to a type's create form. */

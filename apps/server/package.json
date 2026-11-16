@@ -20,6 +20,7 @@
 		"@edv4h/usketch-plugin-server-chat": "workspace:*",
 		"@edv4h/usketch-plugin-server-comments": "workspace:*",
 		"@edv4h/usketch-server-core": "workspace:*",
+		"@edv4h/usketch-session-gather": "workspace:*",
 		"@edv4h/usketch-session-protocol": "workspace:*",
 		"@edv4h/usketch-session-voting": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
@@ -32,7 +33,7 @@
 		"zod": "4.6.7"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261114.1",
+		"@cloudflare/workers-types": "5.20261115.1",
 		"drizzle-kit": "0.31.11",
 		"typescript": "7.0.2",
 		"vitest": "5.1.0",

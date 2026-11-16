@@ -96,6 +96,15 @@ export interface ServerSessionType<
 > {
 	/** This type's id, matched against {@link SessionConfig.type} / {@link SessionView.type}. */
 	readonly type: SessionType;
+	/**
+	 * Whether a session of this type needs the authoritative server — typically
+	 * because its `secret` must stay hidden (a secret ballot, face-down cards).
+	 * Transports without a server (e.g. a shared Yjs document, where every peer
+	 * can read the state) refuse to create such a session. Decided per config (a
+	 * public poll can run anywhere; a secret one cannot); `() => true` for a type
+	 * that always needs it. Omitted = runs on any transport.
+	 */
+	requiresServer?(config: TConfig): boolean;
 	/** Build the initial public + secret state from the create config. */
 	init(config: TConfig): { public: TPublic; secret: TSecret };
 	/**

@@ -1,5 +1,24 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.7.0
+
+### Minor Changes
+
+- 98df25b: 3D 表示の選択枠で、地形に隠れた部分を薄い点線で描くようにしました（#1304）。丘の向こうの Shape を選んでも、枠が地形を突き抜けて見えなくなります。輪郭を地形で切り分ける `quadOutlineRuns` と、`view3dPickService` の `outlineRunsOf` を追加しました。
+  
+  隠れた部分の見せ方は選択ツールの `occludedOutline` オプションで選べます。`"dashed"`（既定）は薄い点線、`"hidden"` は描きません。実行中は `select:configure` イベントに `{ occludedOutline }` を渡して切り替えられます。
+
+### Patch Changes
+
+- e2d6d5e: 3D 表示で選択枠が地面の高さ 0 に描かれ、丘の上の Shape・箱の天面・浮いた Shape・立った看板とずれていたのを直しました（#1304）。選択ツールは 3D の間、各 Shape が実際に描かれている面の輪郭を傾かない層に重ねて描き、平面用の枠とハンドルは隠します。`shapeView3dQuad` / `projectQuad3d` と、`view3dPickService` の `outlineOf` を追加しました。
+- Updated dependencies [ee82044]
+- Updated dependencies [98df25b]
+- Updated dependencies [e2d6d5e]
+  - @edv4h/usketch-shared@4.27.0
+  - @edv4h/usketch-core@2.6.2
+  - @edv4h/usketch-store@3.12.2
+  - @edv4h/usketch-tool-helpers@0.8.10
+
 ## 3.6.0
 
 ### Minor Changes

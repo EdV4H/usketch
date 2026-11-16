@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-session-voting",
-	"version": "0.2.17",
+	"version": "0.2.19",
 	"type": "module",
 	"exports": {
 		"./server": {
