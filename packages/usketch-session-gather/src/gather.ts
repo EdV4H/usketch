@@ -100,10 +100,14 @@ const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const MAX_URL_LENGTH = 2048;
 
 const parseImageUrl = (v: unknown): string | undefined => {
-	if (typeof v !== "string" || v.length > MAX_URL_LENGTH) return undefined;
+	if (typeof v !== "string") return undefined;
+	const raw = v.trim();
+	if (raw.length > MAX_URL_LENGTH) return undefined;
 	try {
-		const url = new URL(v.trim());
-		return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+		const url = new URL(raw);
+		if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+		// 正規化で伸びる (空白が %20 になるなど) ので、配る値の長さで見る
+		return url.href.length <= MAX_URL_LENGTH ? url.href : undefined;
 	} catch {
 		return undefined;
 	}

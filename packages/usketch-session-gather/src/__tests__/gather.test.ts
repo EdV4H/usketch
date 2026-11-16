@@ -62,6 +62,12 @@ describe("parseGatherBackdrop", () => {
 			imageUrl: "http://x.test/a.png",
 		});
 		expect(parseGatherBackdrop("#fff")).toBeUndefined();
+		// 前後の空白は落としてから測り、正規化で上限を超えたものは落とす
+		const near = `https://x.test/${"a".repeat(2000)}`;
+		expect(parseGatherBackdrop({ imageUrl: `  ${near}  ` })).toEqual({ imageUrl: near });
+		expect(
+			parseGatherBackdrop({ imageUrl: `https://x.test/${" ".repeat(1100)}a` }),
+		).toBeUndefined();
 	});
 
 	it("is left out of the config when nothing is valid", () => {
