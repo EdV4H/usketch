@@ -25,19 +25,22 @@ export function SessionPanel({
 }) {
 	const state = useSyncExternalStore(client.subscribe, client.getState, client.getState);
 	const registry = useMemo(() => new Map(types.map((t) => [t.type, t])), [types]);
+	// Types without a create form are started from the host's own UI (getSessionApi).
+	const creatable = useMemo(() => types.filter((t) => t.renderCreateForm), [types]);
+	const listed = state.sessions.filter((s) => registry.get(s.type)?.renderCard);
 	const [creating, setCreating] = useState<string | null>(null);
 
 	return (
 		<div style={wrapStyle}>
 			{state.error && <div style={errorStyle}>⚠ {state.error}</div>}
 
-			{state.sessions.length === 0 ? (
+			{listed.length === 0 ? (
 				<div style={emptyStyle}>進行中のセッションはありません</div>
 			) : (
 				<div style={listStyle}>
-					{state.sessions.map((s) => {
+					{listed.map((s) => {
 						const t = registry.get(s.type);
-						if (!t) return null;
+						if (!t?.renderCard) return null;
 						return (
 							<div key={s.id}>
 								{t.renderCard({
@@ -56,18 +59,18 @@ export function SessionPanel({
 				</div>
 			)}
 
-			{creating && registry.has(creating) ? (
-				registry.get(creating)?.renderCreateForm({
+			{creating && registry.get(creating)?.renderCreateForm ? (
+				registry.get(creating)?.renderCreateForm?.({
 					create: (config) => client.create(config),
 					dismiss: () => setCreating(null),
 				})
-			) : types.length === 0 ? null : types.length === 1 ? (
-				<button type="button" style={newBtnStyle} onClick={() => setCreating(types[0].type)}>
-					＋ {types[0].label}を作成
+			) : creatable.length === 0 ? null : creatable.length === 1 ? (
+				<button type="button" style={newBtnStyle} onClick={() => setCreating(creatable[0].type)}>
+					＋ {creatable[0].label}を作成
 				</button>
 			) : (
 				<div style={pickerStyle}>
-					{types.map((t) => (
+					{creatable.map((t) => (
 						<button
 							key={t.type}
 							type="button"
