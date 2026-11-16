@@ -20,6 +20,7 @@
 		"@edv4h/usketch-plugin-server-chat": "workspace:*",
 		"@edv4h/usketch-plugin-server-comments": "workspace:*",
 		"@edv4h/usketch-server-core": "workspace:*",
+		"@edv4h/usketch-session-gather": "workspace:*",
 		"@edv4h/usketch-session-protocol": "workspace:*",
 		"@edv4h/usketch-session-voting": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
