@@ -7,6 +7,7 @@ import {
 	gatherRemainingMs,
 	initialParticipation,
 	isGatherLive,
+	isViewOnlyForMe,
 	parseGather,
 	parseGatherBackdrop,
 } from "../gather.js";
@@ -22,6 +23,7 @@ const make = () =>
 			prompt: " How do you feel? ",
 			backdrop: { color: "#003735", imageUrl: "https://example.com/bg.png" },
 			durationMinutes: 10,
+			viewOnly: true,
 		},
 		1000,
 	);
@@ -45,6 +47,33 @@ describe("createGatherConfig / parseGather", () => {
 		expect(parseGather({ ...make(), target: { rect: { ...rect, width: 0 } } })).toBeNull();
 		expect(parseGather({ ...make(), startedAt: "1" })).toBeNull();
 		expect(parseGather({ ...make(), hold: "lock" })?.hold).toBe("stay");
+	});
+
+	it("keeps viewOnly only when it is true", () => {
+		expect(make().viewOnly).toBe(true);
+		expect(createGatherConfig({ hold: "stay", target: { rect } }, 0)).not.toHaveProperty(
+			"viewOnly",
+		);
+		expect(parseGather({ ...make(), viewOnly: "yes" })).not.toHaveProperty("viewOnly");
+		expect(parseGather({ ...make(), viewOnly: false })).not.toHaveProperty("viewOnly");
+	});
+});
+
+describe("isViewOnlyForMe", () => {
+	const gather = parseGather(make());
+	it("limits participants who are taking part or about to", () => {
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "joined" })).toBe(true);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "countdown" })).toBe(true);
+	});
+	it("leaves the host, invited and away people free", () => {
+		expect(isViewOnlyForMe({ gather, isHost: true, participation: "joined" })).toBe(false);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "invited" })).toBe(false);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "away" })).toBe(false);
+		expect(isViewOnlyForMe({ gather: null, isHost: false, participation: null })).toBe(false);
+	});
+	it("does nothing when the gathering does not ask for it", () => {
+		const free = parseGather({ ...make(), viewOnly: undefined });
+		expect(isViewOnlyForMe({ gather: free, isHost: false, participation: "joined" })).toBe(false);
 	});
 });
 
