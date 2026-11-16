@@ -2,7 +2,7 @@ import { createYjsSessionClient } from "@edv4h/usketch-plugin-session";
 import type { BoardStore, EventBus, ServiceRegistry } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { createRespondClientType, getRespondApi } from "../client.js";
+import { createRespondClientType, flattenResponseParts, getRespondApi } from "../client.js";
 import { RESPOND_MAX_MS } from "../respond.js";
 import { respondServerType } from "../server.js";
 
@@ -98,6 +98,38 @@ describe("respond client", () => {
 		// まとめたあとは答えられない
 		guest.api().submit("やっぱり楽しい");
 		expect(guest.api().getState().mine?.text).toBe("ちょっと眠い");
+	});
+
+	it("かけらつきの答えを出せ、まとめで 1 つずつに開ける", () => {
+		const { a, b } = linkedDocs();
+		const host = board(a, "host");
+		const guest = board(b, "guest");
+		host.api().start({ prompt: "Q", maxText: 1000, maxParts: 5 });
+		expect(guest.api().getState().respond).toMatchObject({ maxText: 1000, maxParts: 5 });
+		guest.api().submit("楽しい。眠い。", undefined, [
+			{ text: "楽しい", tag: "joy" },
+			{ text: " 眠い ", tag: "tired" },
+			// 空のかけら・空のタグは落として出す (答えごと断られない)
+			{ text: "  " },
+		]);
+		expect(guest.api().getState().mine?.parts).toHaveLength(2);
+		guest.api().submit("楽しい。眠い。", undefined, [
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い", tag: "" },
+		]);
+		expect(guest.api().getState().mine?.parts).toEqual([
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い" },
+		]);
+		guest.api().submit("楽しい。眠い。", undefined, [
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い", tag: "tired" },
+		]);
+		host.api().reveal();
+		expect(flattenResponseParts(host.api().getState().respond?.answers ?? [])).toEqual([
+			{ userId: "guest", text: "楽しい", tag: "joy" },
+			{ userId: "guest", text: "眠い", tag: "tired" },
+		]);
 	});
 
 	it("取り下げると数が減る", () => {
