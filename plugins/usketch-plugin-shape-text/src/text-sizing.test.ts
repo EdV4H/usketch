@@ -10,6 +10,8 @@ import {
 	fitTextToContent,
 	keepTopLeft,
 	resizeText,
+	SCALE_MIN_FONT_SIZE,
+	scaleText,
 	type TextMeasurer,
 } from "./text-sizing.js";
 
@@ -84,6 +86,47 @@ describe("resizeText", () => {
 	it("autoWidth を持たない既存テキストに autoWidth を付け足さない", () => {
 		const out = resizeText(textShape(), "e", { x: 30, y: 0 });
 		expect("autoWidth" in out).toBe(false);
+	});
+});
+
+describe("scaleText（角ハンドルで文字ごと拡大縮小）", () => {
+	/** 1 文字 = fontSize × 0.5、1 行 = fontSize + padding 8 の計測器 (フォントに比例する)。 */
+	const scaledMeasure: TextMeasurer = ({ text, fontSize }) => ({
+		width: text.length * fontSize * 0.5 + 8,
+		height: fontSize + 8,
+	});
+
+	it("対角線に沿って 2 倍に引くと、文字も枠も 2 倍になり反対の角が動かない", () => {
+		const data = textShape({ width: 200, height: 40 });
+		const se = scaleText(data, "se", { x: 200, y: 40 }, scaledMeasure);
+		expect(se).toMatchObject({ x: 100, y: 50, width: 400, height: 80 });
+		expect((se as { fontSize?: number }).fontSize).toBe(32);
+
+		const nw = scaleText(data, "nw", { x: -200, y: -40 }, scaledMeasure);
+		// 右下の角 (300, 90) を保つ
+		expect(nw).toMatchObject({ x: -100, y: 10, width: 400, height: 80 });
+	});
+
+	it("自動幅の文字は自動幅のまま、新しい大きさの中身に合わせる", () => {
+		const data = textShape({ autoWidth: true, width: 48, height: 24 });
+		const out = scaleText(data, "se", { x: 48, y: 24 }, scaledMeasure);
+		expect((out as { autoWidth?: boolean }).autoWidth).toBe(true);
+		expect((out as { fontSize?: number }).fontSize).toBe(32);
+		// "hello" 5 文字 × 16 + 8、32 + 8
+		expect(out).toMatchObject({ width: 88, height: 40 });
+	});
+
+	it("縮めても文字サイズは下限を下回らない", () => {
+		const data = textShape({ width: 200, height: 40 });
+		const out = scaleText(data, "se", { x: -400, y: -80 }, scaledMeasure);
+		expect((out as { fontSize?: number }).fontSize).toBe(SCALE_MIN_FONT_SIZE);
+	});
+
+	it("辺のハンドルは今までどおり枠だけ変える", () => {
+		const data = textShape({ autoWidth: true });
+		const out = scaleText(data, "e", { x: 30, y: 0 }, scaledMeasure);
+		expect(out).toEqual(resizeText(data, "e", { x: 30, y: 0 }));
+		expect((out as { fontSize?: number }).fontSize).toBe(16);
 	});
 });
 

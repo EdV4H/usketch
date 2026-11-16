@@ -117,6 +117,58 @@ export function resizeText(data: ShapeData, handle: ResizeHandle, delta: Point):
 	return resized;
 }
 
+/** Handles that scale the text in {@link scaleText}. */
+const CORNER_HANDLES: ReadonlySet<ResizeHandle> = new Set(["ne", "nw", "se", "sw"]);
+
+/** Whether the handle is a corner (scales the text when corner resize is `"scale"`). */
+export function isCornerHandle(handle: ResizeHandle): boolean {
+	return CORNER_HANDLES.has(handle);
+}
+
+/** Smallest font size a corner scale can shrink a text to. */
+export const SCALE_MIN_FONT_SIZE = 4;
+
+/**
+ * Corner-handle resize that scales the text (font size) and its box together,
+ * keeping the aspect ratio; the opposite corner stays put. The scale is the
+ * dragged box projected onto the start box's diagonal, so dragging along the
+ * diagonal tracks the pointer and sideways jitter barely changes it.
+ *
+ * An auto-width text stays auto width and is re-fitted to its content at the
+ * new size (padding does not scale); a fixed-width text keeps its wrapping, so
+ * both its width and height scale. Non-corner handles fall back to
+ * {@link resizeText}.
+ */
+export function scaleText(
+	data: ShapeData,
+	handle: ResizeHandle,
+	delta: Point,
+	measure: TextMeasurer,
+): ShapeData {
+	if (!isCornerHandle(handle)) return resizeText(data, handle, delta);
+	const text = data as TextLike;
+	const fontSize = text.fontSize ?? 16;
+	const dx = handle === "ne" || handle === "se" ? delta.x : -delta.x;
+	const dy = handle === "se" || handle === "sw" ? delta.y : -delta.y;
+	const w = data.width;
+	const h = data.height;
+	const diagonal = w * w + h * h;
+	let scale = diagonal > 0 ? ((w + dx) * w + (h + dy) * h) / diagonal : 1;
+	scale = Math.max(scale, SCALE_MIN_FONT_SIZE / fontSize);
+	const nextFontSize = Math.round(fontSize * scale * 10) / 10;
+	let width = w * scale;
+	let height = h * scale;
+	if (text.autoWidth) {
+		const fit = computeAutoFitPatch({ ...data, fontSize: nextFontSize } as ShapeData, measure);
+		width = fit.width;
+		height = fit.height;
+	}
+	// Keep the opposite corner fixed.
+	const x = handle === "nw" || handle === "sw" ? data.x + w - width : data.x;
+	const y = handle === "nw" || handle === "ne" ? data.y + h - height : data.y;
+	return { ...data, x, y, width, height, fontSize: nextFontSize } as ShapeData;
+}
+
 /**
  * `ShapeDefinition.applyBounds` for multi-selection resize, which bypasses
  * `resize`: a real width change turns auto width into fixed width there too.
