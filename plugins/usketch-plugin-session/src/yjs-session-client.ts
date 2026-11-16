@@ -23,7 +23,9 @@ export type YjsSessionLogEntry =
 	| { t: "join"; by: string; at: number }
 	| { t: "action"; by: string; at: number; action: unknown }
 	| { t: "leave"; by: string; at: number }
-	| { t: "close"; by: string; at: number };
+	| { t: "close"; by: string; at: number }
+	/** `by` takes over as host (written only while the host was away). */
+	| { t: "host"; by: string; at: number };
 
 /** Who is online, for {@link Participant.connected}. Shaped like y-protocols' Awareness. */
 export interface YjsSessionPresence {
@@ -81,8 +83,9 @@ const needsServer = (def: ServerSessionType, config: SessionConfig): boolean =>
  * Replay one session's log. Pure and deterministic: the same entries give the
  * same state on every peer. Mirrors the server's `SessionManager` rules —
  * acting joins you, a rejected action changes nothing, only the host may close,
- * a leaving host hands over to the earliest-joined participant, and the session
- * ends when nobody is left (returns `null`).
+ * a leaving host hands over to the earliest-joined participant, a `host` entry
+ * makes its writer the host (joining them if needed), and the session ends when
+ * nobody is left (returns `null`).
  */
 export function foldSessionLog(
 	id: string,
@@ -133,6 +136,15 @@ export function foldSessionLog(
 				}
 				break;
 			}
+			case "host": {
+				ensure(e.by, e.at);
+				const previous = participants.get(hostUserId);
+				if (previous) previous.role = "participant";
+				hostUserId = e.by;
+				const next = participants.get(e.by);
+				if (next) next.role = "host";
+				break;
+			}
 			case "close": {
 				if (e.by !== hostUserId || !def.close) break;
 				const next = clone(state);
@@ -169,7 +181,9 @@ export function foldSessionLog(
  * whole document — `secret` is **not** hidden here. That is why a type that
  * {@link ServerSessionType.requiresServer requires the server} is refused.
  * Ending a session deletes its log; only the host's client does that, by
- * convention rather than enforcement.
+ * convention rather than enforcement. Likewise `claimHost` is refused locally
+ * while the host is online (per `presence`); without `presence` everyone counts
+ * as online, so the host cannot be taken over.
  */
 export function createYjsSessionClient(options: YjsSessionClientOptions): SessionClient {
 	const { doc, userId, presence } = options;
@@ -304,6 +318,14 @@ export function createYjsSessionClient(options: YjsSessionClientOptions): Sessio
 				return;
 			}
 			append(sessionId, { t: "leave", by: userId, at: now() });
+		},
+		claimHost(sessionId) {
+			const f = folded.get(sessionId);
+			if (!f) return fail("no such session");
+			if (f.view.hostUserId === userId) return;
+			const ids = online();
+			if (!ids || ids.has(f.view.hostUserId)) return fail("the host is here");
+			append(sessionId, { t: "host", by: userId, at: now() });
 		},
 		sync: refresh,
 		dispose() {

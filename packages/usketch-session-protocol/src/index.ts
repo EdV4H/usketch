@@ -67,6 +67,11 @@ export type ClientToServer =
 	| { t: "close"; sessionId: string }
 	/** Host-only: end the session entirely and remove it for everyone. */
 	| { t: "end"; sessionId: string }
+	/**
+	 * Take over as host while the host is away (not connected). Refused while the
+	 * host is connected. The old host stays a participant if they come back.
+	 */
+	| { t: "claimHost"; sessionId: string }
 	/** Sent on (re)connect to catch up on all current sessions. */
 	| { t: "sync" };
 

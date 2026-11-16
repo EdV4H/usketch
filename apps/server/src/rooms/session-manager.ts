@@ -171,6 +171,9 @@ export class SessionManager {
 			case "end":
 				this.onEnd(userId, msg.sessionId);
 				break;
+			case "claimHost":
+				this.onClaimHost(userId, msg.sessionId);
+				break;
 		}
 	}
 
@@ -272,6 +275,25 @@ export class SessionManager {
 		this.sessions.delete(sessionId);
 		this.commit();
 		this.deps.broadcast({ t: "ended", sessionId });
+	}
+
+	/** Take over as host while the host is away (disconnected, within the grace window). */
+	private onClaimHost(userId: string, sessionId: string): void {
+		const s = this.sessions.get(sessionId);
+		if (!s || s.hostUserId === userId) return;
+		if (s.participants.get(s.hostUserId)?.connected) {
+			this.deps.send(userId, { t: "error", message: "the host is here", sessionId });
+			return;
+		}
+		const previous = s.participants.get(s.hostUserId);
+		if (previous) previous.role = "participant";
+		s.hostUserId = userId;
+		this.ensureParticipant(s, userId);
+		const next = s.participants.get(userId);
+		if (next) next.role = "host";
+		this.commit();
+		this.broadcastState(s);
+		this.sendPrivate(userId, s);
 	}
 
 	// ── presence / reconnect ──

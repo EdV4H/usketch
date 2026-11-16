@@ -174,6 +174,60 @@ describe("createYjsSessionClient", () => {
 		expect(connected()).toEqual({ host: true, guest: true });
 	});
 
+	it("主催者がいないあいだは、ほかの人が主催者を引き継げる (いるあいだは引き継げない)", () => {
+		const { a, b, client } = peers();
+		const states = new Map<number, unknown>([
+			[1, { user: { id: "host" } }],
+			[2, { user: { id: "guest" } }],
+		]);
+		const listeners = new Set<() => void>();
+		const presence = {
+			getStates: () => states,
+			on: (_: "change", l: () => void) => listeners.add(l),
+			off: (_: "change", l: () => void) => listeners.delete(l),
+		};
+		const changed = () => {
+			for (const l of listeners) l();
+		};
+		const host = client(a, "host", { presence });
+		const guest = client(b, "guest", { presence });
+		host.create({ type: "counter" });
+		const id = only(host).id;
+		guest.join(id);
+
+		guest.claimHost(id);
+		expect(only(guest).hostUserId).toBe("host");
+		expect(guest.getState().error).toBe("the host is here");
+
+		states.delete(1);
+		changed();
+		guest.claimHost(id);
+		expect(only(host).hostUserId).toBe("guest");
+		expect(Object.fromEntries(only(host).participants.map((p) => [p.userId, p.role]))).toEqual({
+			host: "participant",
+			guest: "host",
+		});
+		// 主催者だけの操作は引き継いだ人のものになる
+		host.close(id);
+		expect(host.getState().error).toBe("host only");
+		guest.close(id);
+		expect(only(host).public).toMatchObject({ closed: true });
+
+		// 元の主催者が戻っても、参加者のまま
+		states.set(1, { user: { id: "host" } });
+		changed();
+		expect(only(host).hostUserId).toBe("guest");
+	});
+
+	it("presence が無ければ、主催者は引き継げない", () => {
+		const { a, b, client } = peers();
+		const host = client(a, "host");
+		const guest = client(b, "guest");
+		host.create({ type: "counter" });
+		guest.claimHost(only(guest).id);
+		expect(only(host).hostUserId).toBe("host");
+	});
+
 	it("知らない型のログは無視する", () => {
 		const { a, client } = peers();
 		const log = new Y.Array();

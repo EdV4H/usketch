@@ -36,6 +36,12 @@ export interface SessionClient {
 	/** Host-only: end the session and remove it for everyone. */
 	end(sessionId: string): void;
 	leave(sessionId: string): void;
+	/**
+	 * Take over as host while the current host is away (not connected), so the
+	 * session can go on without them. Refused while the host is connected. The
+	 * old host stays a participant if they come back.
+	 */
+	claimHost(sessionId: string): void;
 	/** Re-request all current sessions (also sent automatically on (re)connect). */
 	sync(): void;
 
@@ -121,6 +127,7 @@ export function createSessionClient(wsProvider: WsProviderHandle): SessionClient
 		close: (sessionId) => send({ t: "close", sessionId }),
 		end: (sessionId) => send({ t: "end", sessionId }),
 		leave: (sessionId) => send({ t: "leave", sessionId }),
+		claimHost: (sessionId) => send({ t: "claimHost", sessionId }),
 		sync: () => send({ t: "sync" }),
 		dispose() {
 			offSession();
