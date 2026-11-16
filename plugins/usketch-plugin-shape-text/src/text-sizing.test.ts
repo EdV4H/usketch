@@ -95,38 +95,64 @@ describe("scaleText（角ハンドルで文字ごと拡大縮小）", () => {
 		width: text.length * fontSize * 0.5 + 8,
 		height: fontSize + 8,
 	});
+	const fontOf = (shape: ShapeData) => (shape as { fontSize?: number }).fontSize;
 
-	it("対角線に沿って 2 倍に引くと、文字も枠も 2 倍になり反対の角が動かない", () => {
-		const data = textShape({ width: 200, height: 40 });
-		const se = scaleText(data, "se", { x: 200, y: 40 }, scaledMeasure);
-		expect(se).toMatchObject({ x: 100, y: 50, width: 400, height: 80 });
-		expect((se as { fontSize?: number }).fontSize).toBe(32);
+	it("中身 (padding を除いた枠) を 2 倍に引くと文字も中身も 2 倍になり、反対の角が動かない", () => {
+		// 中身は 200 × 32
+		const data = textShape({ width: 208, height: 40 });
+		const se = scaleText(data, "se", { x: 200, y: 32 }, scaledMeasure);
+		expect(se).toMatchObject({ x: 100, y: 50, width: 408, height: 72 });
+		expect(fontOf(se)).toBe(32);
 
-		const nw = scaleText(data, "nw", { x: -200, y: -40 }, scaledMeasure);
-		// 右下の角 (300, 90) を保つ
-		expect(nw).toMatchObject({ x: -100, y: 10, width: 400, height: 80 });
+		const nw = scaleText(data, "nw", { x: -200, y: -32 }, scaledMeasure);
+		// 右下の角 (308, 90) を保つ
+		expect(nw).toMatchObject({ x: -100, y: 18, width: 408, height: 72 });
 	});
 
-	it("自動幅の文字は自動幅のまま、新しい大きさの中身に合わせる", () => {
+	it("自動幅の文字は自動幅のまま、新しい大きさの中身に合わせる (ポインタに付いてくる)", () => {
 		const data = textShape({ autoWidth: true, width: 48, height: 24 });
-		const out = scaleText(data, "se", { x: 48, y: 24 }, scaledMeasure);
+		const out = scaleText(data, "se", { x: 40, y: 16 }, scaledMeasure);
 		expect((out as { autoWidth?: boolean }).autoWidth).toBe(true);
-		expect((out as { fontSize?: number }).fontSize).toBe(32);
-		// "hello" 5 文字 × 16 + 8、32 + 8
+		expect(fontOf(out)).toBe(32);
+		// "hello" 5 文字 × 16 + 8、32 + 8 = ドラッグした枠と同じ
 		expect(out).toMatchObject({ width: 88, height: 40 });
 	});
 
-	it("縮めても文字サイズは下限を下回らない", () => {
-		const data = textShape({ width: 200, height: 40 });
+	it("縮めても枠は最小の高さ、文字は下限を下回らない", () => {
+		const data = textShape({ width: 208, height: 40 });
 		const out = scaleText(data, "se", { x: -400, y: -80 }, scaledMeasure);
-		expect((out as { fontSize?: number }).fontSize).toBe(SCALE_MIN_FONT_SIZE);
+		expect(out.height).toBe(24);
+		expect(fontOf(out)).toBe(8);
+
+		const tall = textShape({ width: 208, height: 200 });
+		const shrunk = scaleText(tall, "se", { x: -400, y: -400 }, scaledMeasure);
+		expect(fontOf(shrunk)).toBe(SCALE_MIN_FONT_SIZE);
+	});
+
+	it("下限より小さい文字は、掴んだだけで大きくならない", () => {
+		const data = textShape({ width: 208, height: 40, fontSize: 2 });
+		const out = scaleText(data, "se", { x: 1, y: 0 }, scaledMeasure);
+		expect(fontOf(out)).toBe(2);
+		expect(out.width).toBe(208);
+	});
+
+	it("動いていなければ何も変えない", () => {
+		const data = textShape({ width: 208, height: 40, fontSize: 15.55 });
+		expect(scaleText(data, "se", { x: 0, y: 0 }, scaledMeasure)).toEqual(data);
+	});
+
+	it("反転して幅 0 になった枠は今までどおり枠だけ変える (潰れない)", () => {
+		const data = textShape({ width: 0, height: 40 });
+		const out = scaleText(data, "se", { x: 30, y: 10 }, scaledMeasure);
+		expect(out).toEqual(resizeText(data, "se", { x: 30, y: 10 }));
+		expect(out.width).toBeGreaterThanOrEqual(40);
 	});
 
 	it("辺のハンドルは今までどおり枠だけ変える", () => {
 		const data = textShape({ autoWidth: true });
 		const out = scaleText(data, "e", { x: 30, y: 0 }, scaledMeasure);
 		expect(out).toEqual(resizeText(data, "e", { x: 30, y: 0 }));
-		expect((out as { fontSize?: number }).fontSize).toBe(16);
+		expect(fontOf(out)).toBe(16);
 	});
 });
 
