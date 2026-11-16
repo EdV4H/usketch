@@ -108,9 +108,23 @@ describe("respond client", () => {
 		expect(guest.api().getState().respond).toMatchObject({ maxText: 1000, maxParts: 5 });
 		guest.api().submit("楽しい。眠い。", undefined, [
 			{ text: "楽しい", tag: "joy" },
-			{ text: "眠い", tag: "tired" },
+			{ text: " 眠い ", tag: "tired" },
+			// 空のかけら・空のタグは落として出す (答えごと断られない)
+			{ text: "  " },
 		]);
 		expect(guest.api().getState().mine?.parts).toHaveLength(2);
+		guest.api().submit("楽しい。眠い。", undefined, [
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い", tag: "" },
+		]);
+		expect(guest.api().getState().mine?.parts).toEqual([
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い" },
+		]);
+		guest.api().submit("楽しい。眠い。", undefined, [
+			{ text: "楽しい", tag: "joy" },
+			{ text: "眠い", tag: "tired" },
+		]);
 		host.api().reveal();
 		expect(flattenResponseParts(host.api().getState().respond?.answers ?? [])).toEqual([
 			{ userId: "guest", text: "楽しい", tag: "joy" },

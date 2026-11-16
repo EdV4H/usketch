@@ -160,11 +160,19 @@ export function createRespondClientType(options: RespondClientOptions = {}): Cli
 			submit(text, tag, parts) {
 				const id = liveId();
 				if (!id) return;
+				// Drop empty pieces and empty tags here, so one blank part does not
+				// get the whole answer refused.
+				const cleanParts = (parts ?? []).flatMap((p) => {
+					const partText = p.text.trim();
+					if (partText === "") return [];
+					const partTag = p.tag?.trim();
+					return [{ text: partText, ...(partTag ? { tag: partTag } : {}) }];
+				});
 				client.act(id, {
 					kind: "submit",
 					text,
 					...(tag ? { tag } : {}),
-					...(parts && parts.length > 0 ? { parts: parts.map((p) => ({ ...p })) } : {}),
+					...(cleanParts.length > 0 ? { parts: cleanParts } : {}),
 				});
 			},
 			retract() {

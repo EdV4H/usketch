@@ -38,8 +38,10 @@ export interface RespondAnswer {
 	tag?: string;
 	/**
 	 * Optional pieces of the answer, each with its own label, when the session
-	 * allows them ({@link RespondPublic.maxParts}). {@link flattenResponseParts}
-	 * turns them into one item each for arranging.
+	 * allows them ({@link RespondPublic.maxParts}). `text` stays the whole answer;
+	 * the parts are what the host lays out piece by piece (they are not checked
+	 * against `text`). Together they hold at most `maxText` characters.
+	 * {@link flattenResponseParts} turns them into one item each for arranging.
 	 */
 	parts?: RespondPart[];
 }
@@ -108,17 +110,31 @@ const cleanText = (v: unknown, max: number): string | undefined => {
 	return text !== "" && text.length <= max ? text : undefined;
 };
 
-/** A whole number within [min, max], else `fallback`. */
-const cleanInt = (v: unknown, min: number, max: number, fallback: number): number =>
-	isFiniteNumber(v) && Number.isInteger(v) && v >= min && v <= max ? v : fallback;
+/** A number rounded down and held within [min, max]; `fallback` when it is not a number. */
+const clampInt = (v: unknown, min: number, max: number, fallback: number): number =>
+	isFiniteNumber(v) ? Math.min(max, Math.max(min, Math.floor(v))) : fallback;
+
+/** The session's limits, with the defaults for a state written before they existed. */
+export const respondLimits = (r: {
+	maxText?: unknown;
+	maxParts?: unknown;
+}): { maxText: number; maxParts: number } => ({
+	maxText: clampInt(r.maxText, 1, RESPOND_MAX_TEXT_LIMIT, RESPOND_MAX_TEXT),
+	maxParts: clampInt(r.maxParts, 0, RESPOND_MAX_PARTS_LIMIT, 0),
+});
+
+/** Absent → `undefined` tag; present but not a usable tag → `null` (reject). */
+const parseTag = (v: unknown): string | undefined | null => {
+	if (v === undefined) return undefined;
+	return cleanText(v, RESPOND_MAX_TAG) ?? null;
+};
 
 const parsePart = (v: unknown): RespondPart | null => {
 	if (!v || typeof v !== "object") return null;
 	const r = v as Record<string, unknown>;
 	const text = cleanText(r.text, RESPOND_MAX_TEXT);
-	if (!text) return null;
-	if (r.tag !== undefined && !cleanText(r.tag, RESPOND_MAX_TAG)) return null;
-	const tag = cleanText(r.tag, RESPOND_MAX_TAG);
+	const tag = parseTag(r.tag);
+	if (!text || tag === null) return null;
 	return { text, ...(tag ? { tag } : {}) };
 };
 
@@ -136,8 +152,7 @@ export function createRespondConfig(input: RespondStartInput, now: number): Resp
 	return {
 		type: RESPOND_TYPE,
 		prompt,
-		maxText: cleanInt(input.maxText, 1, RESPOND_MAX_TEXT_LIMIT, RESPOND_MAX_TEXT),
-		maxParts: cleanInt(input.maxParts, 0, RESPOND_MAX_PARTS_LIMIT, 0),
+		...respondLimits(input),
 		hostName: input.hostName ?? "",
 		startedAt: now,
 		expiresAt: now + RESPOND_MAX_MS,
@@ -175,8 +190,7 @@ export function parseRespond(raw: unknown): RespondPublic | null {
 	return {
 		type: RESPOND_TYPE,
 		prompt,
-		maxText: cleanInt(r.maxText, 1, RESPOND_MAX_TEXT_LIMIT, RESPOND_MAX_TEXT),
-		maxParts: cleanInt(r.maxParts, 0, RESPOND_MAX_PARTS_LIMIT, 0),
+		...respondLimits(r),
 		hostName: typeof r.hostName === "string" ? r.hostName : "",
 		startedAt: r.startedAt,
 		expiresAt: r.expiresAt,
@@ -195,9 +209,8 @@ export function parseRespondAction(raw: unknown): RespondAction | null {
 	if (r.kind === "retract") return { kind: "retract" };
 	if (r.kind !== "submit") return null;
 	const text = cleanText(r.text, RESPOND_MAX_TEXT_LIMIT);
-	if (!text) return null;
-	if (r.tag !== undefined && !cleanText(r.tag, RESPOND_MAX_TAG)) return null;
-	const tag = cleanText(r.tag, RESPOND_MAX_TAG);
+	const tag = parseTag(r.tag);
+	if (!text || tag === null) return null;
 	let parts: RespondPart[] | null = null;
 	if (r.parts !== undefined) {
 		parts = parseParts(r.parts);
@@ -213,14 +226,18 @@ export function parseRespondAction(raw: unknown): RespondAction | null {
 
 /**
  * One item per part: an answer with parts becomes one answer per part (its own
- * text and tag, the same `userId`), an answer without parts stays as it is. The
+ * text, its own tag or else the answer's, the same `userId`), an answer without
+ * parts stays as it is (without its parts). The
  * order follows the answers, then the parts. Feed the result to
  * `arrangeResponses` to place each part on its own. Pure.
  */
 export function flattenResponseParts(answers: readonly RespondAnswer[]): RespondAnswer[] {
 	return answers.flatMap((a) =>
 		a.parts && a.parts.length > 0
-			? a.parts.map((p) => ({ userId: a.userId, text: p.text, ...(p.tag ? { tag: p.tag } : {}) }))
+			? a.parts.map((p) => {
+					const tag = p.tag ?? a.tag;
+					return { userId: a.userId, text: p.text, ...(tag ? { tag } : {}) };
+				})
 			: [{ userId: a.userId, text: a.text, ...(a.tag ? { tag: a.tag } : {}) }],
 	);
 }

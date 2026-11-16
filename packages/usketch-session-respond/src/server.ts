@@ -8,6 +8,7 @@ import {
 	type RespondPrivate,
 	type RespondPublic,
 	type RespondSecret,
+	respondLimits,
 } from "./respond.js";
 
 export type {
@@ -75,8 +76,12 @@ export const respondServerType: ServerSessionType<
 			);
 			return undefined;
 		}
-		if (action.text.length > state.public.maxText) return "answer is too long";
-		if ((action.parts?.length ?? 0) > state.public.maxParts) return "too many parts";
+		// Read the limits with their defaults: a state saved before they existed has none.
+		const { maxText, maxParts } = respondLimits(state.public);
+		if (action.text.length > maxText) return "answer is too long";
+		const parts = action.parts ?? [];
+		if (parts.length > maxParts) return "too many parts";
+		if (parts.reduce((n, p) => n + p.text.length, 0) > maxText) return "answer is too long";
 		const answer = {
 			userId: actorUserId,
 			text: action.text,
@@ -100,6 +105,9 @@ export const respondServerType: ServerSessionType<
 	close(state) {
 		if (state.public.revealed) return;
 		state.public.revealed = true;
-		state.public.answers = state.secret.answers.map((a) => ({ ...a }));
+		state.public.answers = state.secret.answers.map((a) => ({
+			...a,
+			...(a.parts ? { parts: a.parts.map((p) => ({ ...p })) } : {}),
+		}));
 	},
 };

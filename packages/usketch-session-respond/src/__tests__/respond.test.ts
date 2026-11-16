@@ -46,7 +46,7 @@ describe("createRespondConfig / parseRespond", () => {
 		expect(parseRespondAction({ kind: "reveal" })).toBeNull();
 	});
 
-	it("maxText と maxParts は範囲に収め、無ければ 280 字・かけら無し", () => {
+	it("maxText と maxParts は範囲に丸め、無ければ 280 字・かけら無し", () => {
 		expect(createRespondConfig({ prompt: "Q" }, 0)).toMatchObject({ maxText: 280, maxParts: 0 });
 		expect(createRespondConfig({ prompt: "Q", maxText: 1000, maxParts: 20 }, 0)).toMatchObject({
 			maxText: 1000,
@@ -54,7 +54,11 @@ describe("createRespondConfig / parseRespond", () => {
 		});
 		expect(
 			createRespondConfig({ prompt: "Q", maxText: RESPOND_MAX_TEXT_LIMIT + 1, maxParts: -1 }, 0),
-		).toMatchObject({ maxText: 280, maxParts: 0 });
+		).toMatchObject({ maxText: RESPOND_MAX_TEXT_LIMIT, maxParts: 0 });
+		expect(createRespondConfig({ prompt: "Q", maxText: 0, maxParts: 99 }, 0)).toMatchObject({
+			maxText: 1,
+			maxParts: RESPOND_MAX_PARTS_LIMIT,
+		});
 		// 以前の公開状態 (maxText / maxParts 無し) も読める
 		expect(parseRespond({ prompt: "Q", startedAt: 1, expiresAt: 2 })).toMatchObject({
 			maxText: 280,
@@ -89,12 +93,18 @@ describe("createRespondConfig / parseRespond", () => {
 	it("flattenResponseParts はかけらを 1 つずつの答えに開く", () => {
 		expect(
 			flattenResponseParts([
-				{ userId: "u1", text: "a b", parts: [{ text: "a", tag: "joy" }, { text: "b" }] },
+				{
+					userId: "u1",
+					text: "a b",
+					tag: "calm",
+					parts: [{ text: "a", tag: "joy" }, { text: "b" }],
+				},
 				{ userId: "u2", text: "c", tag: "sad" },
 			]),
 		).toEqual([
 			{ userId: "u1", text: "a", tag: "joy" },
-			{ userId: "u1", text: "b" },
+			// 自分のタグが無いかけらは、答えのタグを継ぐ
+			{ userId: "u1", text: "b", tag: "calm" },
 			{ userId: "u2", text: "c", tag: "sad" },
 		]);
 	});
@@ -154,11 +164,39 @@ describe("respondServerType", () => {
 				"u2",
 			),
 		).toBe("too many parts");
+		// かけらの合計も maxText まで
+		const big = createRespondConfig({ prompt: "Q", maxText: 300, maxParts: 2 }, 0);
+		if (!big) throw new Error("config");
+		const u = respondServerType.init(big);
+		expect(
+			respondServerType.reduce(
+				u,
+				{
+					kind: "submit",
+					text: "a",
+					parts: [{ text: "x".repeat(200) }, { text: "y".repeat(200) }],
+				},
+				"u1",
+			),
+		).toBe("answer is too long");
 		expect(respondServerType.privateFor(t, "u2")).toEqual({
 			mine: { userId: "u2", text: "a b", parts },
 		});
 		respondServerType.close?.(t);
 		expect(parseRespond(t.public)?.answers.at(1)).toEqual({ userId: "u2", text: "a b", parts });
+	});
+
+	it("上限の無い以前の状態でも、既定の上限で断る", () => {
+		const s = fresh();
+		const old = s.public as Partial<typeof s.public>;
+		delete old.maxText;
+		delete old.maxParts;
+		expect(respondServerType.reduce(s, { kind: "submit", text: "x".repeat(281) }, "u1")).toBe(
+			"answer is too long",
+		);
+		expect(
+			respondServerType.reduce(s, { kind: "submit", text: "a", parts: [{ text: "a" }] }, "u1"),
+		).toBe("too many parts");
 	});
 
 	it("答えていない人の取り下げ・不正な操作は断る", () => {
