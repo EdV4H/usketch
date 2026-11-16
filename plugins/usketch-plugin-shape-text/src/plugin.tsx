@@ -21,6 +21,7 @@ import {
 	fitTextToContent,
 	isSideHandle,
 	resizeText,
+	scaleText,
 } from "./text-sizing.js";
 
 /** Text shape extension: intrinsic data for the `text` shape. */
@@ -182,7 +183,20 @@ function TextIcon() {
 
 // ── Plugin ──
 
-export function createTextPlugin(): UsketchPlugin {
+export interface TextPluginOptions {
+	/**
+	 * What dragging a corner handle of a single text does.
+	 * - `"box"` (default): changes the box only; the text re-wraps at the new width.
+	 * - `"scale"`: scales the text (font size) and the box together, keeping the
+	 *   aspect ratio. Side handles still change only the width / height.
+	 *
+	 * Multi-selection resize is not affected (it always changes the boxes).
+	 */
+	cornerResize?: "box" | "scale";
+}
+
+export function createTextPlugin(options: TextPluginOptions = {}): UsketchPlugin {
+	const cornerResize = options.cornerResize ?? "box";
 	return {
 		id: "usketch-plugin-shape-text",
 		name: "テキスト",
@@ -209,7 +223,10 @@ export function createTextPlugin(): UsketchPlugin {
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),
-				resize: resizeText,
+				resize:
+					cornerResize === "scale"
+						? (data, handle, delta) => scaleText(data, handle, delta, measurer.measure)
+						: resizeText,
 				applyBounds: applyTextBounds,
 				createDefault,
 				renderTarget: "html",
