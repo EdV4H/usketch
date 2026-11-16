@@ -43,6 +43,10 @@ export const votingServerType: ServerSessionType<
 	VoteCastAction
 > = {
 	type: "voting",
+	// A secret ballot keeps who-voted-what in `secret`, which only the server can hide.
+	requiresServer(config) {
+		return !!config.secret;
+	},
 
 	init(config) {
 		const options = config.options.slice(0, 8); // cap

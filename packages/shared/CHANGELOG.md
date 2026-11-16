@@ -1,5 +1,19 @@
 # @edv4h/usketch-shared
 
+## 4.27.0
+
+### Minor Changes
+
+- ee82044: CSS 3D 表示で、丘の陰にある Shape を地形で隠すようにしました（#1304）。これまで Shape は DOM なので WebGL の地形より常に手前に描かれ、丘の向こうでも透けて見えていました。elevation が Shape の上に「カバー」の canvas を重ね、地形が Shape より目に近い画素だけ地形を描き直します。斜面に寝ている Shape は足元の地面に食われないようにしています。
+  
+  - shared: `view3dShapeFacesIn`（3D 表示で各 Shape が描かれている面）と `View3dPickApi.facesInView`
+  - canvas-engine: Canvas が `facesInView` を提供
+  - elevation: 表示設定 `coverShapes`（既定オン、HUD「標高の表示」の「3D で丘の陰の Shape を隠す」で切り替え）とプラグインオプション `coverShapes` / `coverOrder`（既定 52）。GPU 3D レンダラーは深度で前後を付けるので使いません
+- 98df25b: 3D 表示の選択枠で、地形に隠れた部分を薄い点線で描くようにしました（#1304）。丘の向こうの Shape を選んでも、枠が地形を突き抜けて見えなくなります。輪郭を地形で切り分ける `quadOutlineRuns` と、`view3dPickService` の `outlineRunsOf` を追加しました。
+  
+  隠れた部分の見せ方は選択ツールの `occludedOutline` オプションで選べます。`"dashed"`（既定）は薄い点線、`"hidden"` は描きません。実行中は `select:configure` イベントに `{ occludedOutline }` を渡して切り替えられます。
+- e2d6d5e: 3D 表示で選択枠が地面の高さ 0 に描かれ、丘の上の Shape・箱の天面・浮いた Shape・立った看板とずれていたのを直しました（#1304）。選択ツールは 3D の間、各 Shape が実際に描かれている面の輪郭を傾かない層に重ねて描き、平面用の枠とハンドルは隠します。`shapeView3dQuad` / `projectQuad3d` と、`view3dPickService` の `outlineOf` を追加しました。
+
 ## 4.26.0
 
 ### Minor Changes
