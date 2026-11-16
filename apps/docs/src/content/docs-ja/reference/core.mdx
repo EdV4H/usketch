@@ -29,6 +29,7 @@ interface CreateAppOptions {
   };
   selectionForeground?: Pick<SelectionForeground, "render"> &
     Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
+  keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
 }
 ```
 
@@ -38,6 +39,7 @@ interface CreateAppOptions {
 | `plugins` | 必須。初期化するプラグインの配列。順序は重要 — 逐次 setup される。 |
 | `lod?` | 任意。LOD（詳細度）設定。省略時は zoom + シェイプ数の複合ポリシー、`interactive` モード開始のデフォルトが使われる。 |
 | `selectionForeground?` | 任意。デフォルトの選択 UI（ハンドル・バウンディングボックス・マーキー）をホスト実装で置き換える。内部で priority 100 として登録され、プラグインのデフォルトより優先される。 |
+| `keymap?` | 任意。アプリ全体のキー割り当て。binding id ごとのホストの既定（`keys`）、閲覧者が保存した付け替え（`overrides`）、複数のプラグインが同じキーを持つときにどれが受け取るか（`conflictPolicy`、既定 `"first"`。後から `app.keymap.setConflictPolicy` で変えられる）、プラグインの setup 後に重なっているキーを `console.warn` するか（`warnConflicts`、既定 `false`）。 |
 
 ### AppInstance
 
@@ -51,14 +53,18 @@ interface AppInstance {
   shapes: ShapeRegistry;
   commands: CommandRegistry;
   shortcuts: ShortcutRegistry;
+  keymap: Keymap;
   events: EventBus;
   transient: TransientRegistry;
   lod: LodController;
   ui: UiRegistry;
   selectionForeground: SelectionForegroundRegistry;
+  selectionHandles: SelectionHandleRegistry;
   externalContent: ExternalContentRegistry;
   actions: ActionRegistry;
+  hud: HudRegistry;
   services: ServiceRegistry;
+  height: BoardHeightApi;
   plugins: readonly UsketchPlugin[];
   destroy(): void;
 }

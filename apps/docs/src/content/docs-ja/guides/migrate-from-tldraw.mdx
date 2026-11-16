@@ -211,7 +211,7 @@ interface CardShapeData extends ShapeData {
 | `meta` | `TMeta` | アプリケーションデータ（後述） |
 | `createdAt`、`updatedAt` | `number?` | ミリ秒タイムスタンプ |
 
-ジオメトリでない値（`employeeId`、外部の `versionId` 等）は `meta` に入れる。レガシー移行用の `x-*` エスケープハッチもあるが、新規コードでは `meta` を使う。詳しくは [Shape System → Extending shapes](../../../concepts/shape-system/#extending-shapes) を参照。
+ジオメトリでない値（`employeeId`、外部の `versionId` 等）は `meta` に入れる。レガシー移行用の `x-*` エスケープハッチもあるが、新規コードでは `meta` を使う。詳しくは [シェイプシステム → シェイプを拡張する](../../concepts/shape-system/#シェイプを拡張する) を参照。
 
 ### 手順 3. createShapes → store.addShape + commands
 

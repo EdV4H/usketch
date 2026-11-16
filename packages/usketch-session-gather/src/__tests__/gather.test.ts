@@ -7,7 +7,9 @@ import {
 	gatherRemainingMs,
 	initialParticipation,
 	isGatherLive,
+	isViewOnlyForMe,
 	parseGather,
+	parseGatherBackdrop,
 } from "../gather.js";
 
 const rect = { x: 10, y: 20, width: 300, height: 200 };
@@ -18,7 +20,10 @@ const make = () =>
 			target: { rect, shapeId: "f" },
 			hostName: "host",
 			title: " KPT ",
+			prompt: " How do you feel? ",
+			backdrop: { color: "#003735", imageUrl: "https://example.com/bg.png" },
 			durationMinutes: 10,
+			viewOnly: true,
 		},
 		1000,
 	);
@@ -29,6 +34,10 @@ describe("createGatherConfig / parseGather", () => {
 		expect(c.endsAt).toBe(1000 + 10 * 60_000);
 		expect(c.expiresAt).toBe(1000 + GATHER_MAX_MS);
 		expect(c.title).toBe("KPT");
+		expect(c.prompt).toBe("How do you feel?");
+		expect(
+			createGatherConfig({ hold: "stay", target: { rect }, prompt: "  " }, 0),
+		).not.toHaveProperty("prompt");
 	});
 
 	it("round-trips and rejects broken values", () => {
@@ -38,6 +47,65 @@ describe("createGatherConfig / parseGather", () => {
 		expect(parseGather({ ...make(), target: { rect: { ...rect, width: 0 } } })).toBeNull();
 		expect(parseGather({ ...make(), startedAt: "1" })).toBeNull();
 		expect(parseGather({ ...make(), hold: "lock" })?.hold).toBe("stay");
+	});
+
+	it("keeps viewOnly only when it is true", () => {
+		expect(make().viewOnly).toBe(true);
+		expect(createGatherConfig({ hold: "stay", target: { rect } }, 0)).not.toHaveProperty(
+			"viewOnly",
+		);
+		expect(parseGather({ ...make(), viewOnly: "yes" })).not.toHaveProperty("viewOnly");
+		expect(parseGather({ ...make(), viewOnly: false })).not.toHaveProperty("viewOnly");
+	});
+});
+
+describe("isViewOnlyForMe", () => {
+	const gather = parseGather(make());
+	it("limits participants who are taking part or about to", () => {
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "joined" })).toBe(true);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "countdown" })).toBe(true);
+	});
+	it("leaves the host, invited and away people free", () => {
+		expect(isViewOnlyForMe({ gather, isHost: true, participation: "joined" })).toBe(false);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "invited" })).toBe(false);
+		expect(isViewOnlyForMe({ gather, isHost: false, participation: "away" })).toBe(false);
+		expect(isViewOnlyForMe({ gather: null, isHost: false, participation: null })).toBe(false);
+	});
+	it("does nothing when the gathering does not ask for it", () => {
+		const free = parseGather({ ...make(), viewOnly: undefined });
+		expect(isViewOnlyForMe({ gather: free, isHost: false, participation: "joined" })).toBe(false);
+	});
+});
+
+describe("parseGatherBackdrop", () => {
+	it("keeps a hex color and an http(s) image URL, drops the rest", () => {
+		expect(parseGatherBackdrop({ color: " #0a0 ", imageUrl: "https://x.test/a b.png" })).toEqual({
+			color: "#0a0",
+			imageUrl: "https://x.test/a%20b.png",
+		});
+		expect(parseGatherBackdrop({ color: "red", imageUrl: "javascript:alert(1)" })).toBeUndefined();
+		expect(
+			parseGatherBackdrop({ color: "#12345", imageUrl: "data:image/png;base64,AA" }),
+		).toBeUndefined();
+		expect(parseGatherBackdrop({ imageUrl: "http://x.test/a.png" })).toEqual({
+			imageUrl: "http://x.test/a.png",
+		});
+		expect(parseGatherBackdrop("#fff")).toBeUndefined();
+		// 前後の空白は落としてから測り、正規化で上限を超えたものは落とす
+		const near = `https://x.test/${"a".repeat(2000)}`;
+		expect(parseGatherBackdrop({ imageUrl: `  ${near}  ` })).toEqual({ imageUrl: near });
+		expect(
+			parseGatherBackdrop({ imageUrl: `https://x.test/${" ".repeat(1100)}a` }),
+		).toBeUndefined();
+	});
+
+	it("is left out of the config when nothing is valid", () => {
+		expect(
+			createGatherConfig({ hold: "stay", target: { rect }, backdrop: { color: "blue" } }, 0),
+		).not.toHaveProperty("backdrop");
+		expect(parseGather({ ...make(), backdrop: { imageUrl: "ftp://x" } })).not.toHaveProperty(
+			"backdrop",
+		);
 	});
 });
 

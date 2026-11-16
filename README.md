@@ -37,8 +37,9 @@ pnpm dev
 - **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal, markdown, embed, card, domain-design（DDD 図）, pdf-import（PDF の全ページ展開）
 - **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan, map（RPG/ワールドマップの地形ペイント）
 - **Background**: grid, dots
-- **3D ビュー**: mode7（Canvas を奥へ傾ける擬似 3D 表示）、shape-3d（Shape を地面から立ち上げる・当たり判定）、character（操作キャラ + 追従カメラ・ジャンプ）
-- **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）
+- **3D ビュー**: mode7（Canvas を奥へ傾ける擬似 3D 表示。傾けたまま Shape を選んで動かせる）、elevation（標高の地形。無限生成・ブラシ・3D ではメッシュ）、shape-3d（Shape を地面から立ち上げる・当たり判定）、character（操作キャラ + 追従カメラ・ジャンプ）。描画は CSS 3D レンダラーと、実験中の GPU 3D レンダラー
+- **Snap & smart guides**、Undo/Redo（コマンドパターン）
+- **キー割り当て**: プラグイン間のキーの重なりを `ctx.keymap` で検知・解消し、key-settings の HUD パネルで全プラグインのキーを付け替え
 
 ### マルチページ
 - 1 ボードに複数のページ。ページごとに別の Y.Doc で、開いたページだけ読み込む
@@ -51,6 +52,7 @@ pnpm dev
 - **Presence**: ライブカーソル、拡張アバター、follow-me、spatial chat、reactions、whistle
 - **Live sessions**: サーバー権限の投票（途中参加・再接続猶予・ホスト移譲・秘密投票）。イベント型を足せるフレームワーク
 - **Link sharing**: 公開 / 限定公開 + role 管理（owner / editor / viewer）
+- **Board history**: Git 風のボードのバージョン（サーバーが自動・手動でコミット）。HUD で一覧・差分・プレビュー・復元
 
 ### AI ネイティブ
 - **Copilot**: ghost shape によるリアルタイム提案
@@ -89,6 +91,7 @@ packages/
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）
   session-gather/   — セッション型「集合」（全員を一つの場所に集める）
+  session-respond/  — セッション型「答える」（お題に答え、まとめで一斉に見せる）
   shape-utils/      — shape プラグイン共通ユーティリティ（bounds / hit-test / resize）
   tool-helpers/     — ツール用 state machine helper（drag / resize / rotate / marquee）
   connector-anchor/ — connector 系の anchor / endpoint / 追従ロジック
@@ -134,6 +137,7 @@ plugins/
 | [`@edv4h/usketch-session-protocol`](packages/usketch-session-protocol/README.md) | セッションの client↔server ワイヤ契約（型のみ） |
 | [`@edv4h/usketch-session-voting`](packages/usketch-session-voting/README.md) | 最初のセッション型「投票」（server / client ペア） |
 | [`@edv4h/usketch-session-gather`](packages/usketch-session-gather/README.md) | セッション型「集合」（誰かが始めると全員がその場所に集まる） |
+| [`@edv4h/usketch-session-respond`](packages/usketch-session-respond/README.md) | セッション型「答える」（お題に答え、主催者がまとめると全員の答えが見える） |
 | [プロダクト企画書](docs/new-product-proposal.md) | ビジョン・MVP スコープ・ビジネスモデル |
 | [ユースケース集](docs/use-cases.md) | 主要ユーザーシナリオ |
 | [開発ロードマップ](docs/roadmap.md) | Phase 0〜4 の開発計画と実績 |

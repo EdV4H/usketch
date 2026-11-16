@@ -25,20 +25,26 @@ order: 20
 
 ### 1. シェイプの関数を定義する
 
-まず `ShapeDefinition` の必須メソッドを実装します：
+まず、シェイプが必要とする固有のフィールドを拡張したインターフェースとして宣言し、`ShapeDefinition` の必須メソッドを実装します：
 
 ```tsx
 import type { BoundingBox, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 
-function render(data: ShapeData) {
+/** `rectangle` シェイプの固有データ。ほかのプラグインが型安全に読めるように export する。 */
+export interface RectangleShapeData extends ShapeData {
+  cornerRadius?: number;
+}
+
+function render(shape: ShapeData) {
+  const data = shape as RectangleShapeData;
   return (
     <rect
       x={data.x}
       y={data.y}
       width={data.width}
       height={data.height}
-      rx={(data.cornerRadius as number) ?? 0}
+      rx={data.cornerRadius ?? 0}
       fill={data.style.fill}
       stroke={data.style.stroke}
       strokeWidth={data.style.strokeWidth}
@@ -60,7 +66,7 @@ function hitTest(data: ShapeData, point: Point): boolean {
   );
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): RectangleShapeData {
   return {
     id: params.id,
     type: "rectangle",
@@ -73,6 +79,8 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
   };
 }
 ```
+
+**パターン。** `ShapeRegistry` は基本の `ShapeData` 型で動くので、`render` / `resize` / `hitTest` が受け取るのは `ShapeData` です。中で拡張した型にキャストすれば（`const data = shape as RectangleShapeData`）、プラグイン固有のフィールドに型安全にアクセスできます。
 
 ### 2. リサイズロジックを実装する
 
@@ -184,12 +192,44 @@ export const rectPlugin: UsketchPlugin = {
 };
 ```
 
+## アプリのデータを持たせる
+
+プラグイン固有のフィールド（上の `cornerRadius` など）は、拡張したインターフェースに置きます。シェイプの形の一部ではない**アプリやドメインのデータ**（外部への参照、識別子、機能フラグなど）は、代わりに `meta` フィールドを使います：
+
+```tsx
+interface WeboardMeta {
+  employeeId?: string;
+  companyId?: string;
+}
+
+const shape: ShapeData<WeboardMeta> = {
+  id: "note_1", type: "rect", x: 0, y: 0, width: 200, height: 150,
+  style: DEFAULT_STYLE,
+  meta: { employeeId: "emp_123", companyId: "co_456" },
+};
+shape.meta?.employeeId; // string | undefined として型が付く
+```
+
+具体的な meta の型は、使う側で `ShapeData<TMeta>` の `TMeta` に渡します。コアの API は `ShapeData` のままです（型引数は使う側ごとに任意）。
+
+`meta` が合わない特別な場合（段階的な移行や、例外的なトップレベルのフィールド）のために、`ShapeData` は名前が `x-` で始まる任意のプロパティも受け付けます：
+
+```tsx
+const shape: ShapeData = {
+  ...,
+  "x-legacyFlag": true, // 逃げ道 — できれば meta を使う
+};
+```
+
+決まりの全体は [シェイプシステム → シェイプを拡張する](../../concepts/shape-system/#シェイプを拡張する) を参照してください。
+
 ## まとめ
 
 - シェイプとツールは**同じプラグイン**に置く — 1 つの概念として扱う。
 - ライブプレビューには**ストアを直接変更**、確定アクションには**コマンド**を使う。
 - ユーザーが少しだけドラッグしたケース（width/height が閾値未満）を必ず扱う。
 - 描画後は選択ツールに戻す — これが期待される UX。
+- プラグイン固有のフィールドは `extends ShapeData` のインターフェースで宣言し、アプリのデータは `meta` に入れる。
 
 ## tldraw からの移行
 

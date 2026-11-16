@@ -63,6 +63,7 @@ export function createSessionPlugin(options: SessionPluginOptions): UsketchPlugi
 				close: (sessionId) => client.close(sessionId),
 				end: (sessionId) => client.end(sessionId),
 				leave: (sessionId) => client.leave(sessionId),
+				claimHost: (sessionId) => client.claimHost(sessionId),
 				sync: () => client.sync(),
 			});
 

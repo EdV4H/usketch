@@ -22,8 +22,18 @@ export type YjsSessionLogEntry =
 	| { t: "create"; by: string; at: number; config: SessionConfig }
 	| { t: "join"; by: string; at: number }
 	| { t: "action"; by: string; at: number; action: unknown }
-	| { t: "leave"; by: string; at: number }
-	| { t: "close"; by: string; at: number };
+	/**
+	 * `heir`: who the leaving host hands over to, picked by the leaver among the
+	 * peers online (the fold cannot see presence). Omitted = earliest joined.
+	 */
+	| { t: "leave"; by: string; at: number; heir?: string }
+	| { t: "close"; by: string; at: number }
+	/**
+	 * `by` takes over as host from `from` (written only while `from` was away).
+	 * Applied only while `from` is still the host, so of two claims at once the
+	 * first in the log wins, as on the server.
+	 */
+	| { t: "host"; by: string; at: number; from: string };
 
 /** Who is online, for {@link Participant.connected}. Shaped like y-protocols' Awareness. */
 export interface YjsSessionPresence {
@@ -45,6 +55,12 @@ export interface YjsSessionClientOptions {
 	types: readonly ServerSessionType[];
 	/** Online peers. Without it every participant counts as connected. */
 	presence?: YjsSessionPresence;
+	/**
+	 * How long the host must have been gone from `presence` before
+	 * {@link SessionClient.claimHost} goes through, so a reload or a presence
+	 * that has not synced yet does not hand the session over. Default 10 000.
+	 */
+	hostAwayMs?: number;
 	/** Reads the userId from one presence state. Default: `state.user.id`. */
 	userIdOf?: (state: unknown) => string | undefined;
 	/** Root map name. Default {@link YJS_SESSIONS_MAP}. */
@@ -81,8 +97,10 @@ const needsServer = (def: ServerSessionType, config: SessionConfig): boolean =>
  * Replay one session's log. Pure and deterministic: the same entries give the
  * same state on every peer. Mirrors the server's `SessionManager` rules —
  * acting joins you, a rejected action changes nothing, only the host may close,
- * a leaving host hands over to the earliest-joined participant, and the session
- * ends when nobody is left (returns `null`).
+ * a leaving host hands over to the heir they named (else the earliest joined),
+ * a `host` entry makes its writer the host (joining them if needed) only while
+ * its `from` is still the host, and the session ends when nobody is left
+ * (returns `null`).
  */
 export function foldSessionLog(
 	id: string,
@@ -125,12 +143,24 @@ export function foldSessionLog(
 				if (!participants.delete(e.by)) break;
 				if (participants.size === 0) return null;
 				if (hostUserId === e.by) {
-					const heir = [...participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)[0];
+					const named = e.heir === undefined ? undefined : participants.get(e.heir);
+					const heir =
+						named ?? [...participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)[0];
 					if (heir) {
 						hostUserId = heir.userId;
 						heir.role = "host";
 					}
 				}
+				break;
+			}
+			case "host": {
+				if (e.from !== hostUserId) break;
+				ensure(e.by, e.at);
+				const previous = participants.get(hostUserId);
+				if (previous) previous.role = "participant";
+				hostUserId = e.by;
+				const next = participants.get(e.by);
+				if (next) next.role = "host";
 				break;
 			}
 			case "close": {
@@ -169,7 +199,9 @@ export function foldSessionLog(
  * whole document — `secret` is **not** hidden here. That is why a type that
  * {@link ServerSessionType.requiresServer requires the server} is refused.
  * Ending a session deletes its log; only the host's client does that, by
- * convention rather than enforcement.
+ * convention rather than enforcement. Likewise `claimHost` is checked locally:
+ * it goes through only once the host has been gone from `presence` for
+ * `hostAwayMs`, and never without `presence`.
  */
 export function createYjsSessionClient(options: YjsSessionClientOptions): SessionClient {
 	const { doc, userId, presence } = options;
@@ -178,6 +210,8 @@ export function createYjsSessionClient(options: YjsSessionClientOptions): Sessio
 	const now = options.now ?? Date.now;
 	const genId = options.genId ?? defaultGenId;
 	const userIdOf = options.userIdOf ?? defaultUserIdOf;
+	const hostAwayMs = options.hostAwayMs ?? 10_000;
+	const startedAt = now();
 
 	const listeners = new Set<() => void>();
 	let folded = new Map<string, Folded>();
@@ -192,6 +226,17 @@ export function createYjsSessionClient(options: YjsSessionClientOptions): Sessio
 			if (id !== undefined) ids.add(id);
 		}
 		return ids;
+	};
+
+	// When each user was last seen in `presence`: on every change, everyone who was
+	// online until now is stamped, so a user who just left keeps the time they left.
+	const lastSeen = new Map<string, number>();
+	let wasOnline = online();
+	const onPresence = () => {
+		const at = now();
+		for (const id of wasOnline ?? []) lastSeen.set(id, at);
+		wasOnline = online();
+		emit();
 	};
 
 	const rebuild = () => {
@@ -249,7 +294,7 @@ export function createYjsSessionClient(options: YjsSessionClientOptions): Sessio
 	};
 
 	map.observeDeep(refresh);
-	presence?.on("change", emit);
+	presence?.on("change", onPresence);
 	rebuild();
 	emit();
 
@@ -303,12 +348,33 @@ export function createYjsSessionClient(options: YjsSessionClientOptions): Sessio
 				map.delete(sessionId);
 				return;
 			}
-			append(sessionId, { t: "leave", by: userId, at: now() });
+			// A leaving host hands over to the earliest-joined peer who is online, as
+			// the server does. Without presence the fold falls back to the earliest joined.
+			const ids = online();
+			const heir =
+				f.view.hostUserId === userId && ids
+					? f.view.participants
+							.filter((p) => p.userId !== userId && ids.has(p.userId))
+							.sort((a, b) => a.joinedAt - b.joinedAt)[0]?.userId
+					: undefined;
+			append(sessionId, { t: "leave", by: userId, at: now(), ...(heir ? { heir } : {}) });
+		},
+		claimHost(sessionId) {
+			const f = folded.get(sessionId);
+			if (!f) return fail("no such session");
+			if (f.view.hostUserId === userId) return;
+			const ids = online();
+			if (!ids) return fail("taking over needs presence");
+			const host = f.view.hostUserId;
+			if (ids.has(host)) return fail("the host is here");
+			const awaySince = Math.max(startedAt, lastSeen.get(host) ?? 0);
+			if (now() - awaySince < hostAwayMs) return fail("the host may come back");
+			append(sessionId, { t: "host", by: userId, at: now(), from: host });
 		},
 		sync: refresh,
 		dispose() {
 			map.unobserveDeep(refresh);
-			presence?.off("change", emit);
+			presence?.off("change", onPresence);
 			listeners.clear();
 			folded.clear();
 		},

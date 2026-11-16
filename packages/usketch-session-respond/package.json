@@ -1,0 +1,50 @@
+{
+	"name": "@edv4h/usketch-session-respond",
+	"version": "0.2.0",
+	"type": "module",
+	"exports": {
+		"./server": {
+			"source": "./src/server.ts",
+			"types": "./dist/server.d.ts",
+			"import": "./dist/server.js"
+		},
+		"./client": {
+			"source": "./src/client.ts",
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-plugin-session": "workspace:*",
+		"@edv4h/usketch-session-protocol": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "7.0.2",
+		"vitest": "5.1.0",
+		"yjs": "^13.6.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "packages/usketch-session-respond"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	}
+}

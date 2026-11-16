@@ -1,5 +1,31 @@
 # @edv4h/usketch-session-gather
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [b01b7f0]
+  - @edv4h/usketch-session-protocol@0.4.0
+  - @edv4h/usketch-plugin-session@0.4.0
+
+## 0.4.0
+
+### Minor Changes
+
+- 699c677: 集合に `viewOnly` を足した。参加しているあいだ、主催者以外は見ることとリアクションだけにしてほしい、という印 (session は強制せず、ホストの UI が絞る)。`isViewOnlyForMe` で、いまこの端末を絞るかを判断できる。
+
+## 0.3.0
+
+### Minor Changes
+
+- f8f6a92: 集合に背景 (`backdrop`: 16 進の色と http(s) の画像 URL) を持たせる。ホストの UI が演出やイベント中の画面の後ろに出すのに使う
+
+## 0.2.0
+
+### Minor Changes
+
+- b109078: 集合に、みんなへの問いかけ (`prompt`、省ける) を持たせられるようにしました。`start({ ..., prompt })` で渡すと、`getState().gather.prompt` で全員が読めます。
+
 ## 0.1.0
 
 ### Minor Changes

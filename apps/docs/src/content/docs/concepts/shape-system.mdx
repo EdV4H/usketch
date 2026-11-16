@@ -22,6 +22,10 @@ interface ShapeData<TMeta = Record<string, unknown>> {
   createdAt?: number;       // Unix millis — set by the store on addShape
   updatedAt?: number;       // Unix millis — updated by the store on mutation
   parentId?: string;        // For hierarchical grouping (frames, groups)
+  hidden?: boolean;         // Not rendered, not hit-tested (cascades to children)
+  locked?: boolean;         // Rendered, but can't be selected or moved (cascades)
+  lockScope?: "self";       // `locked` applies to this shape only
+  view3d?: ShapeView3dInput; // How it stands out of the ground in 3D views; absent = flat
   meta?: TMeta;             // Application/domain data (preferred)
   [key: `x-${string}`]: unknown;  // Escape hatch: custom top-level fields
 }
@@ -42,7 +46,7 @@ The `type` field links the data to its `ShapeDefinition`.
 
 ### 1. Core fields
 
-The explicit fields listed above (`id`, `type`, `x`, `y`, `width`, `height`, `style`, `rotation`, `zIndex`, `createdAt`, `updatedAt`, `parentId`, `meta`) are managed by the uSketch core. Plugins and applications must not redefine them.
+The explicit fields listed above (`id`, `type`, `x`, `y`, `width`, `height`, `style`, `rotation`, `zIndex`, `createdAt`, `updatedAt`, `parentId`, `hidden`, `locked`, `lockScope`, `view3d`, `meta`) are managed by the uSketch core. Plugins and applications must not redefine them.
 
 ### 2. Plugin-specific fields — extend the interface
 

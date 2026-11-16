@@ -35,6 +35,17 @@ export interface GatherTarget {
 	pageId?: string;
 }
 
+/**
+ * What to show behind the host's start effect / event screen. Both are optional;
+ * the host decides how to draw them (e.g. the image over the color).
+ */
+export interface GatherBackdrop {
+	/** Hex color: `#rgb`, `#rrggbb` or `#rrggbbaa`. */
+	color?: string;
+	/** An http(s) image URL. */
+	imageUrl?: string;
+}
+
 /** The session's public state (also its create config, minus the `type` key). */
 export interface GatherPublic {
 	type: typeof GATHER_TYPE;
@@ -44,6 +55,16 @@ export interface GatherPublic {
 	hostName: string;
 	/** Optional heading ("Write your KPT"). */
 	title?: string;
+	/** Optional prompt or question for everyone ("How do you feel about the new process?"). */
+	prompt?: string;
+	/** Optional backdrop for the host's UI. */
+	backdrop?: GatherBackdrop;
+	/**
+	 * Ask hosts to let participants only look and react while they take part
+	 * (no editing). The session does not enforce it; each host's UI does. Never
+	 * applies to whoever started it. See `isViewOnlyForMe`.
+	 */
+	viewOnly?: boolean;
 	/** Creator's clock. */
 	startedAt: number;
 	/** End of the time limit, when there is one. */
@@ -81,6 +102,34 @@ const parseRect = (v: unknown): GatherRect | null => {
 const nonEmpty = (v: unknown): string | undefined =>
 	typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const MAX_URL_LENGTH = 2048;
+
+const parseImageUrl = (v: unknown): string | undefined => {
+	if (typeof v !== "string") return undefined;
+	const raw = v.trim();
+	if (raw.length > MAX_URL_LENGTH) return undefined;
+	try {
+		const url = new URL(raw);
+		if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+		// 正規化で伸びる (空白が %20 になるなど) ので、配る値の長さで見る
+		return url.href.length <= MAX_URL_LENGTH ? url.href : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+/** Keep only the valid parts; nothing valid gives `undefined`. */
+export function parseGatherBackdrop(v: unknown): GatherBackdrop | undefined {
+	if (!v || typeof v !== "object") return undefined;
+	const r = v as Record<string, unknown>;
+	const color =
+		typeof r.color === "string" && HEX_COLOR.test(r.color.trim()) ? r.color.trim() : undefined;
+	const imageUrl = parseImageUrl(r.imageUrl);
+	if (!color && !imageUrl) return undefined;
+	return { ...(color ? { color } : {}), ...(imageUrl ? { imageUrl } : {}) };
+}
+
 /**
  * Read a config / public state written by any peer. Broken values give `null`;
  * an unknown hold (from a newer client) reads as `stay`.
@@ -95,12 +144,17 @@ export function parseGather(raw: unknown): GatherPublic | null {
 	const shapeId = nonEmpty(target?.shapeId);
 	const pageId = nonEmpty(target?.pageId);
 	const title = nonEmpty(r.title);
+	const prompt = nonEmpty(r.prompt);
+	const backdrop = parseGatherBackdrop(r.backdrop);
 	return {
 		type: GATHER_TYPE,
 		hold: r.hold === "gather" ? "gather" : "stay",
 		target: { rect, ...(shapeId ? { shapeId } : {}), ...(pageId ? { pageId } : {}) },
 		hostName: typeof r.hostName === "string" ? r.hostName : "",
 		...(title ? { title } : {}),
+		...(prompt ? { prompt } : {}),
+		...(backdrop ? { backdrop } : {}),
+		...(r.viewOnly === true ? { viewOnly: true } : {}),
 		startedAt: r.startedAt,
 		...(isFiniteNumber(r.endsAt) ? { endsAt: r.endsAt } : {}),
 		expiresAt: r.expiresAt,
@@ -112,6 +166,10 @@ export interface GatherStartInput {
 	target: GatherTarget;
 	hostName?: string;
 	title?: string;
+	prompt?: string;
+	backdrop?: GatherBackdrop;
+	/** Participants only look and react while they take part. */
+	viewOnly?: boolean;
 	/** Time limit in minutes. 0 or omitted = none. */
 	durationMinutes?: number;
 }
@@ -120,6 +178,8 @@ export interface GatherStartInput {
 export function createGatherConfig(input: GatherStartInput, now: number): GatherConfig {
 	const minutes = input.durationMinutes ?? 0;
 	const title = nonEmpty(input.title);
+	const prompt = nonEmpty(input.prompt);
+	const backdrop = parseGatherBackdrop(input.backdrop);
 	const { shapeId, pageId } = input.target;
 	return {
 		type: GATHER_TYPE,
@@ -131,6 +191,9 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 		},
 		hostName: input.hostName ?? "",
 		...(title ? { title } : {}),
+		...(prompt ? { prompt } : {}),
+		...(backdrop ? { backdrop } : {}),
+		...(input.viewOnly ? { viewOnly: true } : {}),
 		startedAt: now,
 		...(minutes > 0 ? { endsAt: now + minutes * 60_000 } : {}),
 		expiresAt: now + GATHER_MAX_MS,
@@ -183,6 +246,20 @@ export function initialParticipation(args: {
 	if (args.seenOnLoad) return "joined";
 	return args.now - args.gather.startedAt >= GATHER_COUNTDOWN_MS ? "joined" : "countdown";
 }
+
+/**
+ * Whether this client should be limited to looking and reacting now: the
+ * gathering asks for it (`viewOnly`), this client did not start it, and it is
+ * taking part or about to (`countdown` / `joined`). Invited or away people are free.
+ */
+export const isViewOnlyForMe = (args: {
+	gather: GatherPublic | null;
+	isHost: boolean;
+	participation: GatherParticipation | null;
+}): boolean =>
+	args.gather?.viewOnly === true &&
+	!args.isHost &&
+	(args.participation === "joined" || args.participation === "countdown");
 
 /**
  * Countdown left. `startedAt` is the host's clock; clamp to 0…3 s so a skewed

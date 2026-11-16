@@ -132,6 +132,15 @@ export class SessionManager {
 		}
 	}
 
+	/** Make `userId` (already a participant) the host; the previous host, if still here, becomes a participant. */
+	private setHost(s: ServerSession, userId: string): void {
+		const previous = s.participants.get(s.hostUserId);
+		if (previous) previous.role = "participant";
+		s.hostUserId = userId;
+		const next = s.participants.get(userId);
+		if (next) next.role = "host";
+	}
+
 	/** If `leavingUserId` was the host, hand host to the earliest-joined connected peer. */
 	private migrateHost(s: ServerSession, leavingUserId: string): void {
 		if (s.hostUserId !== leavingUserId) return;
@@ -139,10 +148,7 @@ export class SessionManager {
 			.filter((p) => p.userId !== leavingUserId && p.connected)
 			.sort((a, b) => a.joinedAt - b.joinedAt);
 		const next = candidates[0];
-		if (next) {
-			s.hostUserId = next.userId;
-			next.role = "host";
-		}
+		if (next) this.setHost(s, next.userId);
 		// No connected peer → host stays (session dormant); resumes on reconnect.
 	}
 
@@ -170,6 +176,9 @@ export class SessionManager {
 				break;
 			case "end":
 				this.onEnd(userId, msg.sessionId);
+				break;
+			case "claimHost":
+				this.onClaimHost(userId, msg.sessionId);
 				break;
 		}
 	}
@@ -272,6 +281,28 @@ export class SessionManager {
 		this.sessions.delete(sessionId);
 		this.commit();
 		this.deps.broadcast({ t: "ended", sessionId });
+	}
+
+	/** Take over as host while the host is away (disconnected, within the grace window). */
+	private onClaimHost(userId: string, sessionId: string): void {
+		const s = this.sessions.get(sessionId);
+		if (!s) {
+			this.deps.send(userId, { t: "error", message: "no such session", sessionId });
+			return;
+		}
+		if (s.hostUserId === userId) return;
+		if (s.participants.get(s.hostUserId)?.connected) {
+			this.deps.send(userId, { t: "error", message: "the host is here", sessionId });
+			return;
+		}
+		this.ensureParticipant(s, userId);
+		// The claimer is here: drop any grace left over, or the alarm would forfeit the new host.
+		this.grace.delete(userId);
+		this.recomputeAlarm();
+		this.setHost(s, userId);
+		this.commit();
+		this.broadcastState(s);
+		this.sendPrivate(userId, s);
 	}
 
 	// ── presence / reconnect ──

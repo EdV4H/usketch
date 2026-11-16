@@ -9,16 +9,25 @@ order: 11
 キャンバス上のすべてのシェイプは `ShapeData` オブジェクトで表現されます：
 
 ```ts
-interface ShapeData {
+interface ShapeData<TMeta = Record<string, unknown>> {
   id: string;
-  type: string;        // 登録済み ShapeDefinition と一致する必要あり
+  type: string;            // 登録済み ShapeDefinition と一致する必要あり
   x: number;
   y: number;
   width: number;
   height: number;
   style: ShapeStyle;
   rotation?: number;
-  [key: string]: unknown;  // シェイプ固有の追加プロパティ
+  zIndex?: string;          // 重なり順の fractional index
+  createdAt?: number;       // Unix ミリ秒。addShape のときにストアが入れる
+  updatedAt?: number;       // Unix ミリ秒。変更のたびにストアが更新する
+  parentId?: string;        // 親子関係（フレーム・グループ）
+  hidden?: boolean;         // 描かない・当たり判定しない（子にも及ぶ）
+  locked?: boolean;         // 描くが、選択・移動できない（子にも及ぶ）
+  lockScope?: "self";       // `locked` をこのシェイプだけに効かせる
+  view3d?: ShapeView3dInput; // 3D 表示で地面からどう立つか。無ければ平ら
+  meta?: TMeta;             // アプリ・ドメインのデータ（推奨）
+  [key: `x-${string}`]: unknown;  // 逃げ道: 独自のトップレベルのフィールド
 }
 
 interface ShapeStyle {
@@ -29,7 +38,66 @@ interface ShapeStyle {
 }
 ```
 
-`type` フィールドがデータと対応する `ShapeDefinition` を紐づけます。シェイプ固有のプロパティ（矩形の `cornerRadius` など）は追加のキーとして格納されます。
+`type` フィールドがデータと対応する `ShapeDefinition` を紐づけます。
+
+## シェイプを拡張する
+
+`ShapeData` では、データを置く場所を 3 つに分けています。
+
+### 1. コアのフィールド
+
+上に並べた明示的なフィールド（`id`、`type`、`x`、`y`、`width`、`height`、`style`、`rotation`、`zIndex`、`createdAt`、`updatedAt`、`parentId`、`hidden`、`locked`、`lockScope`、`view3d`、`meta`）は uSketch のコアが管理します。プラグインやアプリで定義し直してはいけません。
+
+### 2. プラグイン固有のフィールド — インターフェースを拡張する
+
+シェイプそのものを決めるデータ（テキストシェイプの `text`、フリーハンドの線の `points` など）が必要なプラグインは、拡張したインターフェースを宣言します：
+
+```ts
+import type { ShapeData } from "@edv4h/usketch-shared";
+
+export interface TextShapeData extends ShapeData {
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  isEditing: boolean;
+}
+```
+
+プラグインの中（`render` や `createDefault` など）ではこの拡張した型を使い、ほかのプラグインが型安全に読めるように export します。
+
+### 3. アプリ・ドメインのデータ — `meta` を使う（推奨）
+
+シェイプそのものではないデータ（外部への参照、識別子、機能フラグなど）は `meta` の下に置きます。具体的な meta の型を `TMeta` に渡すと型が付きます：
+
+```ts
+interface WeboardMeta {
+  employeeId?: string;
+  documentKey?: string;
+}
+
+const shape: ShapeData<WeboardMeta> = {
+  id: "note_1",
+  type: "rect",
+  x: 0, y: 0, width: 200, height: 150,
+  style: DEFAULT_STYLE,
+  meta: { employeeId: "emp_123", documentKey: "doc_456" },
+};
+shape.meta?.employeeId; // string | undefined として型が付く
+```
+
+### 逃げ道: `x-*` プレフィックス
+
+`meta` が合わないまれな場合（たとえば、段階的な移行で一時的にトップレベルのフィールドが必要なとき）のために、`ShapeData` は名前が `x-` で始まる任意のプロパティを受け付けます：
+
+```ts
+const shape: ShapeData = {
+  id: "2", type: "rect", x: 0, y: 0, width: 100, height: 100,
+  style: DEFAULT_STYLE,
+  "x-legacyFlag": true,
+};
+```
+
+`x-` の名前空間は、コアやプラグインの拡張フィールドと決してぶつからないことが保証されています（HTTP ヘッダー、JSON-LD、OpenAPI、`package.json` と同じ慣習です）。できるだけ `meta` を使ってください。`meta` には型が付きますが、`x-*` には付きません。
 
 ## ShapeDefinition
 

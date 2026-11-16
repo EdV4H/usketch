@@ -38,7 +38,7 @@ interface ShapeStyle {
   opacity: number;
 }
 
-interface ShapeData {
+interface ShapeData<TMeta = Record<string, unknown>> {
   id: string;
   type: string;
   x: number;
@@ -47,7 +47,16 @@ interface ShapeData {
   height: number;
   style: ShapeStyle;
   rotation?: number;
-  [key: string]: unknown;
+  zIndex?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  parentId?: string;
+  hidden?: boolean;
+  locked?: boolean;
+  lockScope?: "self";
+  view3d?: ShapeView3dInput;
+  meta?: TMeta;
+  [key: `x-${string}`]: unknown;
 }
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -81,13 +90,17 @@ interface PluginContext {
   shapes: ShapeRegistry;
   commands: CommandRegistry;
   shortcuts: ShortcutRegistry;
+  keymap: Keymap;                // すべてのキー割り当て + 重なりの検知
   events: EventBus;
   transient: TransientRegistry;
   lod: LodController;
   ui: UiRegistry;
   externalContent: ExternalContentRegistry;
   actions: ActionRegistry;
+  hud: HudRegistry;              // Control HUD のライブ設定・独自パネル
+  plugins: PluginInfoRegistry;   // 有効なプラグインの一覧（id + name、読み取り専用）
   services: ServiceRegistry;
+  height?: BoardHeightApi;       // ボードの高さ（地面 + 固体）。古いコアでは無い
 }
 ```
 

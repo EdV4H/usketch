@@ -76,3 +76,66 @@ function onPointerUp(toolCtx: ToolContext) {
 3. **onPointerUp** — 一時シェイプを削除し、確定データで `AddShapeCommand` を実行。
 
 これにより、ユーザーにはライブプレビューを提供しつつ、確定結果は undo 可能になります。
+
+## 共同編集（Yjs）アプリでの Undo/Redo
+
+> **⚠️ `CommandRegistry` はローカル・1 人用です。**
+> 1 つのクライアントの中だけの**メモリ上のスタック**です。明示的に `execute()` したコマンドしか追わず、`store.onMutation` は見ていません。リモートの相手という考えもありません。1 人で使うアプリならまさにこれで十分で、組み込みのツール（`tool-select` の移動・リサイズ・削除）はそのまま正しく undo できます。
+>
+> **Yjs を使う共同編集アプリでは、`commands.undo()` を主な undo にしないでください。** 共同編集では安全ではありません。
+
+複数のクライアントが共有の Yjs ドキュメントを編集すると、`CommandRegistry` は 3 つの点で破綻します：
+
+1. **ローカルのスナップショットに戻す。** コマンドの `undo()` は `execute()` のときに取っておいた状態に戻します。それを Yjs ドキュメントに書き戻すと、ほかの人の同時編集を上書きしてしまうことがあり、衝突を起こさない保証がありません。
+2. **リモートの変更は履歴に入らない。** Yjs の同期から届いた更新は `ctx.commands` を通らないので、ローカルのスタックにそもそも載りません。undo はそれを素通りします。
+3. **組み込みの `Ctrl+Z` / `Ctrl+Shift+Z` は `commands.undo()/redo()` を呼ぶ。** `createApp` が自動で登録するので、Yjs アプリではキーボードの undo が黙ってローカル限定の動きになります。2 人が互いの編集を踏むまで気づきにくい点です。
+
+### 推奨: `Y.UndoManager`
+
+Yjs には、まさにこのための CRDT 対応の undo/redo [`Y.UndoManager`](https://docs.yjs.dev/api/undo-manager) があります。共有の Y 型への変更を追い、`trackedOrigins` で undo の対象を**このクライアント自身の書き込み**に絞れるので、undo で相手の同時編集を戻してしまうことがありません。
+
+最小の手順 — 共有のシェイプの型を追い、ローカルの書き込みにトランザクションの origin を付けて、それだけを undo できるようにします：
+
+```ts
+import * as Y from "yjs";
+
+// 同期プラグインがシェイプを書き込む共有の Y 型
+// （例: @edv4h/usketch-plugin-sync-localstorage-yjs や
+//  @edv4h/usketch-plugin-sync-ywebsocket の裏にある Y.Map / Y.Doc）
+const yShapes = ydoc.getMap("shapes");
+
+// *ローカル*の編集を示す、変わらない origin オブジェクト
+const LOCAL_ORIGIN = { local: true };
+
+const undoManager = new Y.UndoManager(yShapes, {
+  // ローカルから来た編集だけを undo する。リモートの相手の編集は戻さない
+  trackedOrigins: new Set([LOCAL_ORIGIN]),
+});
+
+// ローカルの編集は LOCAL_ORIGIN を付けたトランザクションの中で行い、
+// UndoManager に拾わせる（リモートの編集は別の origin で届くので、正しく無視される）
+ydoc.transact(() => {
+  // ...yShapes にシェイプを書く・更新する・消す...
+}, LOCAL_ORIGIN);
+
+// キーボードのハンドラは commands.undo() ではなくこちらにつなぐ
+undoManager.undo();
+undoManager.redo();
+```
+
+### 組み込みのショートカットを置き換える
+
+`Y.UndoManager` で undo するなら、`Ctrl+Z` / `Ctrl+Shift+Z` には `commands.undo()` ではなく*自分の*ハンドラを呼ばせたいはずです。`createApp` はこれを `Mod+Z` / `Mod+Shift+Z`（`Mod` は macOS では Cmd、それ以外では Ctrl）として登録します。`createApp` の後で**同じ組み合わせ**を登録し直してください。同じ組み合わせは同じ binding id になるので、組み込みのものが置き換わり、`UndoManager` を呼ぶようになります：
+
+```ts
+const app = await createApp({ /* ... */ });
+app.shortcuts.register("Mod+Z", () => undoManager.undo());
+app.shortcuts.register("Mod+Shift+Z", () => undoManager.redo());
+```
+
+`"Ctrl+Z"` のように別の書き方で登録すると、組み込みのものは置き換わらず同じキーに 2 つ目の binding が足されます。既定の振り分けルール（`"first"`）では、キーは組み込みの undo が受け取ったままになります。
+
+| アプリの種類 | undo/redo に使うもの |
+|----------|-------------------|
+| 1 人用・ローカル | `CommandRegistry`（`ctx.commands`）— 組み込みで、そのまま動く。 |
+| 共同編集（Yjs） | ローカルの書き込みに絞った `trackedOrigins` 付きの `Y.UndoManager`。 |
