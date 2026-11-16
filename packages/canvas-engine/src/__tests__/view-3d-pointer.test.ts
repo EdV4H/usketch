@@ -13,12 +13,17 @@ const viewport = { x: 400, y: 450, zoom: 1 };
 
 function setup(shapes: ShapeData[] = []) {
 	const view3d = createView3dCell();
-	const map = new Map(shapes.map((s) => [s.id, s]));
+	let sorted: readonly ShapeData[] = shapes;
+	let map = new Map(shapes.map((s) => [s.id, s]));
+	const setShapes = (next: readonly ShapeData[]) => {
+		sorted = next;
+		map = new Map(next.map((s) => [s.id, s]));
+	};
 	const store = {
 		getViewport: () => viewport,
 		getShapes: () => map,
 		getShape: (id: string) => map.get(id),
-		getShapesSorted: () => shapes,
+		getShapesSorted: () => sorted,
 		getView3d: () => view3d.get(),
 		setView3d: (p: Parameters<typeof view3d.set>[0]) => view3d.set(p),
 		subscribeView3d: (l: () => void) => view3d.subscribe(l),
@@ -33,14 +38,15 @@ function setup(shapes: ShapeData[] = []) {
 		subscribe: () => () => {},
 	};
 	const services = { provide: () => () => {}, get: () => undefined, has: () => false };
+	const height = createBoardHeight();
 	const pointer = createView3dPointer({
 		store: store as never,
 		shapes: registry as never,
 		services: services as never,
 		events: { on: () => () => {}, emit: () => {} } as never,
-		height: createBoardHeight(),
+		height,
 	});
-	return { pointer, view3d };
+	return { pointer, view3d, setShapes, height };
 }
 
 const camera = { pitch: 60, fov: 600, horizon: 0.4, height: 40 };
@@ -103,6 +109,42 @@ describe("createView3dPointer", () => {
 		const move = pointer.map({ x: b.x, y: b.y }, stage, "move", 7, "dom");
 		expect(down && move ? move.x - down.x : Number.NaN).toBeCloseTo(30, 3);
 		expect(pointer.map({ x: b.x, y: b.y }, stage, "up", 7, "dom")?.x).toBeCloseTo(30, 3);
+		pointer.dispose();
+	});
+
+	it("scans the board once for many outlines in one task, and again once anything changes", async () => {
+		const box = { id: "a", type: "box", x: 0, y: -200, width: 100, height: 100 } as ShapeData;
+		const other = { id: "b", type: "box", x: 120, y: -200, width: 50, height: 50 } as ShapeData;
+		let scans = 0;
+		const counted = (list: ShapeData[]) =>
+			new Proxy(list, {
+				get(target, key, receiver) {
+					if (key === Symbol.iterator) scans++;
+					return Reflect.get(target, key, receiver);
+				},
+			});
+		const { pointer, view3d, setShapes, height } = setup(counted([box, other]));
+		view3d.set({ amount: 1, camera });
+		const first = pointer.outline("a", stage, "dom");
+		pointer.outline("b", stage, "dom");
+		pointer.outlineRuns("a", stage, "dom");
+		expect(scans).toBe(1);
+		// A moved shape is a new list: its outline follows in the same task.
+		const moved = { ...box, x: 40 };
+		setShapes(counted([moved, other]));
+		const view = view3dProjection(view3d.get(), viewport, stage);
+		expect(pointer.outline("a", stage, "dom")?.[0].x).toBeCloseTo(
+			projectWorld(40, -200, view)?.x ?? Number.NaN,
+			6,
+		);
+		expect(scans).toBe(2);
+		height.notify();
+		pointer.outline("a", stage, "dom");
+		expect(scans).toBe(3);
+		await Promise.resolve();
+		pointer.outline("a", stage, "dom");
+		expect(scans).toBe(4);
+		expect(first).not.toBeNull();
 		pointer.dispose();
 	});
 });

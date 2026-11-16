@@ -19,6 +19,7 @@ import {
 	quadOutlineRuns,
 	type RenderMode,
 	type ServiceRegistry,
+	type ShapeData,
 	type ShapeRegistry,
 	type ShapeView3d,
 	type StageSize,
@@ -30,6 +31,7 @@ import {
 	type View3dPick,
 	type View3dProjection,
 	type View3dShapeFaces,
+	type View3dState,
 	view3dCellOf,
 	view3dDragPoint,
 	view3dOverscanPx,
@@ -91,15 +93,45 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 	};
 	let drag: { pointerId: number; height: number; offset: Point } | null = null;
 
+	// Which shapes are drawn in 3D scans the whole board. The select tool outlines every
+	// selected shape in one render (`outline` / `outlineRuns` per id), so the last answer
+	// is kept for the same shapes, viewport, 3D state, stage and render mode until the
+	// task ends (a microtask) or the ground changes, instead of one scan per shape.
+	let memo: {
+		shapes: readonly ShapeData[];
+		viewport: View3dProjection["viewport"];
+		state: View3dState | undefined;
+		width: number;
+		height: number;
+		amount: number;
+		renderMode: RenderMode;
+		result: Map<string, ShapeView3d>;
+	} | null = null;
+	let offHeight: (() => void) | null = null;
+
 	const shapesIn3d = (
 		view: View3dProjection,
 		amount: number,
 		renderMode: RenderMode,
 	): Map<string, ShapeView3d> => {
-		const source = deps.services ? view3dShapeSourceService.get(deps.services) : undefined;
+		const shapes = deps.store.getShapesSorted();
+		const state = cell?.get();
 		const { viewport, stage } = view;
+		if (
+			memo &&
+			memo.shapes === shapes &&
+			memo.viewport === viewport &&
+			memo.state === state &&
+			memo.width === stage.width &&
+			memo.height === stage.height &&
+			memo.amount === amount &&
+			memo.renderMode === renderMode
+		) {
+			return memo.result;
+		}
+		const source = deps.services ? view3dShapeSourceService.get(deps.services) : undefined;
 		const entries = selectView3dShapes({
-			shapes: deps.store.getShapesSorted(),
+			shapes,
 			types: source?.types?.() ?? declaredTypes(),
 			viewport,
 			viewportBounds: screenRectToWorldBounds(stage.width, stage.height, viewport),
@@ -109,7 +141,20 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 			limits: sanitizeView3dShapeLimits(source?.limits?.()),
 			heightAt: (x, y) => deps.height.groundAt(x, y),
 		});
-		return new Map(entries.map((e) => [e.shape.id, e.params]));
+		const result = new Map(entries.map((e) => [e.shape.id, e.params]));
+		if (!memo) queueMicrotask(() => (memo = null));
+		offHeight ??= deps.height.subscribe(() => (memo = null));
+		memo = {
+			shapes,
+			viewport,
+			state,
+			width: stage.width,
+			height: stage.height,
+			amount,
+			renderMode,
+			result,
+		};
+		return result;
 	};
 
 	const pickIn = (
@@ -224,8 +269,11 @@ export function createView3dPointer(deps: View3dPointerDeps): View3dPointer {
 		dispose() {
 			tracker?.dispose();
 			declared?.dispose();
+			offHeight?.();
 			tracker = null;
 			declared = null;
+			offHeight = null;
+			memo = null;
 			drag = null;
 		},
 	};
