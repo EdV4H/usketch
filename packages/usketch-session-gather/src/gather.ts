@@ -59,6 +59,12 @@ export interface GatherPublic {
 	prompt?: string;
 	/** Optional backdrop for the host's UI. */
 	backdrop?: GatherBackdrop;
+	/**
+	 * Ask hosts to let participants only look and react while they take part
+	 * (no editing). The session does not enforce it; each host's UI does. Never
+	 * applies to whoever started it. See `isViewOnlyForMe`.
+	 */
+	viewOnly?: boolean;
 	/** Creator's clock. */
 	startedAt: number;
 	/** End of the time limit, when there is one. */
@@ -148,6 +154,7 @@ export function parseGather(raw: unknown): GatherPublic | null {
 		...(title ? { title } : {}),
 		...(prompt ? { prompt } : {}),
 		...(backdrop ? { backdrop } : {}),
+		...(r.viewOnly === true ? { viewOnly: true } : {}),
 		startedAt: r.startedAt,
 		...(isFiniteNumber(r.endsAt) ? { endsAt: r.endsAt } : {}),
 		expiresAt: r.expiresAt,
@@ -161,6 +168,8 @@ export interface GatherStartInput {
 	title?: string;
 	prompt?: string;
 	backdrop?: GatherBackdrop;
+	/** Participants only look and react while they take part. */
+	viewOnly?: boolean;
 	/** Time limit in minutes. 0 or omitted = none. */
 	durationMinutes?: number;
 }
@@ -184,6 +193,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 		...(title ? { title } : {}),
 		...(prompt ? { prompt } : {}),
 		...(backdrop ? { backdrop } : {}),
+		...(input.viewOnly ? { viewOnly: true } : {}),
 		startedAt: now,
 		...(minutes > 0 ? { endsAt: now + minutes * 60_000 } : {}),
 		expiresAt: now + GATHER_MAX_MS,
@@ -236,6 +246,20 @@ export function initialParticipation(args: {
 	if (args.seenOnLoad) return "joined";
 	return args.now - args.gather.startedAt >= GATHER_COUNTDOWN_MS ? "joined" : "countdown";
 }
+
+/**
+ * Whether this client should be limited to looking and reacting now: the
+ * gathering asks for it (`viewOnly`), this client did not start it, and it is
+ * taking part or about to (`countdown` / `joined`). Invited or away people are free.
+ */
+export const isViewOnlyForMe = (args: {
+	gather: GatherPublic | null;
+	isHost: boolean;
+	participation: GatherParticipation | null;
+}): boolean =>
+	args.gather?.viewOnly === true &&
+	!args.isHost &&
+	(args.participation === "joined" || args.participation === "countdown");
 
 /**
  * Countdown left. `startedAt` is the host's clock; clamp to 0…3 s so a skewed
