@@ -126,13 +126,15 @@ undoManager.redo();
 
 ### Disabling the built-in shortcuts
 
-If you drive undo through `Y.UndoManager`, you'll want `Ctrl+Z` / `Ctrl+Shift+Z` to call *your* handlers rather than `commands.undo()`. Re-register those shortcuts after `createApp` (last registration wins) and point them at the `UndoManager`:
+If you drive undo through `Y.UndoManager`, you'll want `Ctrl+Z` / `Ctrl+Shift+Z` to call *your* handlers rather than `commands.undo()`. `createApp` registers them as `Mod+Z` / `Mod+Shift+Z` (`Mod` = Cmd on macOS, Ctrl elsewhere). Re-register the **same combos** after `createApp`: the same combo is the same binding id, so yours replaces the built-in one and points it at the `UndoManager`:
 
 ```ts
-const app = createApp({ /* ... */ });
-app.shortcuts.register("Ctrl+Z", () => undoManager.undo());
-app.shortcuts.register("Ctrl+Shift+Z", () => undoManager.redo());
+const app = await createApp({ /* ... */ });
+app.shortcuts.register("Mod+Z", () => undoManager.undo());
+app.shortcuts.register("Mod+Shift+Z", () => undoManager.redo());
 ```
+
+Registering a different spelling such as `"Ctrl+Z"` adds a second binding on the same key instead of replacing the built-in one, and under the default conflict policy (`"first"`) the built-in undo keeps the key.
 
 | App type | Use for undo/redo |
 |----------|-------------------|

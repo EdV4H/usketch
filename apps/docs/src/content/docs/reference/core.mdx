@@ -29,6 +29,7 @@ interface CreateAppOptions {
   };
   selectionForeground?: Pick<SelectionForeground, "render"> &
     Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
+  keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
 }
 ```
 
@@ -38,6 +39,7 @@ interface CreateAppOptions {
 | `plugins` | Required. Array of plugins to initialize. Order matters — plugins are set up sequentially. |
 | `lod?` | Optional. LOD (level-of-detail) configuration. If omitted, a zoom + shape-count composite policy starting in `interactive` mode is used. |
 | `selectionForeground?` | Optional. Replace the default selection UI (handles, bounding box, marquee) with a host-provided implementation. Registered internally at priority 100, so it wins over plugin defaults. |
+| `keymap?` | Optional. Key bindings for the whole app: host defaults by binding id (`keys`), the viewer's saved rebindings (`overrides`), who gets a key several plugins share (`conflictPolicy`, default `"first"`; changeable later with `app.keymap.setConflictPolicy`), and `warnConflicts` to `console.warn` the overlapping keys once the plugins are set up (default `false`). |
 
 ### AppInstance
 
@@ -51,14 +53,18 @@ interface AppInstance {
   shapes: ShapeRegistry;
   commands: CommandRegistry;
   shortcuts: ShortcutRegistry;
+  keymap: Keymap;
   events: EventBus;
   transient: TransientRegistry;
   lod: LodController;
   ui: UiRegistry;
   selectionForeground: SelectionForegroundRegistry;
+  selectionHandles: SelectionHandleRegistry;
   externalContent: ExternalContentRegistry;
   actions: ActionRegistry;
+  hud: HudRegistry;
   services: ServiceRegistry;
+  height: BoardHeightApi;
   plugins: readonly UsketchPlugin[];
   destroy(): void;
 }
