@@ -207,6 +207,28 @@ describe("SessionManager — presence / reconnect / host migration", () => {
 		expect(h.errorsFor("u1")).toEqual([{ t: "error", message: "the host is here", sessionId: id }]);
 	});
 
+	it("claimHost on an unknown session reports it", () => {
+		const h = harness(1000);
+		h.mgr.handle("u1", { t: "claimHost", sessionId: "nope" });
+		expect(h.errorsFor("u1")).toEqual([
+			{ t: "error", message: "no such session", sessionId: "nope" },
+		]);
+	});
+
+	it("claimHost clears the claimer's leftover grace, so the alarm keeps the new host", () => {
+		const h = harness(1000);
+		const id = createVote(h, "host");
+		h.mgr.handle("u1", { t: "join", sessionId: id });
+		h.mgr.onDisconnect("u1");
+		h.mgr.onDisconnect("host");
+		h.mgr.handle("u1", { t: "claimHost", sessionId: id });
+		h.tick(1001);
+		h.mgr.onAlarm();
+		const s = h.lastBroadcastState();
+		expect(s.hostUserId).toBe("u1");
+		expect(s.participants.map((p) => p.userId)).toEqual(["u1"]);
+	});
+
 	it("claimHost takes over while the host is away; the old host comes back as a participant", () => {
 		const h = harness(1000);
 		const id = createVote(h, "host");

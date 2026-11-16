@@ -76,4 +76,6 @@ export interface SessionCardContext {
 	end(): void;
 	/** Leave the session (stay a non-participant). */
 	leave(): void;
+	/** Take over as host while the host is away (refused while they are here). */
+	claimHost(): void;
 }

@@ -52,6 +52,7 @@ export function SessionPanel({
 									close: () => client.close(s.id),
 									end: () => client.end(s.id),
 									leave: () => client.leave(s.id),
+									claimHost: () => client.claimHost(s.id),
 								})}
 							</div>
 						);

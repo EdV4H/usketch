@@ -2,7 +2,12 @@ import type { ServerSessionType, SessionConfig } from "@edv4h/usketch-session-pr
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import type { SessionClient } from "../session-client.js";
-import { createYjsSessionClient, YJS_SESSIONS_MAP } from "../yjs-session-client.js";
+import {
+	createYjsSessionClient,
+	foldSessionLog,
+	YJS_SESSIONS_MAP,
+	type YjsSessionLogEntry,
+} from "../yjs-session-client.js";
 
 /** A public counter: anyone adds, a cap rejects, the host can close it. */
 type CounterPublic = { count: number; max: number; by: string[]; closed: boolean };
@@ -174,8 +179,8 @@ describe("createYjsSessionClient", () => {
 		expect(connected()).toEqual({ host: true, guest: true });
 	});
 
-	it("主催者がいないあいだは、ほかの人が主催者を引き継げる (いるあいだは引き継げない)", () => {
-		const { a, b, client } = peers();
+	/** A presence both peers share, plus a clock the test moves. */
+	function shared() {
 		const states = new Map<number, unknown>([
 			[1, { user: { id: "host" } }],
 			[2, { user: { id: "guest" } }],
@@ -189,8 +194,16 @@ describe("createYjsSessionClient", () => {
 		const changed = () => {
 			for (const l of listeners) l();
 		};
-		const host = client(a, "host", { presence });
-		const guest = client(b, "guest", { presence });
+		const clock = { t: 1000 };
+		const now = () => clock.t;
+		return { states, presence, changed, clock, now };
+	}
+
+	it("主催者がいなくなって 10 秒たつと、ほかの人が主催者を引き継げる", () => {
+		const { a, b, client } = peers();
+		const { states, presence, changed, clock, now } = shared();
+		const host = client(a, "host", { presence, now });
+		const guest = client(b, "guest", { presence, now });
 		host.create({ type: "counter" });
 		const id = only(host).id;
 		guest.join(id);
@@ -199,8 +212,16 @@ describe("createYjsSessionClient", () => {
 		expect(only(guest).hostUserId).toBe("host");
 		expect(guest.getState().error).toBe("the host is here");
 
+		// 消えた直後 (再読み込みかもしれない) はまだ引き継げない
+		clock.t += 60_000;
 		states.delete(1);
 		changed();
+		clock.t += 9_999;
+		guest.claimHost(id);
+		expect(guest.getState().error).toBe("the host may come back");
+		expect(only(guest).hostUserId).toBe("host");
+
+		clock.t += 1;
 		guest.claimHost(id);
 		expect(only(host).hostUserId).toBe("guest");
 		expect(Object.fromEntries(only(host).participants.map((p) => [p.userId, p.role]))).toEqual({
@@ -219,6 +240,21 @@ describe("createYjsSessionClient", () => {
 		expect(only(host).hostUserId).toBe("guest");
 	});
 
+	it("開いた直後は presence がまだそろっていないかもしれないので、引き継げない", () => {
+		const { a, b, client } = peers();
+		const { states, presence, clock, now } = shared();
+		states.delete(1);
+		const host = client(a, "host", { now });
+		host.create({ type: "counter" });
+		const guest = client(b, "guest", { presence, now });
+		const id = only(guest).id;
+		guest.claimHost(id);
+		expect(guest.getState().error).toBe("the host may come back");
+		clock.t += 10_000;
+		guest.claimHost(id);
+		expect(only(guest).hostUserId).toBe("guest");
+	});
+
 	it("presence が無ければ、主催者は引き継げない", () => {
 		const { a, b, client } = peers();
 		const host = client(a, "host");
@@ -226,6 +262,55 @@ describe("createYjsSessionClient", () => {
 		host.create({ type: "counter" });
 		guest.claimHost(only(guest).id);
 		expect(only(host).hostUserId).toBe("host");
+		expect(guest.getState().error).toBe("taking over needs presence");
+	});
+
+	it("同時に引き継いだら、ログで先の人が主催者になる (サーバーと同じ)", () => {
+		const types = new Map<string, ServerSessionType>([[counterType.type, counterType]]);
+		const folded = foldSessionLog(
+			"s",
+			[
+				{ t: "create", by: "host", at: 1, config: { type: "counter" } },
+				{ t: "join", by: "a", at: 2 },
+				{ t: "join", by: "b", at: 3 },
+				{ t: "host", by: "a", at: 4, from: "host" },
+				{ t: "host", by: "b", at: 4, from: "host" },
+			],
+			types,
+		);
+		expect(folded?.view.hostUserId).toBe("a");
+	});
+
+	it("離れる主催者は、いまいる人を跡継ぎにする (いない元の主催者に戻らない)", () => {
+		const types = new Map<string, ServerSessionType>([[counterType.type, counterType]]);
+		const log: YjsSessionLogEntry[] = [
+			{ t: "create", by: "host", at: 1, config: { type: "counter" } },
+			{ t: "join", by: "a", at: 2 },
+			{ t: "join", by: "b", at: 3 },
+			{ t: "host", by: "a", at: 4, from: "host" },
+		];
+		expect(
+			foldSessionLog("s", [...log, { t: "leave", by: "a", at: 5, heir: "b" }], types)?.view
+				.hostUserId,
+		).toBe("b");
+		// 跡継ぎが書かれていなければ、いちばん早く入った人
+		expect(
+			foldSessionLog("s", [...log, { t: "leave", by: "a", at: 5 }], types)?.view.hostUserId,
+		).toBe("host");
+
+		// クライアントは presence を見て跡継ぎを書く
+		const { a, b, client } = peers();
+		const { presence, now } = shared();
+		const host = client(a, "host", { presence, now });
+		const guest = client(b, "guest", { presence, now });
+		host.create({ type: "counter" });
+		const id = only(host).id;
+		const third = client(a, "third", { presence, now });
+		third.join(id);
+		guest.join(id);
+		// third は presence にいない
+		host.leave(id);
+		expect(only(guest).hostUserId).toBe("guest");
 	});
 
 	it("知らない型のログは無視する", () => {
