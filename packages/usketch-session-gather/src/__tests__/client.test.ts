@@ -366,4 +366,77 @@ describe("gather client", () => {
 		expect(getGatherApi(late.services)).toBeUndefined();
 		expect(late.store.setViewportConstraint).toHaveBeenLastCalledWith(null);
 	});
+
+	describe("confirmJoin", () => {
+		it("聞かれた人は動かず、参加すると参加者に入り、待ってから動く", () => {
+			const { a, b } = linkedDocs();
+			const host = board(a, "host", { confirmJoin: true });
+			const guest = board(b, "guest", { confirmJoin: true, enterDelayMs: 4000 });
+			startHere(host.api());
+			advance(GATHER_COUNTDOWN_MS + 1000);
+			expect(guest.api().getState().participation).toBe("invited");
+			expect(guest.store.animateViewportTo).not.toHaveBeenCalled();
+			expect(
+				host
+					.api()
+					.getState()
+					.participants.map((p) => p.userId),
+			).toEqual(["host"]);
+
+			guest.api().accept();
+			expect(guest.api().getState().participation).toBe("countdown");
+			expect(
+				host
+					.api()
+					.getState()
+					.participants.map((p) => p.userId),
+			).toEqual(["host", "guest"]);
+			advance(3000);
+			expect(guest.store.animateViewportTo).not.toHaveBeenCalled();
+			advance(1200);
+			expect(guest.api().getState().participation).toBe("joined");
+			expect(guest.store.animateViewportTo).toHaveBeenCalledTimes(1);
+		});
+
+		it("あとでを選ぶと離れたまま。あとから参加すると待たずに動く", () => {
+			const { a, b } = linkedDocs();
+			const host = board(a, "host", { confirmJoin: true });
+			const guest = board(b, "guest", { confirmJoin: true });
+			startHere(host.api());
+			guest.api().leave();
+			expect(guest.api().getState().participation).toBe("away");
+			guest.api().accept();
+			expect(guest.api().getState().participation).toBe("joined");
+			expect(guest.store.animateViewportTo).toHaveBeenCalledTimes(1);
+		});
+
+		it("あとから開いた人も聞かれ、ディープリンクで開いた人は離れたまま", () => {
+			const { a, b } = linkedDocs();
+			const host = board(a, "host", { confirmJoin: true });
+			startHere(host.api());
+			advance(60_000);
+			const late = board(b, "late", { confirmJoin: true });
+			expect(late.api().getState().participation).toBe("invited");
+			expect(late.store.setViewport).not.toHaveBeenCalled();
+			const c = new Y.Doc();
+			Y.applyUpdate(c, Y.encodeStateAsUpdate(a));
+			const linked = board(c, "linked", { confirmJoin: true, startAway: () => true });
+			expect(linked.api().getState().participation).toBe("away");
+		});
+	});
+
+	it("参加すると (カウントダウンでも) 参加者に記録する", () => {
+		const { a, b } = linkedDocs();
+		const host = board(a, "host");
+		board(b, "guest");
+		startHere(host.api());
+		expect(host.api().getState().participants).toHaveLength(1);
+		advance(GATHER_COUNTDOWN_MS + 200);
+		expect(
+			host
+				.api()
+				.getState()
+				.participants.map((p) => p.userId),
+		).toEqual(["host", "guest"]);
+	});
 });

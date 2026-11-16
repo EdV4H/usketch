@@ -149,31 +149,38 @@ export const gatherRemainingMs = (g: GatherPublic, now: number): number | null =
 
 /**
  * This client's relation to a gathering.
- * - `countdown`: it started while the board was open; moving shortly
+ * - `invited`: asked whether to take part (with `confirmJoin`); waiting for the answer
+ * - `countdown`: moving shortly (it started while the board was open, or the
+ *   person just accepted and the host plays an intro first)
  * - `joined`: taking part (held inside the place under `stay`)
- * - `away`: stepped away, or could not be moved automatically
+ * - `away`: stepped away, declined, or could not be moved automatically
  */
-export type GatherParticipation = "countdown" | "joined" | "away";
+export type GatherParticipation = "invited" | "countdown" | "joined" | "away";
 
 /**
  * The state when this client first sees a gathering.
  * - the host started it, so is already there (and is never held)
  * - when the camera must not move (presenting, driving) or the board was opened
- *   through a deep link, start away; the user joins from the host's UI
- * - a gathering already running when the board opened: join at once
- * - one that starts while the board is open: count down first
+ *   through a deep link onto a running one, start away; the user joins from the host's UI
+ * - with `confirm`, everyone else is asked first
+ * - otherwise a gathering already running when the board opened joins at once,
+ *   and one that starts while the board is open counts down first
  */
 export function initialParticipation(args: {
 	isHost: boolean;
 	canAutoMove: boolean;
 	seenOnLoad: boolean;
 	startAway: boolean;
+	/** Ask before taking part (`confirmJoin`). */
+	confirm?: boolean;
 	gather: GatherPublic;
 	now: number;
 }): GatherParticipation {
 	if (args.isHost) return "joined";
 	if (!args.canAutoMove) return "away";
-	if (args.seenOnLoad) return args.startAway ? "away" : "joined";
+	if (args.seenOnLoad && args.startAway) return "away";
+	if (args.confirm) return "invited";
+	if (args.seenOnLoad) return "joined";
 	return args.now - args.gather.startedAt >= GATHER_COUNTDOWN_MS ? "joined" : "countdown";
 }
 

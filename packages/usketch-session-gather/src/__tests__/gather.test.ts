@@ -74,6 +74,16 @@ describe("initialParticipation", () => {
 		expect(initialParticipation({ ...base, now: 1500 })).toBe("countdown");
 		expect(initialParticipation({ ...base, now: 1000 + GATHER_COUNTDOWN_MS })).toBe("joined");
 	});
+	it("with confirm, everyone but the host is asked first", () => {
+		const c = { ...base, confirm: true };
+		expect(initialParticipation({ ...c, isHost: true, now: 1500 })).toBe("joined");
+		expect(initialParticipation({ ...c, now: 1500 })).toBe("invited");
+		expect(initialParticipation({ ...c, seenOnLoad: true, now: 99_000 })).toBe("invited");
+		expect(initialParticipation({ ...c, seenOnLoad: true, startAway: true, now: 1100 })).toBe(
+			"away",
+		);
+		expect(initialParticipation({ ...c, canAutoMove: false, now: 1500 })).toBe("away");
+	});
 	it("late joiners join at once, deep links and blocked cameras start away", () => {
 		expect(initialParticipation({ ...base, seenOnLoad: true, now: 1100 })).toBe("joined");
 		expect(initialParticipation({ ...base, seenOnLoad: true, startAway: true, now: 1100 })).toBe(

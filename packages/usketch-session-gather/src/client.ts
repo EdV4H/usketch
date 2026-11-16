@@ -1,5 +1,5 @@
 import type { ClientSessionType, SessionAttachContext } from "@edv4h/usketch-plugin-session";
-import type { SessionView } from "@edv4h/usketch-session-protocol";
+import type { Participant, SessionView } from "@edv4h/usketch-session-protocol";
 import {
 	type BoardStore,
 	defineService,
@@ -45,6 +45,8 @@ export interface GatherState {
 	countdownMs: number;
 	/** Time-limit left (ms), or `null` without a limit. */
 	remainingMs: number | null;
+	/** Who has taken part so far (the host first, then in the order they joined). */
+	participants: readonly Participant[];
 }
 
 /** Host-facing API (`getGatherApi(app.services)`) for drawing the gathering UI. */
@@ -59,9 +61,15 @@ export interface GatherApi {
 	start(input: GatherStartInput, opts?: { stayPut?: boolean }): void;
 	/** End the running gathering (host only). */
 	end(): void;
-	/** Step away (or skip the countdown). */
+	/** Step away (or skip the countdown, or decline the invitation). */
 	leave(): void;
-	/** Come back / go to the place again (also for the host). */
+	/**
+	 * Take part: answers the invitation (`confirmJoin`) or joins after declining.
+	 * The person is recorded as a participant at once and moved after
+	 * `enterDelayMs` (`participation` is `countdown` until then).
+	 */
+	accept(): void;
+	/** Come back / go to the place again now (also for the host). */
 	rejoin(): void;
 	/** Re-read the host's inputs (`canAutoMove`, the page) after they change. */
 	refresh(): void;
@@ -88,6 +96,16 @@ export interface GatherClientOptions {
 	switchPage?: (pageId: string) => void;
 	/** A gathering this client saw is over. `byMe` when this client ended or replaced it. */
 	onEnded?: (info: { gather: GatherPublic; byMe: boolean; timedOut: boolean }) => void;
+	/**
+	 * Ask everyone but the host before taking part (`participation` starts as
+	 * `invited`; answer with `accept` / `leave`) instead of counting down. Default false.
+	 */
+	confirmJoin?: boolean;
+	/**
+	 * After `accept`, wait this long before moving, e.g. while the host plays an
+	 * intro that covers the move. Default 0.
+	 */
+	enterDelayMs?: number;
 	/** Priority for the load-time `viewport:claimed` (above start-position 10, below deep links 100). */
 	claimPriority?: number;
 	now?: () => number;
@@ -143,6 +161,8 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 	/** Gatherings this client ended (id → whether by time). */
 	const endedByMe = new Map<string, boolean>();
 	let stayPutPending = false;
+	/** Gatherings this client has sent `join` for (sent once each). */
+	const joinSent = new Set<string>();
 	/** Gatherings shown here and not yet reported to `onEnded`. */
 	const shown = new Map<string, GatherPublic>();
 
@@ -157,6 +177,7 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			participation: null,
 			countdownMs: 0,
 			remainingMs: null,
+			participants: [],
 		};
 		let tick: ReturnType<typeof setInterval> | null = null;
 		let installTimer: ReturnType<typeof setTimeout> | null = null;
@@ -235,6 +256,13 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			else installTimer = setTimeout(install, MOVE_MS + 50);
 		};
 
+		const recordJoin = (session: SessionView) => {
+			if (joinSent.has(session.id)) return;
+			if (session.participants.some((p) => p.userId === userId)) return;
+			joinSent.add(session.id);
+			client.join(session.id);
+		};
+
 		const update = () => {
 			if (disposed) return;
 			const t = now();
@@ -272,10 +300,11 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 					timedOut: mine ?? !isGatherLive(g, t),
 				});
 			}
-			for (const id of [...past.keys(), ...moved.keys()]) {
+			for (const id of [...past.keys(), ...moved.keys(), ...joinSent]) {
 				if (!sessions.some((s) => s.id === id)) {
 					past.delete(id);
 					moved.delete(id);
+					joinSent.delete(id);
 				}
 			}
 
@@ -293,6 +322,7 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 						canAutoMove: canAutoMove(),
 						seenOnLoad: seenOnLoadId === live.session.id,
 						startAway,
+						confirm: options.confirmJoin === true,
 						gather: live.gather,
 						now: t,
 					}),
@@ -317,11 +347,17 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				countdownMs:
 					participation === "countdown" && local ? Math.max(0, local.countdownEndsAt - t) : 0,
 				remainingMs: live ? gatherRemainingMs(live.gather, t) : null,
+				participants: live
+					? [...live.session.participants].sort((a, b) => a.joinedAt - b.joinedAt)
+					: [],
 			};
 			const wantTick = live ? (participation === "countdown" ? 200 : 1000) : null;
 			if (tick !== null) clearInterval(tick);
 			tick = wantTick === null ? null : setInterval(update, wantTick);
 			for (const l of listeners) l();
+			// Taking part is recorded in the session, so everyone sees who came and in
+			// which order. Last, since the transport may notify (and re-enter) at once.
+			if (live && participation === "joined") recordJoin(live.session);
 		};
 
 		const offClient = client.subscribe(update);
@@ -369,6 +405,20 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				if (!local) return;
 				local = { ...local, participation: "away" };
 				update();
+			},
+			accept() {
+				if (!local || local.participation === "joined") return;
+				const live = pickLive(client.getState().sessions, now());
+				if (live?.session.id !== local.id) return;
+				const delay = Math.max(0, options.enterDelayMs ?? 0);
+				local = {
+					...local,
+					participation: delay > 0 ? "countdown" : "joined",
+					countdownEndsAt: now() + delay,
+					moveSeq: local.moveSeq + 1,
+				};
+				update();
+				recordJoin(live.session);
 			},
 			rejoin() {
 				if (!local) return;
