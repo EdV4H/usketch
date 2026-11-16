@@ -7,6 +7,7 @@ import {
 	parseRespond,
 	RESPOND_TYPE,
 	type RespondAnswer,
+	type RespondPart,
 	type RespondPrivate,
 	type RespondPublic,
 	type RespondStartInput,
@@ -35,8 +36,11 @@ export interface RespondApi {
 	subscribe(listener: () => void): () => void;
 	/** Ask a question (ends this client's own running one first). `false` for an empty prompt. */
 	start(input: RespondStartInput): boolean;
-	/** Answer, or replace this client's answer. `tag` is optional (a mood, a category…). */
-	submit(text: string, tag?: string): void;
+	/**
+	 * Answer, or replace this client's answer. `tag` is optional (a mood, a
+	 * category…). `parts` only when the session allows them (`maxParts`).
+	 */
+	submit(text: string, tag?: string, parts?: readonly RespondPart[]): void;
 	/** Take this client's answer back. */
 	retract(): void;
 	/** Host only: show everyone's answers and stop taking new ones. */
@@ -153,10 +157,15 @@ export function createRespondClientType(options: RespondClientOptions = {}): Cli
 				client.create(config);
 				return true;
 			},
-			submit(text, tag) {
+			submit(text, tag, parts) {
 				const id = liveId();
 				if (!id) return;
-				client.act(id, { kind: "submit", text, ...(tag ? { tag } : {}) });
+				client.act(id, {
+					kind: "submit",
+					text,
+					...(tag ? { tag } : {}),
+					...(parts && parts.length > 0 ? { parts: parts.map((p) => ({ ...p })) } : {}),
+				});
 			},
 			retract() {
 				const id = liveId();

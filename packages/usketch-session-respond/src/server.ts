@@ -2,6 +2,7 @@ import type { ServerSessionType } from "@edv4h/usketch-session-protocol";
 import {
 	parseRespond,
 	parseRespondAction,
+	RESPOND_MAX_TEXT,
 	type RespondAction,
 	type RespondConfig,
 	type RespondPrivate,
@@ -13,6 +14,7 @@ export type {
 	RespondAction,
 	RespondAnswer,
 	RespondConfig,
+	RespondPart,
 	RespondPrivate,
 	RespondPublic,
 	RespondSecret,
@@ -22,6 +24,8 @@ export type {
 const BROKEN: RespondPublic = {
 	type: "respond",
 	prompt: "-",
+	maxText: RESPOND_MAX_TEXT,
+	maxParts: 0,
 	hostName: "",
 	startedAt: 0,
 	expiresAt: 0,
@@ -34,7 +38,8 @@ const BROKEN: RespondPublic = {
  * Rules of the `respond` session type.
  *
  * - anyone may `submit` (replacing their own answer, keeping their place) or
- *   `retract` until the answers are revealed
+ *   `retract` until the answers are revealed; an answer longer than `maxText`
+ *   or with more parts than `maxParts` is refused
  * - answers live in `secret`; the public state only says who has answered
  * - the host's `close` reveals: every answer moves to the public state and no
  *   more answers are taken
@@ -70,10 +75,13 @@ export const respondServerType: ServerSessionType<
 			);
 			return undefined;
 		}
+		if (action.text.length > state.public.maxText) return "answer is too long";
+		if ((action.parts?.length ?? 0) > state.public.maxParts) return "too many parts";
 		const answer = {
 			userId: actorUserId,
 			text: action.text,
 			...(action.tag ? { tag: action.tag } : {}),
+			...(action.parts ? { parts: action.parts } : {}),
 		};
 		if (index >= 0) {
 			answers[index] = answer;
