@@ -81,12 +81,16 @@ export function createSessionPlugin(options: SessionPluginOptions): UsketchPlugi
 			// labelled fields, so we deliberately do NOT also register a generic
 			// `ctx.actions` create form — the HUD renders action params as bare,
 			// unlabelled inputs, which is confusing for a multi-field form.
-			const offPanel = ctx.hud.registerPanel({
-				id: "session:panel",
-				title: "セッション",
-				order: 40,
-				render: () => <SessionPanel client={client} userId={userId} types={types} />,
-			});
+			// A host that draws every type's UI itself (no renderers) gets no panel.
+			const hasPanelUi = types.some((t) => t.renderCard || t.renderCreateForm);
+			const offPanel = hasPanelUi
+				? ctx.hud.registerPanel({
+						id: "session:panel",
+						title: "セッション",
+						order: 40,
+						render: () => <SessionPanel client={client} userId={userId} types={types} />,
+					})
+				: () => {};
 
 			return () => {
 				offPanel();
