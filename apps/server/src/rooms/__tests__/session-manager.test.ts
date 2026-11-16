@@ -198,6 +198,65 @@ describe("SessionManager — presence / reconnect / host migration", () => {
 		expect(s.hostUserId).toBe("u1"); // migrated
 	});
 
+	it("claimHost is refused while the host is connected", () => {
+		const h = harness(1000);
+		const id = createVote(h, "host");
+		h.mgr.handle("u1", { t: "join", sessionId: id });
+		h.mgr.handle("u1", { t: "claimHost", sessionId: id });
+		expect(h.lastBroadcastState().hostUserId).toBe("host");
+		expect(h.errorsFor("u1")).toEqual([{ t: "error", message: "the host is here", sessionId: id }]);
+	});
+
+	it("claimHost on an unknown session reports it", () => {
+		const h = harness(1000);
+		h.mgr.handle("u1", { t: "claimHost", sessionId: "nope" });
+		expect(h.errorsFor("u1")).toEqual([
+			{ t: "error", message: "no such session", sessionId: "nope" },
+		]);
+	});
+
+	it("claimHost clears the claimer's leftover grace, so the alarm keeps the new host", () => {
+		const h = harness(1000);
+		const id = createVote(h, "host");
+		h.mgr.handle("u1", { t: "join", sessionId: id });
+		h.mgr.onDisconnect("u1");
+		h.mgr.onDisconnect("host");
+		h.mgr.handle("u1", { t: "claimHost", sessionId: id });
+		h.tick(1001);
+		h.mgr.onAlarm();
+		const s = h.lastBroadcastState();
+		expect(s.hostUserId).toBe("u1");
+		expect(s.participants.map((p) => p.userId)).toEqual(["u1"]);
+	});
+
+	it("claimHost takes over while the host is away; the old host comes back as a participant", () => {
+		const h = harness(1000);
+		const id = createVote(h, "host");
+		h.mgr.handle("u1", { t: "join", sessionId: id });
+		h.mgr.onDisconnect("host");
+		// u2 has not joined yet: claiming joins them too
+		h.mgr.handle("u2", { t: "claimHost", sessionId: id });
+		let s = h.lastBroadcastState();
+		expect(s.hostUserId).toBe("u2");
+		expect(Object.fromEntries(s.participants.map((p) => [p.userId, p.role]))).toEqual({
+			host: "participant",
+			u1: "participant",
+			u2: "host",
+		});
+		expect(h.privatesFor("u2")).toHaveLength(1);
+		// host-only ops now belong to u2
+		h.mgr.handle("u2", { t: "close", sessionId: id });
+		expect(h.errorsFor("u2")).toEqual([]);
+
+		h.mgr.handle("host", { t: "sync" });
+		s = h.lastBroadcastState();
+		expect(s.hostUserId).toBe("u2");
+		expect(s.participants.find((p) => p.userId === "host")).toMatchObject({
+			role: "participant",
+			connected: true,
+		});
+	});
+
 	it("a still-connected other tab keeps the user present (onDisconnect only on last)", () => {
 		// onDisconnect is called by the adapter only when the user's LAST socket closes,
 		// so a single call === last tab. Here we assert no forfeit before the alarm.
