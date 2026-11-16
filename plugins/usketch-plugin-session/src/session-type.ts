@@ -1,5 +1,5 @@
 import type { SessionConfig, SessionView } from "@edv4h/usketch-session-protocol";
-import type { BoardStore, ServiceRegistry } from "@edv4h/usketch-shared";
+import type { BoardStore, EventBus, ServiceRegistry } from "@edv4h/usketch-shared";
 import type { ReactElement } from "react";
 import type { SessionClient } from "./session-client.js";
 
@@ -46,6 +46,8 @@ export interface SessionAttachContext {
 	store: BoardStore;
 	/** Other plugins' services. */
 	services: ServiceRegistry;
+	/** The board's event bus (e.g. to claim the load-time camera with `viewport:claimed`). */
+	events: EventBus;
 }
 
 /** Context passed to a type's create form. */

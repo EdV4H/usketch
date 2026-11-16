@@ -67,7 +67,13 @@ export function createSessionPlugin(options: SessionPluginOptions): UsketchPlugi
 			});
 
 			const detach = types.flatMap((t) => {
-				const off = t.attach?.({ client, userId, store: ctx.store, services: ctx.services });
+				const off = t.attach?.({
+					client,
+					userId,
+					store: ctx.store,
+					services: ctx.services,
+					events: ctx.events,
+				});
 				return off ? [off] : [];
 			});
 
