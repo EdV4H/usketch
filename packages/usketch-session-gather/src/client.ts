@@ -1,6 +1,12 @@
 import type { ClientSessionType, SessionAttachContext } from "@edv4h/usketch-plugin-session";
 import type { SessionView } from "@edv4h/usketch-session-protocol";
-import { type BoardStore, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	defineService,
+	getSelectionBounds,
+	type ServiceRegistry,
+	type ViewportConstraint,
+} from "@edv4h/usketch-shared";
 import {
 	fitViewport,
 	stayInRectConstraint,
@@ -127,12 +133,18 @@ const pickLive = (
 export function createGatherClientType(options: GatherClientOptions): ClientSessionType {
 	const now = options.now ?? Date.now;
 	let local: Local | null = null;
+	/** This client's state for gatherings pushed aside by a newer one (they can come back). */
+	const past = new Map<string, Local>();
+	/** Per gathering, the `moveSeq` this client was already brought there for. */
+	const moved = new Map<string, number>();
 	let firstAttach = true;
 	let seenOnLoadId: string | null = null;
 	let startAway = false;
-	let endedByMe: { id: string; timedOut: boolean } | null = null;
+	/** Gatherings this client ended (id → whether by time). */
+	const endedByMe = new Map<string, boolean>();
 	let stayPutPending = false;
-	let lastSeen: { id: string; gather: GatherPublic } | null = null;
+	/** Gatherings shown here and not yet reported to `onEnded`. */
+	const shown = new Map<string, GatherPublic>();
 
 	const attach = (ctx: SessionAttachContext) => {
 		const { client, userId, store } = ctx;
@@ -150,6 +162,9 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 		let installTimer: ReturnType<typeof setTimeout> | null = null;
 		let applied: string | null = null;
 		let switchedFor: string | null = null;
+		let installed: ViewportConstraint | null = null;
+		let endSentFor: unknown = null;
+		let movedOnAppear = false;
 		let disposed = false;
 
 		const initial = pickLive(client.getState().sessions, now());
@@ -163,20 +178,14 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 		// moves (a countdown ending, rejoining) animate.
 		let instantNext = initial !== null;
 
-		if (initial && !startAway) {
-			queueMicrotask(() => {
-				if (disposed) return;
-				ctx.events.emit("viewport:claimed", {
-					source: "session-gather",
-					priority: options.claimPriority ?? 50,
-				});
-			});
-		}
-
 		const releaseCamera = () => {
 			if (installTimer !== null) clearTimeout(installTimer);
 			installTimer = null;
-			store.setViewportConstraint(null);
+			// Only clear our own constraint, never one another plugin / the host installed.
+			if (installed && store.getViewportConstraint() === installed) {
+				store.setViewportConstraint(null);
+			}
+			installed = null;
 		};
 
 		const applyCamera = (live: { session: SessionView; gather: GatherPublic } | null) => {
@@ -185,8 +194,13 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			if (key === applied) return;
 			applied = key;
 			releaseCamera();
-			if (!live || !key) return;
+			if (!live || !key || !local) return;
 			const { gather, session } = live;
+			const isHost = session.hostUserId === userId;
+			const holds = gather.hold === "stay" && !isHost;
+			// Already brought there (before a page switch / app rebuild): under `gather`,
+			// and for the host, they are free to move, so don't pull them back.
+			if (moved.get(session.id) === local.moveSeq && !holds) return;
 			const page = options.getPageId?.() ?? null;
 			if (gather.target.pageId && page && gather.target.pageId !== page) {
 				switchedFor = session.id;
@@ -194,29 +208,28 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				return;
 			}
 			const instant = instantNext || switchedFor === session.id;
+			if (instantNext) movedOnAppear = true;
 			instantNext = false;
 			switchedFor = null;
-			const isHost = session.hostUserId === userId;
 			const stayPut = isHost && stayPutPending;
 			stayPutPending = false;
+			moved.set(session.id, local.moveSeq);
 			const size = options.getViewportSize();
 			if (size && !stayPut) {
 				const target = fitViewport(shapeRect(store, gather), size);
 				if (instant) store.setViewport(target);
 				else store.animateViewportTo(target, { durationMs: MOVE_MS });
 			}
-			if (gather.hold !== "stay" || isHost) return;
+			if (!holds) return;
 			const install = () => {
 				installTimer = null;
-				store.setViewportConstraint(
-					stayInRectConstraint({
-						getRect: () => {
-							const cur = pickLive(client.getState().sessions, now());
-							return cur ? shapeRect(store, cur.gather) : null;
-						},
-						getSize: options.getViewportSize,
-					}),
-				);
+				// A gathering's public state is fixed at creation, so the captured one is
+				// current; its removal re-runs applyCamera and releases this.
+				installed = stayInRectConstraint({
+					getRect: () => (isGatherLive(gather, now()) ? shapeRect(store, gather) : null),
+					getSize: options.getViewportSize,
+				});
+				store.setViewportConstraint(installed);
 			};
 			if (instant) install();
 			else installTimer = setTimeout(install, MOVE_MS + 50);
@@ -225,33 +238,55 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 		const update = () => {
 			if (disposed) return;
 			const t = now();
-			const sessions = client.getState().sessions;
+			let sessions = client.getState().sessions;
 			// Over by time: the host's client removes it; everyone else just ignores it.
-			for (const s of sessions) {
-				if (s.type !== GATHER_TYPE || s.hostUserId !== userId) continue;
-				const g = parseGather(s.public);
-				if (g && !isGatherLive(g, t)) {
-					endedByMe = { id: s.id, timedOut: true };
-					client.end(s.id);
-					return; // the removal re-enters update
+			// Sent once per snapshot: on a server transport the removal comes back later,
+			// and the ticks in between must not resend it.
+			if (sessions !== endSentFor) {
+				const expired = sessions.filter((s) => {
+					if (s.type !== GATHER_TYPE || s.hostUserId !== userId) return false;
+					const g = parseGather(s.public);
+					return g !== null && !isGatherLive(g, t);
+				});
+				if (expired.length > 0) {
+					endSentFor = sessions;
+					for (const s of expired) {
+						endedByMe.set(s.id, true);
+						client.end(s.id);
+					}
+					if (disposed) return;
+					sessions = client.getState().sessions;
 				}
 			}
 			const live = pickLive(sessions, t);
-			if (lastSeen && lastSeen.id !== live?.session.id) {
-				const mine = endedByMe?.id === lastSeen.id ? endedByMe : null;
+			if (live) shown.set(live.session.id, live.gather);
+			for (const [id, g] of shown) {
+				// Pushed aside by a newer gathering is not over: it may come back.
+				if (isGatherLive(g, t) && sessions.some((s) => s.id === id)) continue;
+				shown.delete(id);
+				const mine = endedByMe.get(id);
+				endedByMe.delete(id);
 				options.onEnded?.({
-					gather: lastSeen.gather,
-					byMe: mine !== null,
-					timedOut: mine ? mine.timedOut : !isGatherLive(lastSeen.gather, t),
+					gather: g,
+					byMe: mine !== undefined,
+					timedOut: mine ?? !isGatherLive(g, t),
 				});
 			}
-			lastSeen = live ? { id: live.session.id, gather: live.gather } : null;
+			for (const id of [...past.keys(), ...moved.keys()]) {
+				if (!sessions.some((s) => s.id === id)) {
+					past.delete(id);
+					moved.delete(id);
+				}
+			}
 
 			const isHost = live?.session.hostUserId === userId;
+			if (local && local.id !== live?.session.id) past.set(local.id, local);
 			if (!live) {
 				local = null;
 			} else if (local?.id !== live.session.id) {
-				local = {
+				const kept = past.get(live.session.id);
+				past.delete(live.session.id);
+				local = kept ?? {
 					id: live.session.id,
 					participation: initialParticipation({
 						isHost,
@@ -292,6 +327,16 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 		const offClient = client.subscribe(update);
 		update();
 		instantNext = false;
+		// Claim the load-time camera only when this app actually moved it.
+		if (movedOnAppear) {
+			queueMicrotask(() => {
+				if (disposed) return;
+				ctx.events.emit("viewport:claimed", {
+					source: "session-gather",
+					priority: options.claimPriority ?? 50,
+				});
+			});
+		}
 
 		const api: GatherApi = {
 			getState: () => state,
@@ -300,10 +345,13 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				return () => listeners.delete(listener);
 			},
 			start(input, opts) {
-				const mine = pickLive(client.getState().sessions, now());
-				if (mine && mine.session.hostUserId === userId) {
-					endedByMe = { id: mine.session.id, timedOut: false };
-					client.end(mine.session.id);
+				// End every gathering this client runs, not only the newest one shown.
+				const mine = client
+					.getState()
+					.sessions.filter((s) => s.type === GATHER_TYPE && s.hostUserId === userId);
+				for (const s of mine) {
+					endedByMe.set(s.id, false);
+					client.end(s.id);
 				}
 				stayPutPending = opts?.stayPut === true;
 				const page = options.getPageId?.() ?? null;
@@ -314,7 +362,7 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			end() {
 				const live = pickLive(client.getState().sessions, now());
 				if (!live || live.session.hostUserId !== userId) return;
-				endedByMe = { id: live.session.id, timedOut: false };
+				endedByMe.set(live.session.id, false);
 				client.end(live.session.id);
 			},
 			leave() {
@@ -358,24 +406,23 @@ export function resolveGatherTarget(
 		if (!size || size.width <= 0 || size.height <= 0) return null;
 		return { rect: visibleWorldRect(store.getViewport(), size) };
 	}
-	const shapes = [...store.getSelection()]
-		.map((id) => store.getShape(id))
-		.filter((s): s is NonNullable<typeof s> => s !== undefined && (s.width > 0 || s.height > 0));
-	const first = shapes[0];
-	if (!first) return null;
-	let minX = first.x;
-	let minY = first.y;
-	let maxX = first.x + first.width;
-	let maxY = first.y + first.height;
-	for (const s of shapes) {
-		minX = Math.min(minX, s.x);
-		minY = Math.min(minY, s.y);
-		maxX = Math.max(maxX, s.x + s.width);
-		maxY = Math.max(maxY, s.y + s.height);
-	}
+	const shapes = new Map(
+		[...store.getSelection()]
+			.map((id) => store.getShape(id))
+			.filter((s): s is NonNullable<typeof s> => s !== undefined && (s.width > 0 || s.height > 0))
+			.map((s) => [s.id, s] as const),
+	);
+	const bounds = getSelectionBounds(new Set(shapes.keys()), (id) => shapes.get(id) ?? null);
+	if (!bounds) return null;
+	const [only] = shapes.size === 1 ? shapes.keys() : [];
 	// A lone horizontal / vertical line still makes a place (a rect must be > 0).
 	return {
-		rect: { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) },
-		...(shapes.length === 1 ? { shapeId: first.id } : {}),
+		rect: {
+			x: bounds.x,
+			y: bounds.y,
+			width: Math.max(1, bounds.width),
+			height: Math.max(1, bounds.height),
+		},
+		...(only ? { shapeId: only } : {}),
 	};
 }

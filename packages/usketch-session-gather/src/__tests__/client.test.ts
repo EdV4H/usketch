@@ -43,6 +43,7 @@ const sessionClient = (doc: Y.Doc, userId: string): SessionClient =>
 /** Just the BoardStore surface the gather client touches. */
 function fakeStore() {
 	let viewport: Viewport = { x: 0, y: 0, zoom: 1 };
+	let constraint: unknown = null;
 	const store = {
 		getShape: vi.fn(() => undefined),
 		getSelection: vi.fn(() => new Set<string>()),
@@ -53,7 +54,10 @@ function fakeStore() {
 		animateViewportTo: vi.fn((vp: Viewport) => {
 			viewport = vp;
 		}),
-		setViewportConstraint: vi.fn(),
+		setViewportConstraint: vi.fn((c: unknown) => {
+			constraint = c;
+		}),
+		getViewportConstraint: () => constraint,
 	};
 	return store;
 }
@@ -243,6 +247,34 @@ describe("gather client", () => {
 		late.attach();
 		expect(late.store.setViewport).toHaveBeenCalledTimes(1);
 		expect(late.api().getState().participation).toBe("joined");
+	});
+
+	it("gather で一度連れてこられた人は、アプリを作り直しても引き戻されない", () => {
+		const { a, b } = linkedDocs();
+		const host = board(a, "host");
+		startHere(host.api(), "gather");
+		advance(60_000);
+		const late = board(b, "late");
+		expect(late.store.setViewport).toHaveBeenCalledTimes(1);
+		late.detach?.();
+		late.attach();
+		expect(late.store.setViewport).toHaveBeenCalledTimes(1);
+		expect(late.api().getState().participation).toBe("joined");
+	});
+
+	it("別の人の新しい集合に隠れただけでは onEnded は届かない", () => {
+		const { a, b } = linkedDocs();
+		const ended = vi.fn();
+		const host = board(a, "host");
+		const other = board(b, "other", { onEnded: ended });
+		startHere(host.api());
+		advance(1000);
+		startHere(other.api(), "gather");
+		expect(other.api().getState().gather?.hold).toBe("gather");
+		expect(ended).not.toHaveBeenCalled();
+		other.api().end();
+		expect(ended).toHaveBeenCalledTimes(1);
+		expect(other.api().getState().gather?.hold).toBe("stay");
 	});
 
 	it("離れたことはアプリを作り直しても残る", () => {

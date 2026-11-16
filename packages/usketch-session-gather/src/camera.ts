@@ -1,4 +1,4 @@
-import type { Viewport, ViewportConstraint } from "@edv4h/usketch-shared";
+import { type Viewport, type ViewportConstraint, viewportRotation } from "@edv4h/usketch-shared";
 import type { GatherRect } from "./gather.js";
 
 // Camera helpers for gathering. Screen = viewport.{x,y} + world * zoom.
@@ -78,7 +78,7 @@ export function stayInRectConstraint(opts: {
 }): ViewportConstraint {
 	const padding = opts.padding ?? GATHER_FIT_PADDING;
 	return (vp) => {
-		if (vp.rotation !== undefined && vp.rotation !== 0) return vp;
+		if (viewportRotation(vp) !== 0) return vp;
 		const rect = opts.getRect();
 		const size = opts.getSize();
 		if (!rect || !size || size.width <= 0 || size.height <= 0) return vp;
