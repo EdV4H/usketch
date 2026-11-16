@@ -8,6 +8,7 @@ import {
 	initialParticipation,
 	isGatherLive,
 	parseGather,
+	parseGatherBackdrop,
 } from "../gather.js";
 
 const rect = { x: 10, y: 20, width: 300, height: 200 };
@@ -19,6 +20,7 @@ const make = () =>
 			hostName: "host",
 			title: " KPT ",
 			prompt: " How do you feel? ",
+			backdrop: { color: "#003735", imageUrl: "https://example.com/bg.png" },
 			durationMinutes: 10,
 		},
 		1000,
@@ -43,6 +45,32 @@ describe("createGatherConfig / parseGather", () => {
 		expect(parseGather({ ...make(), target: { rect: { ...rect, width: 0 } } })).toBeNull();
 		expect(parseGather({ ...make(), startedAt: "1" })).toBeNull();
 		expect(parseGather({ ...make(), hold: "lock" })?.hold).toBe("stay");
+	});
+});
+
+describe("parseGatherBackdrop", () => {
+	it("keeps a hex color and an http(s) image URL, drops the rest", () => {
+		expect(parseGatherBackdrop({ color: " #0a0 ", imageUrl: "https://x.test/a b.png" })).toEqual({
+			color: "#0a0",
+			imageUrl: "https://x.test/a%20b.png",
+		});
+		expect(parseGatherBackdrop({ color: "red", imageUrl: "javascript:alert(1)" })).toBeUndefined();
+		expect(
+			parseGatherBackdrop({ color: "#12345", imageUrl: "data:image/png;base64,AA" }),
+		).toBeUndefined();
+		expect(parseGatherBackdrop({ imageUrl: "http://x.test/a.png" })).toEqual({
+			imageUrl: "http://x.test/a.png",
+		});
+		expect(parseGatherBackdrop("#fff")).toBeUndefined();
+	});
+
+	it("is left out of the config when nothing is valid", () => {
+		expect(
+			createGatherConfig({ hold: "stay", target: { rect }, backdrop: { color: "blue" } }, 0),
+		).not.toHaveProperty("backdrop");
+		expect(parseGather({ ...make(), backdrop: { imageUrl: "ftp://x" } })).not.toHaveProperty(
+			"backdrop",
+		);
 	});
 });
 

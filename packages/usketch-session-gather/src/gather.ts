@@ -35,6 +35,17 @@ export interface GatherTarget {
 	pageId?: string;
 }
 
+/**
+ * What to show behind the host's start effect / event screen. Both are optional;
+ * the host decides how to draw them (e.g. the image over the color).
+ */
+export interface GatherBackdrop {
+	/** Hex color: `#rgb`, `#rrggbb` or `#rrggbbaa`. */
+	color?: string;
+	/** An http(s) image URL. */
+	imageUrl?: string;
+}
+
 /** The session's public state (also its create config, minus the `type` key). */
 export interface GatherPublic {
 	type: typeof GATHER_TYPE;
@@ -46,6 +57,8 @@ export interface GatherPublic {
 	title?: string;
 	/** Optional prompt or question for everyone ("How do you feel about the new process?"). */
 	prompt?: string;
+	/** Optional backdrop for the host's UI. */
+	backdrop?: GatherBackdrop;
 	/** Creator's clock. */
 	startedAt: number;
 	/** End of the time limit, when there is one. */
@@ -83,6 +96,30 @@ const parseRect = (v: unknown): GatherRect | null => {
 const nonEmpty = (v: unknown): string | undefined =>
 	typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const MAX_URL_LENGTH = 2048;
+
+const parseImageUrl = (v: unknown): string | undefined => {
+	if (typeof v !== "string" || v.length > MAX_URL_LENGTH) return undefined;
+	try {
+		const url = new URL(v.trim());
+		return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+/** Keep only the valid parts; nothing valid gives `undefined`. */
+export function parseGatherBackdrop(v: unknown): GatherBackdrop | undefined {
+	if (!v || typeof v !== "object") return undefined;
+	const r = v as Record<string, unknown>;
+	const color =
+		typeof r.color === "string" && HEX_COLOR.test(r.color.trim()) ? r.color.trim() : undefined;
+	const imageUrl = parseImageUrl(r.imageUrl);
+	if (!color && !imageUrl) return undefined;
+	return { ...(color ? { color } : {}), ...(imageUrl ? { imageUrl } : {}) };
+}
+
 /**
  * Read a config / public state written by any peer. Broken values give `null`;
  * an unknown hold (from a newer client) reads as `stay`.
@@ -98,6 +135,7 @@ export function parseGather(raw: unknown): GatherPublic | null {
 	const pageId = nonEmpty(target?.pageId);
 	const title = nonEmpty(r.title);
 	const prompt = nonEmpty(r.prompt);
+	const backdrop = parseGatherBackdrop(r.backdrop);
 	return {
 		type: GATHER_TYPE,
 		hold: r.hold === "gather" ? "gather" : "stay",
@@ -105,6 +143,7 @@ export function parseGather(raw: unknown): GatherPublic | null {
 		hostName: typeof r.hostName === "string" ? r.hostName : "",
 		...(title ? { title } : {}),
 		...(prompt ? { prompt } : {}),
+		...(backdrop ? { backdrop } : {}),
 		startedAt: r.startedAt,
 		...(isFiniteNumber(r.endsAt) ? { endsAt: r.endsAt } : {}),
 		expiresAt: r.expiresAt,
@@ -117,6 +156,7 @@ export interface GatherStartInput {
 	hostName?: string;
 	title?: string;
 	prompt?: string;
+	backdrop?: GatherBackdrop;
 	/** Time limit in minutes. 0 or omitted = none. */
 	durationMinutes?: number;
 }
@@ -126,6 +166,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 	const minutes = input.durationMinutes ?? 0;
 	const title = nonEmpty(input.title);
 	const prompt = nonEmpty(input.prompt);
+	const backdrop = parseGatherBackdrop(input.backdrop);
 	const { shapeId, pageId } = input.target;
 	return {
 		type: GATHER_TYPE,
@@ -138,6 +179,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 		hostName: input.hostName ?? "",
 		...(title ? { title } : {}),
 		...(prompt ? { prompt } : {}),
+		...(backdrop ? { backdrop } : {}),
 		startedAt: now,
 		...(minutes > 0 ? { endsAt: now + minutes * 60_000 } : {}),
 		expiresAt: now + GATHER_MAX_MS,
