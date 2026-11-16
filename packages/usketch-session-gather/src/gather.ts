@@ -44,6 +44,8 @@ export interface GatherPublic {
 	hostName: string;
 	/** Optional heading ("Write your KPT"). */
 	title?: string;
+	/** Optional prompt or question for everyone ("How do you feel about the new process?"). */
+	prompt?: string;
 	/** Creator's clock. */
 	startedAt: number;
 	/** End of the time limit, when there is one. */
@@ -95,12 +97,14 @@ export function parseGather(raw: unknown): GatherPublic | null {
 	const shapeId = nonEmpty(target?.shapeId);
 	const pageId = nonEmpty(target?.pageId);
 	const title = nonEmpty(r.title);
+	const prompt = nonEmpty(r.prompt);
 	return {
 		type: GATHER_TYPE,
 		hold: r.hold === "gather" ? "gather" : "stay",
 		target: { rect, ...(shapeId ? { shapeId } : {}), ...(pageId ? { pageId } : {}) },
 		hostName: typeof r.hostName === "string" ? r.hostName : "",
 		...(title ? { title } : {}),
+		...(prompt ? { prompt } : {}),
 		startedAt: r.startedAt,
 		...(isFiniteNumber(r.endsAt) ? { endsAt: r.endsAt } : {}),
 		expiresAt: r.expiresAt,
@@ -112,6 +116,7 @@ export interface GatherStartInput {
 	target: GatherTarget;
 	hostName?: string;
 	title?: string;
+	prompt?: string;
 	/** Time limit in minutes. 0 or omitted = none. */
 	durationMinutes?: number;
 }
@@ -120,6 +125,7 @@ export interface GatherStartInput {
 export function createGatherConfig(input: GatherStartInput, now: number): GatherConfig {
 	const minutes = input.durationMinutes ?? 0;
 	const title = nonEmpty(input.title);
+	const prompt = nonEmpty(input.prompt);
 	const { shapeId, pageId } = input.target;
 	return {
 		type: GATHER_TYPE,
@@ -131,6 +137,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 		},
 		hostName: input.hostName ?? "",
 		...(title ? { title } : {}),
+		...(prompt ? { prompt } : {}),
 		startedAt: now,
 		...(minutes > 0 ? { endsAt: now + minutes * 60_000 } : {}),
 		expiresAt: now + GATHER_MAX_MS,

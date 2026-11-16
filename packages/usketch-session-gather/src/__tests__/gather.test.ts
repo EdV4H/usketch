@@ -18,6 +18,7 @@ const make = () =>
 			target: { rect, shapeId: "f" },
 			hostName: "host",
 			title: " KPT ",
+			prompt: " How do you feel? ",
 			durationMinutes: 10,
 		},
 		1000,
@@ -29,6 +30,10 @@ describe("createGatherConfig / parseGather", () => {
 		expect(c.endsAt).toBe(1000 + 10 * 60_000);
 		expect(c.expiresAt).toBe(1000 + GATHER_MAX_MS);
 		expect(c.title).toBe("KPT");
+		expect(c.prompt).toBe("How do you feel?");
+		expect(
+			createGatherConfig({ hold: "stay", target: { rect }, prompt: "  " }, 0),
+		).not.toHaveProperty("prompt");
 	});
 
 	it("round-trips and rejects broken values", () => {
