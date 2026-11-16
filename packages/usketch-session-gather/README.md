@@ -16,6 +16,7 @@
   - `stay`: 離れるまで場所の中にとどめる (ズームアウトと場所の外へのパンを止める。回転したカメラには触らない)
 - **見出しとお題**: `title` (見出し) と `prompt` (みんなへの問いかけ) は、どちらも省ける文字列。ホストの UI が表示に使う
 - **背景** (`backdrop`): 演出やイベント中の画面の後ろに出すもの。`color` (16 進の色) と `imageUrl` (http(s) の画像 URL) のどちらも省ける。それ以外の値は落とす。どう描くかはホストが決める
+- **見るだけ** (`viewOnly`): 参加しているあいだ、主催者以外は見ることとリアクションだけにしてほしい、という印。session は強制しない。どこまで絞るかはホストの UI が決める。`isViewOnlyForMe({ gather, isHost, participation })` が、いまこの端末を絞るか (参加中かカウントダウン中で、主催者でない) を返す
 - **だれがいつ動くか**
   - 主催者: 動かさない (`start(..., { stayPut: true })` で今の画面のまま始められる)。とどめもしない
   - 始まったときボードを開いていた人: 3 秒のカウントダウンのあと動く (その間に「行かない」を選べる)
@@ -65,5 +66,5 @@ gather?.subscribe(() => render(gather.getState()));
 | `/client` | `createGatherClientType(options)` | `ClientSessionType`。HUD のカードは持たず、`attach` でカメラを動かす |
 | `/client` | `getGatherApi(services)` / `GatherApi` | ホストが UI を描く口 (`getState` / `subscribe` / `start` / `end` / `leave` / `rejoin` / `refresh` / `resolveTarget`) |
 | `/client` | `stayInRectConstraint` / `fitViewport` / `visibleWorldRect` | カメラの計算 (純関数) |
-| `/client` | `parseGather` / `createGatherConfig` / `initialParticipation` ほか | 状態の読み書きと判断 (純関数) |
+| `/client` | `parseGather` / `createGatherConfig` / `initialParticipation` / `isViewOnlyForMe` ほか | 状態の読み書きと判断 (純関数) |
 | 両方 | `GatherPublic` / `GatherConfig` / `GatherTarget` / `GatherHold` | 公開状態・作成 config |
