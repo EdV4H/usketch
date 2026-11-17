@@ -3,12 +3,15 @@ import {
 	countdownRemainingMs,
 	createGatherConfig,
 	GATHER_COUNTDOWN_MS,
+	GATHER_MAX_AUDIENCE,
 	GATHER_MAX_MS,
 	gatherRemainingMs,
 	initialParticipation,
+	isGatherAudience,
 	isGatherLive,
 	isViewOnlyForMe,
 	parseGather,
+	parseGatherAudience,
 	parseGatherBackdrop,
 } from "../gather.js";
 
@@ -56,6 +59,31 @@ describe("createGatherConfig / parseGather", () => {
 		);
 		expect(parseGather({ ...make(), viewOnly: "yes" })).not.toHaveProperty("viewOnly");
 		expect(parseGather({ ...make(), viewOnly: false })).not.toHaveProperty("viewOnly");
+	});
+});
+
+describe("audience", () => {
+	it("keeps distinct, non-empty ids and drops the rest; no list means everyone", () => {
+		expect(parseGatherAudience([" a ", "b", "a", "", 3, null])).toEqual(["a", "b"]);
+		expect(parseGatherAudience("a")).toBeUndefined();
+		expect(parseGatherAudience([])).toEqual([]);
+		const many = Array.from({ length: GATHER_MAX_AUDIENCE + 10 }, (_, i) => `u${i}`);
+		expect(parseGatherAudience(many)).toHaveLength(GATHER_MAX_AUDIENCE);
+	});
+
+	it("is kept through createGatherConfig / parseGather only when given", () => {
+		const c = createGatherConfig({ hold: "stay", target: { rect }, audience: ["a", "a"] }, 0);
+		expect(c.audience).toEqual(["a"]);
+		expect(parseGather(c)?.audience).toEqual(["a"]);
+		expect(make()).not.toHaveProperty("audience");
+		expect(parseGather({ ...make(), audience: "a" })).not.toHaveProperty("audience");
+	});
+
+	it("includes the host and listed people; without a list, everyone", () => {
+		expect(isGatherAudience({ audience: ["a"] }, "a", false)).toBe(true);
+		expect(isGatherAudience({ audience: ["a"] }, "b", false)).toBe(false);
+		expect(isGatherAudience({ audience: [] }, "host", true)).toBe(true);
+		expect(isGatherAudience({}, "b", false)).toBe(true);
 	});
 });
 
