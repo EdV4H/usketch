@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-domain-design
 
+## 1.1.28
+
+### Patch Changes
+
+- Updated dependencies [ba27be4]
+  - @edv4h/usketch-canvas-engine@1.8.1
+
 ## 1.1.27
 
 ### Patch Changes
