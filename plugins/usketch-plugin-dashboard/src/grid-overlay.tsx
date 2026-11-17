@@ -3,8 +3,9 @@
 // following the same pattern as the bg-grid plugin. It reads the grid spec from
 // the config singleton in the render context's shapes, so it reacts to config
 // edits and disappears automatically on a non-dashboard board.
-import type { Layer, LayerRenderContext, ShapeData } from "@edv4h/usketch-shared";
-import { useSyncExternalStore } from "react";
+import type { BoardStore, Layer, LayerRenderContext, ShapeData } from "@edv4h/usketch-shared";
+import { memo, useSyncExternalStore } from "react";
+import { getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import { getDragTarget, subscribeDragTarget } from "./drag-target-store.js";
 import { cellTopLeft, type GridSpec } from "./grid.js";
@@ -73,41 +74,75 @@ function usedRows(shapes: ReadonlyMap<string, ShapeData>, spec: GridSpec): numbe
 	return any ? maxRow : 1;
 }
 
-function GridOverlay({ viewport, shapes }: Pick<LayerRenderContext, "viewport" | "shapes">) {
+/**
+ * The grid spec for `shapes`. When they are the store's live shapes (no time travel,
+ * nothing filtered out), ask the store: the plugin tracks where the config is
+ * (`trackDashboardConfig`), so this is O(1) instead of a scan of every shape on each
+ * canvas render — every pan frame and every shape update of a drag, on every board,
+ * dashboard or not. Otherwise (a snapshot or filtered copy) look in `shapes` as given.
+ */
+function specOf(shapes: ReadonlyMap<string, ShapeData>, store?: BoardStore): GridSpec | null {
+	if (store && store.getShapes() === shapes) {
+		const config = getDashboardConfig(store);
+		return config ? gridSpecFromConfig(config) : null;
+	}
+	return specFromShapes(shapes);
+}
+
+/**
+ * The target cells. Memoized on plain numbers: while an item is dragged inside the
+ * grid the canvas re-renders every frame, but the cells only change when the grid,
+ * the used row count or the camera does — so React skips them instead of
+ * re-rendering up to 300 `<rect>`s per frame.
+ */
+const GridCells = memo(function GridCells({
+	rows,
+	vx,
+	vy,
+	z,
+	...spec
+}: GridSpec & { rows: number; vx: number; vy: number; z: number }) {
+	const cols = Math.max(1, Math.floor(spec.columns));
+	// Capped so a huge board can't explode the cell count.
+	const cellCount = Math.min(cols * rows, 300);
+	const w = spec.cellW * z;
+	const h = spec.cellH * z;
+	const cells = [];
+	for (let i = 0; i < cellCount; i++) {
+		const tl = cellTopLeft(i, spec);
+		cells.push(
+			<rect
+				key={i}
+				x={vx + tl.x * z}
+				y={vy + tl.y * z}
+				width={w}
+				height={h}
+				rx={4}
+				fill="rgba(99,102,241,0.06)"
+				stroke="rgba(99,102,241,0.55)"
+				strokeWidth={1}
+				strokeDasharray="6 4"
+			/>,
+		);
+	}
+	return <>{cells}</>;
+});
+
+function GridOverlay({
+	viewport,
+	shapes,
+	store,
+}: Pick<LayerRenderContext, "viewport" | "shapes"> & { store?: BoardStore }) {
 	const show = useSyncExternalStore(subscribe, isGridOverlayVisible, isGridOverlayVisible);
 	const dragTarget = useSyncExternalStore(subscribeDragTarget, getDragTarget, getDragTarget);
-	const spec = specFromShapes(shapes);
+	const spec = specOf(shapes, store);
 	if (!spec) return null; // not a dashboard board
 	if (!show && !dragTarget) return null; // nothing to draw
 
 	const z = viewport.zoom;
-	const cells = [];
-	if (show) {
-		const cols = Math.max(1, Math.floor(spec.columns));
-		// Cover all items' actual footprints (span-aware) plus one spare row for the
-		// next drop (min 2 rows), capped so a huge board can't explode the cell count.
-		const rows = Math.max(2, usedRows(shapes, spec) + 1);
-		const cellCount = Math.min(cols * rows, 300);
-		const w = spec.cellW * z;
-		const h = spec.cellH * z;
-		for (let i = 0; i < cellCount; i++) {
-			const tl = cellTopLeft(i, spec);
-			cells.push(
-				<rect
-					key={i}
-					x={viewport.x + tl.x * z}
-					y={viewport.y + tl.y * z}
-					width={w}
-					height={h}
-					rx={4}
-					fill="rgba(99,102,241,0.06)"
-					stroke="rgba(99,102,241,0.55)"
-					strokeWidth={1}
-					strokeDasharray="6 4"
-				/>,
-			);
-		}
-	}
+	// Cover all items' actual footprints (span-aware) plus one spare row for the
+	// next drop (min 2 rows).
+	const rows = show ? Math.max(2, usedRows(shapes, spec) + 1) : 0;
 
 	// The drop-target cell: highlighted (brighter, solid) so it's obvious where the
 	// dragged item will land — including over empty space, where nothing else moves.
@@ -128,19 +163,29 @@ function GridOverlay({ viewport, shapes }: Pick<LayerRenderContext, "viewport" |
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 			<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 				<title>Dashboard grid</title>
-				{cells}
+				{show && <GridCells {...spec} rows={rows} vx={viewport.x} vy={viewport.y} z={z} />}
 				{highlight}
 			</svg>
 		</div>
 	);
 }
 
-/** The overlay layer descriptor. Registered in the plugin's setup. */
-export const gridOverlayLayer: Layer = {
-	id: GRID_OVERLAY_LAYER_ID,
-	view3d: "tilt",
-	order: 20,
-	avoidCollision: true,
-	fixed: true,
-	render: (ctx: LayerRenderContext) => <GridOverlay viewport={ctx.viewport} shapes={ctx.shapes} />,
-};
+/**
+ * The overlay layer descriptor. With `store` (the plugin's setup passes its own), the
+ * config is looked up through the store's tracking instead of scanning the shapes.
+ */
+export function createGridOverlayLayer(store?: BoardStore): Layer {
+	return {
+		id: GRID_OVERLAY_LAYER_ID,
+		view3d: "tilt",
+		order: 20,
+		avoidCollision: true,
+		fixed: true,
+		render: (ctx: LayerRenderContext) => (
+			<GridOverlay viewport={ctx.viewport} shapes={ctx.shapes} store={store} />
+		),
+	};
+}
+
+/** The overlay layer without a store (looks the config up in the render context's shapes). */
+export const gridOverlayLayer: Layer = createGridOverlayLayer();
