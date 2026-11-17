@@ -367,6 +367,51 @@ describe("gather client", () => {
 		expect(late.store.setViewportConstraint).toHaveBeenLastCalledWith(null);
 	});
 
+	describe("audience", () => {
+		const startFor = (api: GatherApi, audience: string[]) =>
+			api.start({ hold: "stay", target: { rect: PLACE }, hostName: "Host", audience });
+
+		it("呼ばれた人はいつも通り参加する", () => {
+			const { a, b } = linkedDocs();
+			const host = board(a, "host");
+			const guest = board(b, "guest");
+			startFor(host.api(), ["guest"]);
+			expect(guest.api().getState().inAudience).toBe(true);
+			advance(GATHER_COUNTDOWN_MS + 200);
+			expect(guest.api().getState().participation).toBe("joined");
+			expect(host.api().getState().inAudience).toBe(true);
+		});
+
+		it("呼ばれていない人は対象外: 動かされず、参加もできず、終わっても onEnded は届かない", () => {
+			const { a, b } = linkedDocs();
+			const onEnded = vi.fn();
+			const host = board(a, "host");
+			const other = board(b, "other", { onEnded });
+			startFor(host.api(), ["guest"]);
+			advance(GATHER_COUNTDOWN_MS + 1000);
+
+			const state = other.api().getState();
+			expect(state.gather?.audience).toEqual(["guest"]);
+			expect(state.inAudience).toBe(false);
+			expect(state.participation).toBeNull();
+			expect(other.store.animateViewportTo).not.toHaveBeenCalled();
+			expect(other.store.setViewportConstraint).not.toHaveBeenCalledWith(expect.any(Function));
+
+			other.api().accept();
+			other.api().rejoin();
+			expect(other.api().getState().participation).toBeNull();
+			expect(
+				host
+					.api()
+					.getState()
+					.participants.map((p) => p.userId),
+			).toEqual(["host"]);
+
+			host.api().end();
+			expect(onEnded).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("confirmJoin", () => {
 		it("聞かれた人は動かず、参加すると参加者に入り、待ってから動く", () => {
 			const { a, b } = linkedDocs();

@@ -65,6 +65,12 @@ export interface GatherPublic {
 	 * applies to whoever started it. See `isViewOnlyForMe`.
 	 */
 	viewOnly?: boolean;
+	/**
+	 * Who is asked to take part (user ids). Omitted = everyone on the board.
+	 * Whoever started it always takes part. Others are left out entirely: no
+	 * invitation, no camera move, not counted. See `isGatherAudience`.
+	 */
+	audience?: readonly string[];
 	/** Creator's clock. */
 	startedAt: number;
 	/** End of the time limit, when there is one. */
@@ -80,6 +86,9 @@ export type GatherConfig = SessionConfig &
 export const GATHER_MAX_MS = 3 * 60 * 60 * 1000;
 /** Countdown before people already on the board are moved. */
 export const GATHER_COUNTDOWN_MS = 3000;
+
+/** At most this many user ids in `audience` (the rest are dropped). */
+export const GATHER_MAX_AUDIENCE = 500;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -119,6 +128,21 @@ const parseImageUrl = (v: unknown): string | undefined => {
 	}
 };
 
+/**
+ * Non-empty, distinct user ids (at most {@link GATHER_MAX_AUDIENCE}). Not a list
+ * gives `undefined` (everyone); a list with no valid id gives `[]` (only the host).
+ */
+export function parseGatherAudience(v: unknown): string[] | undefined {
+	if (!Array.isArray(v)) return undefined;
+	const ids = new Set<string>();
+	for (const id of v) {
+		if (ids.size >= GATHER_MAX_AUDIENCE) break;
+		const trimmed = nonEmpty(id);
+		if (trimmed) ids.add(trimmed);
+	}
+	return [...ids];
+}
+
 /** Keep only the valid parts; nothing valid gives `undefined`. */
 export function parseGatherBackdrop(v: unknown): GatherBackdrop | undefined {
 	if (!v || typeof v !== "object") return undefined;
@@ -146,6 +170,7 @@ export function parseGather(raw: unknown): GatherPublic | null {
 	const title = nonEmpty(r.title);
 	const prompt = nonEmpty(r.prompt);
 	const backdrop = parseGatherBackdrop(r.backdrop);
+	const audience = parseGatherAudience(r.audience);
 	return {
 		type: GATHER_TYPE,
 		hold: r.hold === "gather" ? "gather" : "stay",
@@ -155,6 +180,7 @@ export function parseGather(raw: unknown): GatherPublic | null {
 		...(prompt ? { prompt } : {}),
 		...(backdrop ? { backdrop } : {}),
 		...(r.viewOnly === true ? { viewOnly: true } : {}),
+		...(audience ? { audience } : {}),
 		startedAt: r.startedAt,
 		...(isFiniteNumber(r.endsAt) ? { endsAt: r.endsAt } : {}),
 		expiresAt: r.expiresAt,
@@ -170,6 +196,8 @@ export interface GatherStartInput {
 	backdrop?: GatherBackdrop;
 	/** Participants only look and react while they take part. */
 	viewOnly?: boolean;
+	/** Ask only these people (user ids). Omitted = everyone. */
+	audience?: readonly string[];
 	/** Time limit in minutes. 0 or omitted = none. */
 	durationMinutes?: number;
 }
@@ -180,6 +208,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 	const title = nonEmpty(input.title);
 	const prompt = nonEmpty(input.prompt);
 	const backdrop = parseGatherBackdrop(input.backdrop);
+	const audience = parseGatherAudience(input.audience);
 	const { shapeId, pageId } = input.target;
 	return {
 		type: GATHER_TYPE,
@@ -194,6 +223,7 @@ export function createGatherConfig(input: GatherStartInput, now: number): Gather
 		...(prompt ? { prompt } : {}),
 		...(backdrop ? { backdrop } : {}),
 		...(input.viewOnly ? { viewOnly: true } : {}),
+		...(audience ? { audience } : {}),
 		startedAt: now,
 		...(minutes > 0 ? { endsAt: now + minutes * 60_000 } : {}),
 		expiresAt: now + GATHER_MAX_MS,
@@ -246,6 +276,16 @@ export function initialParticipation(args: {
 	if (args.seenOnLoad) return "joined";
 	return args.now - args.gather.startedAt >= GATHER_COUNTDOWN_MS ? "joined" : "countdown";
 }
+
+/**
+ * Whether this person is asked to take part: there is no `audience` (everyone),
+ * they started it, or they are listed.
+ */
+export const isGatherAudience = (
+	g: Pick<GatherPublic, "audience">,
+	userId: string,
+	isHost: boolean,
+): boolean => isHost || g.audience === undefined || g.audience.includes(userId);
 
 /**
  * Whether this client should be limited to looking and reacting now: the

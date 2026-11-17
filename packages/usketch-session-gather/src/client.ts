@@ -24,6 +24,7 @@ import {
 	type GatherTarget,
 	gatherRemainingMs,
 	initialParticipation,
+	isGatherAudience,
 	isGatherLive,
 	parseGather,
 } from "./gather.js";
@@ -40,6 +41,11 @@ export interface GatherState {
 	session: SessionView | null;
 	gather: GatherPublic | null;
 	isHost: boolean;
+	/**
+	 * Whether this person is asked to take part (see `GatherPublic.audience`).
+	 * When false, `participation` is `null`: the gathering is running, but not for them.
+	 */
+	inAudience: boolean;
 	participation: GatherParticipation | null;
 	/** Countdown left (ms) while `participation` is `countdown`. */
 	countdownMs: number;
@@ -94,7 +100,10 @@ export interface GatherClientOptions {
 	getPageId?: () => string | null;
 	/** Go to another page (a new app is then attached and finishes the move). */
 	switchPage?: (pageId: string) => void;
-	/** A gathering this client saw is over. `byMe` when this client ended or replaced it. */
+	/**
+	 * A gathering this client saw (and was in the audience of) is over. `byMe`
+	 * when this client ended or replaced it.
+	 */
 	onEnded?: (info: { gather: GatherPublic; byMe: boolean; timedOut: boolean }) => void;
 	/**
 	 * Ask everyone but the host before taking part (`participation` starts as
@@ -174,6 +183,7 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			session: null,
 			gather: null,
 			isHost: false,
+			inAudience: false,
 			participation: null,
 			countdownMs: 0,
 			remainingMs: null,
@@ -287,7 +297,10 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				}
 			}
 			const live = pickLive(sessions, t);
-			if (live) shown.set(live.session.id, live.gather);
+			// Only gatherings this client is asked to take part in are reported to onEnded.
+			if (live && isGatherAudience(live.gather, userId, live.session.hostUserId === userId)) {
+				shown.set(live.session.id, live.gather);
+			}
 			for (const [id, g] of shown) {
 				// Pushed aside by a newer gathering is not over: it may come back.
 				if (isGatherLive(g, t) && sessions.some((s) => s.id === id)) continue;
@@ -309,8 +322,10 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 			}
 
 			const isHost = live?.session.hostUserId === userId;
+			// Left out of this gathering: it runs for others, this client takes no part.
+			const inAudience = live !== null && isGatherAudience(live.gather, userId, isHost);
 			if (local && local.id !== live?.session.id) past.set(local.id, local);
-			if (!live) {
+			if (!live || !inAudience) {
 				local = null;
 			} else if (local?.id !== live.session.id) {
 				const kept = past.get(live.session.id);
@@ -343,6 +358,7 @@ export function createGatherClientType(options: GatherClientOptions): ClientSess
 				session: live?.session ?? null,
 				gather: live?.gather ?? null,
 				isHost,
+				inAudience,
 				participation,
 				countdownMs:
 					participation === "countdown" && local ? Math.max(0, local.countdownEndsAt - t) : 0,
