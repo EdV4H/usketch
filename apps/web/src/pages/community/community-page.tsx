@@ -15,6 +15,7 @@ import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
 import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
 import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
@@ -33,7 +34,11 @@ import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
-import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import {
+	createYjsSync,
+	persistDocToIndexedDb,
+	type YjsSyncHandle,
+} from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -41,10 +46,21 @@ import { createVotingPlugin } from "@edv4h/usketch-plugin-voting";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
-import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
-import { useEffect, useRef, useState } from "react";
+import {
+	createPageDocManager,
+	createPageScopedProvider,
+	createWsProvider,
+	isPagedBoard,
+	listPages,
+	observePages,
+	type PageDocManager,
+	type WsProviderHandle,
+} from "@edv4h/usketch-sync";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import * as Y from "yjs";
 import { api } from "../../lib/api.js";
+import { pageDocName } from "../../lib/board-pages.js";
 import {
 	characterAppearance,
 	renderCharacter,
@@ -56,7 +72,22 @@ import { useAuth } from "../../lib/use-auth.js";
 import { useCommunityActions } from "../../lib/use-community-actions.js";
 import { useKeyboardShortcuts } from "../../lib/use-keyboard-shortcuts.js";
 import { CommunityHeader } from "./community-header.js";
+import { ensureRegionTerrain } from "./community-terrain.js";
 import { stockTerritoryStyle } from "./map-territory-style.js";
+
+/** 地域のボードへの接続。ボードを開いている間ずっと生かし、開くページが変わっても作り直さない。 */
+interface CommunityBoard {
+	boardId: string;
+	rootDoc: Y.Doc;
+	wsProvider: WsProviderHandle | null;
+	pageDocs: PageDocManager;
+}
+
+/** 開くページ。ページを使うボード（マルチページ移行後）は先頭ページ、使わないボードは null。 */
+interface PageState {
+	paged: boolean;
+	pageId: string | null;
+}
 
 export function CommunityPage() {
 	const { slug } = useParams<{ slug: string }>();
@@ -68,30 +99,38 @@ export function CommunityPage() {
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [regionName, setRegionName] = useState<string>("");
-	const wsProviderRef = useRef<WsProviderHandle | null>(null);
+	const [board, setBoard] = useState<CommunityBoard | null>(null);
+	const [pageState, setPageState] = useState<PageState | null>(null);
+	const pagesReady = pageState !== null;
+	const paged = pageState?.paged ?? false;
+	const pageId = pageState?.pageId ?? null;
 
+	// ページ単位: 開くページ（ページを使わないボードはルートの shapes）ごとに BoardStore と App を
+	// 作り直す。React は cleanup を宣言順に走らせるので、ボード単位の effect より前に置いて、
+	// ボードを閉じるときは接続より先に App を壊す。
 	useEffect(() => {
-		if (!slug) return;
+		if (!slug || !board || !pagesReady) return;
+		if (paged && !pageId) return;
 
 		let cancelled = false;
 		let instance: AppInstance | null = null;
-		let store: ReturnType<typeof createBoardStore> | null = null;
-		let syncHandle: ReturnType<typeof createYjsSync> | null = null;
-		let wsProvider: WsProviderHandle | null = null;
+		const store = createBoardStore();
+		const { boardId, rootDoc, pageDocs } = board;
+		const pageHandle = pageId ? pageDocs.open(pageId) : null;
+		// store が紐づく doc。ページを使うボードはページ doc、使わないボードはルート doc。
+		const shapesDoc = pageHandle?.doc ?? rootDoc;
+		// ページを使うボードでは、カーソル・アバター・キャラなどを同じページの人だけに絞る。
+		const scopedProvider =
+			board.wsProvider && pageId ? createPageScopedProvider(board.wsProvider, pageId) : null;
+		const wsProvider: WsProviderHandle | null = scopedProvider ?? board.wsProvider;
+		let syncHandle: YjsSyncHandle | null = null;
 		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 		(async () => {
 			try {
-				// slug → boardId 解決
-				const res = await fetch(`${apiUrl}/api/community-boards/${slug}`);
-				if (!res.ok) throw new Error("Community board not found");
-				const regionData = await res.json();
-				const boardId: string = regionData.boardId;
+				await pageHandle?.whenLoaded;
 				if (cancelled) return;
-				setRegionName(regionData.displayName);
-
-				store = createBoardStore();
-				syncHandle = createYjsSync(store, `usketch-community-${boardId}`);
+				syncHandle = createYjsSync(store, { doc: shapesDoc, persist: false });
 
 				const extraPlugins: UsketchPlugin[] = [];
 
@@ -106,7 +145,7 @@ export function CommunityPage() {
 							if (isPublic) {
 								await api.boards.update(board.id, { isPublic: true });
 							}
-							store?.updateShape(shapeId, {
+							store.updateShape(shapeId, {
 								boardId: board.id,
 								boardTitle: board.title,
 								ownerName: authUserName ?? "",
@@ -115,23 +154,13 @@ export function CommunityPage() {
 							} as Partial<BoardPortalShapeData>);
 						} catch (e) {
 							console.error("Failed to create board:", e);
-							store?.deleteShape(shapeId);
+							store.deleteShape(shapeId);
 						}
 					},
 				});
 
-				// Cloud sync（認証済みの場合）
-				if (authUserId) {
-					let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
-					if (import.meta.env.DEV) {
-						const devUser = getDevUser();
-						if (devUser) {
-							wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
-						}
-					}
-					wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle?.doc });
-					wsProviderRef.current = wsProvider;
-
+				// Cloud sync（認証済みの場合。接続はボード単位の effect が持つ）
+				if (wsProvider && authUserId) {
 					extraPlugins.push(createRippleEffectPlugin(wsProvider));
 					extraPlugins.push(createReactionsPlugin(wsProvider));
 					extraPlugins.push(createSpatialChatPlugin(wsProvider));
@@ -229,6 +258,8 @@ export function CommunityPage() {
 						appearance: characterAppearance(authUserId ?? getDevUser()?.id ?? "local"),
 						renderCharacter,
 						renderShadow: renderCharacterShadow,
+						// 標高の坂: これより急な坂は登れずずり落ちる（web アプリのボードと同じ値）。
+						motion: { maxSlope: 45 },
 					}),
 				);
 
@@ -245,6 +276,10 @@ export function CommunityPage() {
 					// plugin is headless for territory — the demo app owns the look via
 					// `stockTerritoryStyle` (the reference fill/border/ring + label).
 					createMapPlugin({ emptyTerrain: "water", territory: stockTerritoryStyle }),
+					// 標高（連続した高さの地形）。場（elevation-field）のあるボードだけで働き、
+					// そのあいだ地面の高さは map の段ではなく標高になる。標高マップの地域
+					// （community-terrain.ts）は無限地形を自動で用意し、ほかの地域も HUD「標高」で作れる。
+					createElevationPlugin(),
 					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
 					createStartPositionPlugin(),
 					// Mode 7（擬似3D）。マップの地形が高さ（地形の種類で決まる段）ごとに崖として
@@ -261,8 +296,8 @@ export function CommunityPage() {
 					createDebugHudPlugin(),
 				];
 
-				await syncHandle?.whenSynced;
-				if (cancelled || !store) return;
+				await syncHandle.whenSynced;
+				if (cancelled) return;
 
 				const plugins = [...basePlugins, ...extraPlugins];
 				const created = await createApp({
@@ -281,6 +316,11 @@ export function CommunityPage() {
 					order: 100,
 					render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
 				});
+
+				// 標高マップの地域なら、ボードに場が無いときだけ無限地形を置く。接続している人は
+				// ページ doc を開けてから（サーバーの中身を読んでから）にする。移行前のルートに
+				// 置くと、サーバーが 1 枚目へ移すときに誰かが変えた地形を上書きしかねないため。
+				if (!board.wsProvider || pageId) ensureRegionTerrain(store, slug);
 
 				// Partition request relay: filter plugin → wsProvider → syncHandle
 				if (wsProvider && syncHandle) {
@@ -310,12 +350,86 @@ export function CommunityPage() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
-			wsProvider?.destroy();
-			wsProviderRef.current = null;
 			syncHandle?.destroy();
+			scopedProvider?.dispose();
+			pageHandle?.release();
 			setApp(null);
 		};
-	}, [slug, authUserId, authUserName, authUserImage, navigate]);
+	}, [slug, board, pagesReady, paged, pageId, authUserId, authUserName, authUserImage, navigate]);
+
+	// ボード単位: slug → boardId を引き、ルート doc・IndexedDB・WebSocket・ページ doc の管理役を
+	// 作る。マルチページ移行後のボードはルートの shapes が空なので、ページ一覧を見て先頭ページを開く
+	// （サーバーから版が届いてページを使うボードだと分かった時点で、ページ単位の effect が開き直す）。
+	useEffect(() => {
+		if (!slug) return;
+
+		let cancelled = false;
+		let close: (() => void) | null = null;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+
+		(async () => {
+			try {
+				const res = await fetch(`${apiUrl}/api/community-boards/${slug}`);
+				if (!res.ok) throw new Error("Community board not found");
+				const regionData = await res.json();
+				const boardId: string = regionData.boardId;
+				if (cancelled) return;
+				setRegionName(regionData.displayName);
+
+				const rootDoc = new Y.Doc();
+				// ルートの保存先は、ルートの shapes だけを見ていた頃と同じ名前（手元の保存を引き継ぐ）。
+				const rootPersistence = persistDocToIndexedDb(`usketch-community-${boardId}`, rootDoc);
+				let wsProvider: WsProviderHandle | null = null;
+				if (authUserId) {
+					let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+					if (import.meta.env.DEV) {
+						const devUser = getDevUser();
+						if (devUser) {
+							wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
+						}
+					}
+					wsProvider = createWsProvider({ url: wsUrl, doc: rootDoc });
+				}
+				const pageDocs = createPageDocManager({
+					provider: wsProvider,
+					persist: (id, doc) => persistDocToIndexedDb(pageDocName(boardId, id), doc),
+				});
+				const readPages = () => {
+					const isPaged = isPagedBoard(rootDoc);
+					const first = isPaged ? (listPages(rootDoc)[0]?.id ?? null) : null;
+					setPageState((prev) =>
+						prev?.paged === isPaged && prev.pageId === first
+							? prev
+							: { paged: isPaged, pageId: first },
+					);
+				};
+				const offPages = observePages(rootDoc, readPages);
+				close = () => {
+					offPages();
+					pageDocs.destroy();
+					wsProvider?.destroy();
+					rootPersistence.destroy();
+					rootDoc.destroy();
+				};
+
+				await rootPersistence.whenSynced;
+				if (cancelled) return;
+				readPages();
+				setBoard({ boardId, rootDoc, wsProvider, pageDocs });
+			} catch (e) {
+				if (!cancelled) {
+					setError(getErrorMessage(e, "Failed to initialize community"));
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+			close?.();
+			setBoard(null);
+			setPageState(null);
+		};
+	}, [slug, authUserId]);
 
 	// キーボードショートカット
 	useKeyboardShortcuts(app);
