@@ -4,7 +4,7 @@ import type {
 	ExternalContentHandlerCtx,
 	ExternalContentOf,
 } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, screenCenterWorld } from "@edv4h/usketch-shared";
 import { fileToBase64, getImageDimensions, resizeImage, validateImage } from "./image-utils.js";
 import {
 	isHttpUrl,
@@ -65,7 +65,7 @@ export function createImageFileHandler(
 		match: (content) =>
 			content.files.length > 0 && content.files.every((f) => f.type.startsWith("image/")),
 		handle: async (content, ctx) => {
-			const base = viewportCenterToWorld(ctx);
+			const base = screenCenterWorld(ctx.store);
 			let offsetX = 0;
 			for (const file of content.files) {
 				await placeImageShape(file, ctx, {
@@ -78,22 +78,6 @@ export function createImageFileHandler(
 				offsetX += maxRenderedSize + gap;
 			}
 		},
-	};
-}
-
-/**
- * Convert the visible screen center to world coordinates using the current
- * viewport. The world-space center is `viewport-screen-center / zoom - viewport-origin`,
- * accounting for pan and zoom so dropped/pasted images land where the user
- * is actually looking — not at an arbitrary screen-space point.
- */
-function viewportCenterToWorld(ctx: ExternalContentHandlerCtx): { x: number; y: number } {
-	const vp = ctx.store.getViewport();
-	const screenW = typeof window !== "undefined" ? window.innerWidth : 0;
-	const screenH = typeof window !== "undefined" ? window.innerHeight : 0;
-	return {
-		x: (screenW / 2 - vp.x) / vp.zoom,
-		y: (screenH / 2 - vp.y) / vp.zoom,
 	};
 }
 
@@ -242,7 +226,7 @@ export function createImageUrlHandler(
 		// schemes (file:/data:/relative), which must not become an `<img src>`.
 		match: (content) => isHttpUrl(content.url) && isSvgUrl(content.url),
 		handle: (content, ctx) => {
-			const base = viewportCenterToWorld(ctx);
+			const base = screenCenterWorld(ctx.store);
 			const id = generateId();
 			const shape = {
 				id,
