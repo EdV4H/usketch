@@ -1,4 +1,9 @@
-import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	type PluginContext,
+	screenCenterWorld,
+	type TransientObject,
+	type UsketchPlugin,
+} from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 
 interface VoteOption {
@@ -239,14 +244,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			});
 
 			// Control HUD から質問＋選択肢を指定して投票を作成（ビュー中心に配置）。
-			const centerWorld = () => {
-				const vp = ctx.store.getViewport();
-				if (typeof window === "undefined") return { x: 0, y: 0 };
-				return {
-					x: (window.innerWidth / 2 - vp.x) / vp.zoom,
-					y: (window.innerHeight / 2 - vp.y) / vp.zoom,
-				};
-			};
 			const unsubAction = ctx.actions.register({
 				id: "voting:create",
 				group: "投票",
@@ -263,7 +260,11 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					const options = ["option1", "option2", "option3", "option4"]
 						.map((k) => String(args[k] ?? "").trim())
 						.filter((s) => s.length > 0);
-					createPoll(question, options.length >= 2 ? options : ["Yes", "No"], centerWorld());
+					createPoll(
+						question,
+						options.length >= 2 ? options : ["Yes", "No"],
+						screenCenterWorld(ctx.store),
+					);
 				},
 			});
 

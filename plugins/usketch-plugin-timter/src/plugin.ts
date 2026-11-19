@@ -2,6 +2,7 @@ import {
 	generateId,
 	type PluginContext,
 	type ShapeData,
+	screenCenterWorld,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
@@ -90,9 +91,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 
 			const addTimer = (timerType: TimerType, durationMs?: number) => {
 				// Place at the current viewport center.
-				const vp = ctx.store.getViewport();
-				const cx = (window.innerWidth / 2 - vp.x) / vp.zoom;
-				const cy = (window.innerHeight / 2 - vp.y) / vp.zoom;
+				const { x: cx, y: cy } = screenCenterWorld(ctx.store);
 				const shape = makeTimerShape({
 					id: generateId(),
 					x: cx - defaultSize.width / 2,

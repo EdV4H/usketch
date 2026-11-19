@@ -1,4 +1,9 @@
-import type { PluginAction, PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import {
+	type PluginAction,
+	type PluginContext,
+	type ShapeData,
+	worldToScreen,
+} from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTimterPlugin } from "../plugin.js";
@@ -121,6 +126,32 @@ describe("timter per-timer Controls actions", () => {
 		const before = h.registrations();
 		h.store.updateShape("t1", { x: 10 });
 		expect(h.registrations()).toBe(before);
+		dispose();
+	});
+
+	it("places a new timer at the screen centre even when the view is rotated", () => {
+		vi.stubGlobal("window", {
+			addEventListener() {},
+			removeEventListener() {},
+			innerWidth: 1000,
+			innerHeight: 800,
+		});
+		const h = harness();
+		const dispose = h.setup();
+		const vp = { x: 120, y: -40, zoom: 2, rotation: 90 };
+		h.store.setViewport(vp);
+
+		h.actions.get("timter:new-stopwatch")?.run({});
+
+		const [added] = Array.from(h.store.getShapes().values());
+		expect(added).toBeDefined();
+		const center = worldToScreen(
+			(added?.x ?? 0) + (added?.width ?? 0) / 2,
+			(added?.y ?? 0) + (added?.height ?? 0) / 2,
+			vp,
+		);
+		expect(center.x).toBeCloseTo(500);
+		expect(center.y).toBeCloseTo(400);
 		dispose();
 	});
 });
