@@ -3,6 +3,7 @@ import {
 	type ExternalContentHandler,
 	type ExternalContentHandlerCtx,
 	generateId,
+	screenCenterWorld,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { MARKDOWN_DEFAULT_SIZE } from "./constants.js";
@@ -12,16 +13,9 @@ import { MARKDOWN_TYPE, type MarkdownShapeData } from "./types.js";
 /** Internal shape copy/paste marker (from usketch-plugin-keyboard-shortcuts). */
 const INTERNAL_SHAPES_FORMAT = "usketch/shapes";
 
-function viewportCenterToWorld(ctx: ExternalContentHandlerCtx): { x: number; y: number } {
-	const vp = ctx.store.getViewport();
-	const screenW = typeof window !== "undefined" ? window.innerWidth : 0;
-	const screenH = typeof window !== "undefined" ? window.innerHeight : 0;
-	return { x: (screenW / 2 - vp.x) / vp.zoom, y: (screenH / 2 - vp.y) / vp.zoom };
-}
-
 /** Create a markdown shape centered on the viewport and select it (undoable). */
 function placeMarkdownShape(ctx: ExternalContentHandlerCtx, source: string): void {
-	const center = viewportCenterToWorld(ctx);
+	const center = screenCenterWorld(ctx.store);
 	const id = generateId();
 	const shape: MarkdownShapeData = {
 		id,

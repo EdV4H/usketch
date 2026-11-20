@@ -1,19 +1,7 @@
-import type {
-	ExternalContentHandler,
-	ExternalContentHandlerCtx,
-	ShapeData,
-} from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import type { ExternalContentHandler, ShapeData } from "@edv4h/usketch-shared";
+import { generateId, screenCenterWorld } from "@edv4h/usketch-shared";
 import { type EmbedDefinition, resolveEmbed } from "./embed-defs.js";
 import type { EmbedShapeData } from "./types.js";
-
-/** World point at the current viewport center (place dropped/pasted embeds there). */
-function viewportCenter(ctx: ExternalContentHandlerCtx): { x: number; y: number } {
-	const vp = ctx.store.getViewport();
-	const w = typeof window !== "undefined" ? window.innerWidth : 0;
-	const h = typeof window !== "undefined" ? window.innerHeight : 0;
-	return { x: (w / 2 - vp.x) / vp.zoom, y: (h / 2 - vp.y) / vp.zoom };
-}
 
 /**
  * `kind:"url"` handler: paste/drop any http(s) URL → create an embed shape at
@@ -37,7 +25,7 @@ export function createEmbedUrlHandler(
 			const aspect = resolved.def.aspect ?? 16 / 9;
 			const width = 560;
 			const height = Math.round(width / aspect) + 28; // + header
-			const c = viewportCenter(ctx);
+			const c = screenCenterWorld(ctx.store);
 			const id = generateId();
 			const shape: EmbedShapeData = {
 				id,

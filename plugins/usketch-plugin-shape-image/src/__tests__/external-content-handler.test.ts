@@ -7,7 +7,9 @@ import type {
 	ExternalContentRegistry,
 	ShapeData,
 	ShapeRegistry,
+	Viewport,
 } from "@edv4h/usketch-shared";
+import { getScreenSize, worldToScreen } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
 import { createImageFileHandler } from "../external-content-handler.js";
 
@@ -21,7 +23,7 @@ vi.mock("../image-utils.js", () => ({
 	getImageDimensions: async () => ({ width: 100, height: 50 }),
 }));
 
-function makeCtx(): {
+function makeCtx(viewport: Viewport = { x: 0, y: 0, zoom: 1 }): {
 	ctx: ExternalContentHandlerCtx;
 	addShape: ReturnType<typeof vi.fn>;
 	execute: ReturnType<typeof vi.fn>;
@@ -42,7 +44,7 @@ function makeCtx(): {
 		addShape: addShape as (shape: ShapeData) => void,
 		deleteShape: vi.fn(),
 		setSelection,
-		getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+		getViewport: () => viewport,
 	} as unknown as BoardStore;
 	const commands = { execute } as unknown as CommandRegistry;
 	const registry = {} as ExternalContentRegistry;
@@ -97,6 +99,22 @@ describe("createImageFileHandler", () => {
 		expect(setSelection).toHaveBeenCalledTimes(1);
 		const shape = addShape.mock.calls[0]?.[0] as ShapeData;
 		expect(shape.type).toBe("image");
+	});
+
+	it("places the image at the screen centre even when the viewport is rotated", async () => {
+		const h = createImageFileHandler();
+		const { ctx, addShape } = makeCtx({ x: 300, y: -120, zoom: 2, rotation: 90 });
+		await h.handle(fileContent([imageFile()]), ctx);
+		const shape = addShape.mock.calls[0]?.[0] as ShapeData;
+		const centre = worldToScreen(
+			shape.x + shape.width / 2,
+			shape.y + shape.height / 2,
+			ctx.store.getViewport(),
+		);
+		const screen = getScreenSize();
+		// x/y are rounded to whole world units (≤ 0.5 each) → ≤ ~1.5px at zoom 2.
+		expect(Math.abs(centre.x - screen.width / 2)).toBeLessThan(2);
+		expect(Math.abs(centre.y - screen.height / 2)).toBeLessThan(2);
 	});
 
 	it("uses configured `order` default of 0", () => {
