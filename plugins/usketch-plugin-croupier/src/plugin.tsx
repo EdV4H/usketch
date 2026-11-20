@@ -1,5 +1,10 @@
 import { getActiveTimeoutMs } from "@edv4h/croupier-core";
-import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	type PluginContext,
+	type ShapeData,
+	screenCenterWorld,
+	type UsketchPlugin,
+} from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ReactElement } from "react";
 import {
@@ -177,12 +182,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 						group: "Croupier",
 						order: i,
 						run: () => {
-							const vp = ctx.store.getViewport();
-							const center = {
-								x: (window.innerWidth / 2 - vp.x) / vp.zoom,
-								y: (window.innerHeight / 2 - vp.y) / vp.zoom,
-							};
-							const id = api.createTable(game.id, center);
+							const id = api.createTable(game.id, screenCenterWorld(ctx.store));
 							if (id) ctx.store.setSelection([id]);
 						},
 					}),
