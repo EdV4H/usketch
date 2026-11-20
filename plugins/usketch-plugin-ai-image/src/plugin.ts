@@ -1,5 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, screenCenterWorld } from "@edv4h/usketch-shared";
 import { fileToBase64, resizeImage, validateImage } from "./image-utils.js";
 import type { ImageOptions } from "./types.js";
 
@@ -26,10 +26,8 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 					let dataUrl = await fileToBase64(file);
 					dataUrl = await resizeImage(dataUrl, maxDimension);
 
-					// 配置位置: 現在のビューポート中央
-					const viewport = ctx.store.getViewport();
-					const centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
-					const centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
+					// 配置位置: 現在のビューポート中央（回転していても画面中央になる）
+					const { x: centerX, y: centerY } = screenCenterWorld(ctx.store);
 
 					// 画像サイズを取得してアスペクト比を維持
 					const { width, height } = await getImageDimensions(dataUrl);
