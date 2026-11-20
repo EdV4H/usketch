@@ -6,6 +6,7 @@ import {
 	generateId,
 	type PluginContext,
 	type ShapeData,
+	screenCenterWorld,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
@@ -24,17 +25,6 @@ interface AiStatusPayload {
 	message?: string;
 	shapeCount?: number;
 	source?: string;
-}
-
-function viewportCenterToWorld(viewport: { x: number; y: number; zoom: number }): {
-	x: number;
-	y: number;
-} {
-	if (typeof window === "undefined") return { x: 0, y: 0 };
-	return {
-		x: (window.innerWidth / 2 - viewport.x) / viewport.zoom,
-		y: (window.innerHeight / 2 - viewport.y) / viewport.zoom,
-	};
 }
 
 function unionBounds(shapes: ShapeData[]): BoundingBox | null {
@@ -134,8 +124,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 
 					safeEmit({ status: "placing", message: "Creating shape…", shapeCount: 1 });
 
-					const viewport = ctx.store.getViewport();
-					const base = placementBase ?? viewportCenterToWorld(viewport);
+					const base = placementBase ?? screenCenterWorld(ctx.store);
 					placementBase = null;
 					const id = generateId();
 					const shape = {

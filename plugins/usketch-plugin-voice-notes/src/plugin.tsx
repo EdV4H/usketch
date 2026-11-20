@@ -2,6 +2,7 @@ import {
 	generateId,
 	type PluginContext,
 	type ShapeData,
+	screenCenterWorld,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useSyncExternalStore } from "react";
@@ -213,13 +214,10 @@ function createNotesFrame(
 	look: ResolvedAppearance,
 	opts: { near?: ShapeData } = {},
 ): void {
-	const vp = ctx.store.getViewport();
+	const center = screenCenterWorld(ctx.store);
 	const base = opts.near
 		? { x: opts.near.x + opts.near.width + 40, y: opts.near.y }
-		: {
-				x: (window.innerWidth / 2 - vp.x) / vp.zoom - FRAME_W / 2,
-				y: (window.innerHeight / 2 - vp.y) / vp.zoom - FRAME_H / 2,
-			};
+		: { x: center.x - FRAME_W / 2, y: center.y - FRAME_H / 2 };
 
 	const frameId = generateId();
 	const frame: ShapeData = {

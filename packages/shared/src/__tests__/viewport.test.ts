@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { BoardStore, ShapeData, Viewport } from "../index.js";
+import { worldToScreen } from "../utils/geometry.js";
 import {
 	centerOnWorld,
 	easeInOutCubic,
 	fitContent,
+	screenCenterWorld,
 	zoomBy,
 	zoomToLevel,
 } from "../utils/viewport.js";
@@ -39,6 +41,28 @@ describe("easeInOutCubic", () => {
 		expect(easeInOutCubic(0)).toBe(0);
 		expect(easeInOutCubic(1)).toBe(1);
 		expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 5);
+	});
+});
+
+describe("screenCenterWorld", () => {
+	it("matches the hand-rolled (W/2 - vp.x) / zoom when the view is not rotated", () => {
+		const vp: Viewport = { x: -300, y: 120, zoom: 1.5 };
+		const { store } = makeStore(vp);
+		const c = screenCenterWorld(store);
+		expect(c.x).toBeCloseTo((W / 2 - vp.x) / vp.zoom, 9);
+		expect(c.y).toBeCloseTo((H / 2 - vp.y) / vp.zoom, 9);
+	});
+
+	it("returns the world point drawn at the screen centre when the view is rotated", () => {
+		const vp: Viewport = { x: 200, y: -80, zoom: 2, rotation: 35 };
+		const { store } = makeStore(vp);
+		const c = screenCenterWorld(store);
+		const s = worldToScreen(c.x, c.y, vp);
+		expect(s.x).toBeCloseTo(W / 2, 6);
+		expect(s.y).toBeCloseTo(H / 2, 6);
+		// The unrotated formula plugins used to hand-roll lands far off-centre.
+		const naive = worldToScreen((W / 2 - vp.x) / vp.zoom, (H / 2 - vp.y) / vp.zoom, vp);
+		expect(Math.hypot(naive.x - W / 2, naive.y - H / 2)).toBeGreaterThan(100);
 	});
 });
 
