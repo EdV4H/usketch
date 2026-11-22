@@ -1,4 +1,6 @@
 const STORAGE_KEY = "usketch-local-boards";
+/** お試しボード（`/try`）として開くローカルボードの id。 */
+const TRY_BOARD_KEY = "usketch-try-board";
 
 export interface LocalBoard {
 	id: string;
@@ -42,5 +44,23 @@ export const localBoards = {
 
 	delete: (id: string) => {
 		save(load().filter((b) => b.id !== id));
+	},
+
+	/**
+	 * お試しボード（ログインなしで手元で試すローカルボード）を返す。無ければ作る。
+	 * ブラウザごとに 1 つで、何度開いても同じボード。
+	 */
+	ensureTry: (): LocalBoard => {
+		let id: string | null = null;
+		try {
+			id = localStorage.getItem(TRY_BOARD_KEY);
+		} catch {}
+		const existing = id ? load().find((b) => b.id === id) : undefined;
+		if (existing) return existing;
+		const board = localBoards.create("お試しボード");
+		try {
+			localStorage.setItem(TRY_BOARD_KEY, board.id);
+		} catch {}
+		return board;
 	},
 };

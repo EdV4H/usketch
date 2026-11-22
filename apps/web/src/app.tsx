@@ -1128,7 +1128,7 @@ export function App() {
 		return (
 			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
 				<p>Error: {error}</p>
-				<a href="/">Back to Dashboard</a>
+				<a href="/">トップへ戻る</a>
 			</div>
 		);
 	}

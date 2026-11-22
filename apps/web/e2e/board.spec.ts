@@ -12,23 +12,23 @@ test.describe("Board", () => {
 		await expect(page.locator("text=Continue with GitHub")).toBeVisible();
 	});
 
-	test("dashboard loads with local board button", async ({ page }) => {
-		await page.goto("/dashboard");
-		await expect(page.locator("h1")).toContainText("uSketch");
-		// 新 UI の CTA は日本語
-		await expect(page.getByRole("button", { name: "新規ローカルボード" })).toBeVisible();
-	});
-
-	test("local board can be created and opened", async ({ page }) => {
-		await page.goto("/dashboard");
-		await page.getByRole("button", { name: "新規ローカルボード" }).click();
+	test("try board opens a local board, and the same one again", async ({ page }) => {
+		await page.goto("/try");
 		await page.waitForURL(/\/local\//);
 		await expect(page.getByTestId("canvas-container")).toBeVisible();
+		const first = page.url();
+		await page.goto("/try");
+		await page.waitForURL(/\/local\//);
+		expect(page.url()).toBe(first);
+	});
+
+	test("the removed board list redirects to the top", async ({ page }) => {
+		await page.goto("/dashboard");
+		await expect(page.locator("text=uSketch World")).toBeVisible();
 	});
 
 	test("board: vim off by default; HUD discoverability hint visible", async ({ page }) => {
-		await page.goto("/dashboard");
-		await page.getByRole("button", { name: "新規ローカルボード" }).click();
+		await page.goto("/try");
 		await page.waitForURL(/\/local\//);
 		await expect(page.getByTestId("canvas-container")).toBeVisible();
 		// vim は既定 OFF（Control HUD から切替）なので status line は出ない。
@@ -39,8 +39,7 @@ test.describe("Board", () => {
 	});
 
 	test("Control HUD opens with backtick and shows the action search", async ({ page }) => {
-		await page.goto("/dashboard");
-		await page.getByRole("button", { name: "新規ローカルボード" }).click();
+		await page.goto("/try");
 		await page.waitForURL(/\/local\//);
 
 		// ボードの準備完了をキャンバスで判定。
@@ -66,8 +65,7 @@ test.describe("Board", () => {
 	});
 
 	test("Control HUD action search executes a theme action", async ({ page }) => {
-		await page.goto("/dashboard");
-		await page.getByRole("button", { name: "新規ローカルボード" }).click();
+		await page.goto("/try");
 		await page.waitForURL(/\/local\//);
 		await expect(page.getByTestId("canvas-container")).toBeVisible();
 
