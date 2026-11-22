@@ -34,7 +34,7 @@ pnpm dev
 ## 主な機能
 
 ### 描画・編集
-- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal, markdown, embed, card, domain-design（DDD 図）, pdf-import（PDF の全ページ展開）
+- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal, markdown, embed, card, domain-design（DDD 図）, pdf-import（PDF の全ページ展開）, tabletop（ボードゲームの置き場とプレイヤー視点）
 - **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan, map（RPG/ワールドマップの地形ペイント）
 - **Background**: grid, dots
 - **3D ビュー**: mode7（Canvas を奥へ傾ける擬似 3D 表示。傾けたまま Shape を選んで動かせる）、elevation（標高の地形。無限生成・ブラシ・3D ではメッシュ）、shape-3d（Shape を地面から立ち上げる・当たり判定）、character（操作キャラ + 追従カメラ・ジャンプ）。描画は CSS 3D レンダラーと、実験中の GPU 3D レンダラー
@@ -50,8 +50,9 @@ pnpm dev
 - **Realtime sync**: Cloudflare Durable Objects + Yjs WebSocket（awareness 付き）
 - **Offline-first**: y-indexeddb によるローカル永続化、再接続時の自動同期
 - **Presence**: ライブカーソル、拡張アバター、follow-me、spatial chat、reactions、whistle
-- **Live sessions**: サーバー権限の投票（途中参加・再接続猶予・ホスト移譲・秘密投票）。イベント型を足せるフレームワーク
+- **Live sessions**: 投票・集合（全員を一つの場所に集める）・答える（まとめるまで答えは本人だけに見える）。途中参加・再接続猶予・ホスト移譲と引き継ぎ・秘密投票。サーバーでも Yjs の共有ドキュメントでも動き、イベント型を足せるフレームワーク
 - **Link sharing**: 公開 / 限定公開 + role 管理（owner / editor / viewer）
+- **Permissions**: `createApp({ permissions })` で権限の仕組みをつなぐ口。プラグインは `ctx.permissions` で聞き、HUD の操作・設定・パネルは `requires` で権限の無い人から隠れる
 - **Board history**: Git 風のボードのバージョン（サーバーが自動・手動でコミット）。HUD で一覧・差分・プレビュー・復元
 
 ### AI ネイティブ

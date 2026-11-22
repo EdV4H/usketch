@@ -437,7 +437,7 @@
 		"name": "Debug HUD",
 		"category": "ui",
 		"glyph": "⌘",
-		"summary": "FPS, draw calls, event bus tracer.",
+		"summary": "Screen-fixed control and debug panel (toggle with the backtick key): drives every plugin's actions, settings and panels from one place, hosts side panels and a status line, and inspects shapes, events, FPS and sync.",
 		"install": "pnpm add @edv4h/usketch-plugin-debug-hud"
 	},
 	{
@@ -545,7 +545,7 @@
 		"name": "Session",
 		"category": "presence",
 		"glyph": "🗳",
-		"summary": "Server-authoritative live sessions (voting first): mid-join, reconnect grace, host handoff and secret ballots. A framework — build your own session types (tutorial, card game) on top.",
+		"summary": "Live sessions (voting, gather, respond) run by the board server or over the shared Yjs doc: mid-join, reconnect grace, host handoff and claiming host, secret ballots. A framework — build your own session types (tutorial, card game) on top.",
 		"tags": ["multiplayer", "server-authoritative"],
 		"install": "pnpm add @edv4h/usketch-plugin-session"
 	},
@@ -578,7 +578,7 @@
 		"name": "Tabletop",
 		"category": "shape",
 		"glyph": "TBL",
-		"summary": "Zones for tabletop games: places that hold cards or pieces (a deck, a discard pile, a row) and lay out what is dropped in them — pile, spread, grid or free, optionally turning cards up or down.",
+		"summary": "Zones for tabletop games: places that hold cards or pieces (a deck, a discard pile, a row) and lay out what is dropped in them — pile, spread, grid or free, optionally turning cards up or down — and player views that hold each player's camera on their part of the table.",
 		"install": "pnpm add @edv4h/usketch-plugin-tabletop"
 	},
 	{

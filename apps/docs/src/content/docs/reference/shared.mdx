@@ -102,6 +102,7 @@ interface PluginContext {
   plugins: PluginInfoRegistry;   // read-only list of active plugins (id + name)
   services: ServiceRegistry;
   height?: BoardHeightApi;       // the board's height (ground + solids); absent on an older core
+  permissions?: PermissionProvider; // what the viewer may do; read via permissionsOf(ctx) (absent on an older core)
 }
 ```
 
