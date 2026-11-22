@@ -1,0 +1,59 @@
+import {
+	type BoardStore,
+	defineService,
+	type ServiceRegistry,
+	type ShapeData,
+} from "@edv4h/usketch-shared";
+import {
+	type CreateZoneShapeParams,
+	createZoneShape,
+	type ZoneArrange,
+	type ZoneFace,
+} from "./zone.js";
+import {
+	setZoneAccepts,
+	setZoneArrange,
+	setZoneFace,
+	setZoneLabel,
+	zoneContents,
+	zoneCount,
+	zoneOf,
+} from "./zone-ops.js";
+
+/** The tabletop plugin's host-facing operations (store-bound). */
+export interface TabletopApi {
+	/** Add a zone (not undoable; wrap `createZoneShape` in an add command for undo). */
+	addZone(params: CreateZoneShapeParams): ShapeData;
+	setLabel(zoneId: string, label: string): boolean;
+	setArrange(zoneId: string, arrange: ZoneArrange): boolean;
+	setFace(zoneId: string, face: ZoneFace): boolean;
+	setAccepts(zoneId: string, accepts: readonly string[]): boolean;
+	/** The zone a shape is in, or `undefined`. */
+	zoneOf(shapeId: string): ShapeData | undefined;
+	contents(zoneId: string): ShapeData[];
+	count(zoneId: string): number;
+}
+
+export const tabletopService = defineService<TabletopApi>("usketch-plugin-tabletop");
+
+export function createTabletopApi(store: BoardStore): TabletopApi {
+	return {
+		addZone(params) {
+			const zone = createZoneShape(params);
+			store.addShape(zone);
+			return zone;
+		},
+		setLabel: (id, label) => setZoneLabel(store, id, label),
+		setArrange: (id, arrange) => setZoneArrange(store, id, arrange),
+		setFace: (id, face) => setZoneFace(store, id, face),
+		setAccepts: (id, accepts) => setZoneAccepts(store, id, accepts),
+		zoneOf: (id) => zoneOf(store, id),
+		contents: (id) => zoneContents(store, id),
+		count: (id) => zoneCount(store, id),
+	};
+}
+
+/** Host accessor: `getTabletopApi(app.services)?.setArrange(id, "spread")`. */
+export function getTabletopApi(services: ServiceRegistry): TabletopApi | undefined {
+	return tabletopService.get(services);
+}
