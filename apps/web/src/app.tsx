@@ -48,7 +48,11 @@ import { createScatterPlugin } from "@edv4h/usketch-plugin-scatter";
 import { createSessionPlugin } from "@edv4h/usketch-plugin-session";
 import { createShape3dPlugin } from "@edv4h/usketch-plugin-shape-3d";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
-import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
+import {
+	cardTurnFace,
+	createCardPlugin,
+	EXAMPLE_CARD_TYPES,
+} from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { createCounterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { createEmbedShapePlugin } from "@edv4h/usketch-plugin-shape-embed";
@@ -75,6 +79,7 @@ import {
 	type DivergenceTrackerHandle,
 	UnconfirmedOverlay,
 } from "@edv4h/usketch-plugin-sync-ywebsocket";
+import { createTabletopPlugin } from "@edv4h/usketch-plugin-tabletop";
 import { createTimterPlugin } from "@edv4h/usketch-plugin-timter";
 import {
 	createOpenUIToolPlugin,
@@ -263,6 +268,9 @@ function createBasePlugins(
 		createFreePositionPlugin(),
 		createContainerPlugin(),
 		createAttachablePlugin(),
+		// テーブルゲームの置き場（tabletop-zone）。中身の吸着は container が行うので、その後に置く。
+		// 「伏せて置く」置き場はカードを裏返す。
+		createTabletopPlugin({ turnFace: cardTurnFace }),
 		// ダッシュボード（sortable なグリッド）。container/free-position の後に置き、
 		// during-drag reflow をトップレベル移動の最後の writer にする。autoCreate:false
 		// で、メインボードを勝手にグリッド化せず、HUD の「ダッシュボード化」で opt-in。

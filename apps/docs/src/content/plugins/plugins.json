@@ -574,6 +574,14 @@
 		"install": "pnpm add @edv4h/usketch-plugin-croupier"
 	},
 	{
+		"id": "tabletop",
+		"name": "Tabletop",
+		"category": "shape",
+		"glyph": "TBL",
+		"summary": "Zones for tabletop games: places that hold cards or pieces (a deck, a discard pile, a row) and lay out what is dropped in them — pile, spread, grid or free, optionally turning cards up or down.",
+		"install": "pnpm add @edv4h/usketch-plugin-tabletop"
+	},
+	{
 		"id": "dashboard",
 		"name": "Dashboard",
 		"category": "ui",

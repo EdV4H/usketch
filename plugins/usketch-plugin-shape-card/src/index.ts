@@ -24,6 +24,7 @@ export {
 export type { CreateCardPluginOptions } from "./plugin.js";
 export { createCardPlugin } from "./plugin.js";
 export { createCardTypeRegistry, EXAMPLE_CARD_TYPES } from "./registry.js";
+export { cardTurnFace } from "./turn-face.js";
 export type {
 	CardFace,
 	CardMeta,
