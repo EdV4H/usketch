@@ -5,6 +5,8 @@ import { LABEL_STYLE, MINI_BUTTON, PANEL_BASE, SCROLLABLE_STYLE, TEXT_MUTED } fr
 
 interface EventsPanelProps {
 	eventLogger: EventLogger;
+	/** Distance from the right edge (moves left while the side panel is open). */
+	right?: number;
 }
 
 const EVENT_COLORS: Record<string, string> = {
@@ -33,7 +35,7 @@ function eventColor(event: string): string {
 	return EVENT_COLORS[event] ?? EVENT_COLORS[event.split(":")[0]] ?? DEFAULT_EVENT_COLOR;
 }
 
-export function EventsPanel({ eventLogger }: EventsPanelProps) {
+export function EventsPanel({ eventLogger, right = 8 }: EventsPanelProps) {
 	const [filter, setFilter] = useState("");
 
 	const events = useSyncExternalStore(
@@ -52,7 +54,7 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 				...PANEL_BASE,
 				position: "absolute",
 				bottom: 8,
-				right: 8,
+				right,
 				width: 280,
 				height: 240,
 				display: "flex",

@@ -228,6 +228,8 @@ export type {
 	HudPanel,
 	HudRegistry,
 	HudSettingsDescriptor,
+	HudStatus,
+	HudStatusValue,
 	KeyBinding,
 	KeyBindingKind,
 	KeyBindingSpec,

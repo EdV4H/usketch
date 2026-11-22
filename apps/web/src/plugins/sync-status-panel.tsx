@@ -1,5 +1,7 @@
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { HudStatusValue, PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { WsConnectionStatus } from "@edv4h/usketch-sync";
 import { useSyncExternalStore } from "react";
+import { connectionStatusStore } from "../lib/connection-status-store.js";
 import { syncStatusStore } from "../lib/sync-status-store.js";
 
 const SYNC_STATE_COLORS: Record<string, string> = {
@@ -20,6 +22,19 @@ const SYNC_STATE_LABELS: Record<string, string> = {
 	error: "Error",
 };
 
+const CONNECTING: HudStatusValue = { text: "接続中…", tone: "warning" };
+const FAILED: HudStatusValue = {
+	text: "接続できません — このボードへのアクセス権限がない可能性があります",
+	tone: "danger",
+};
+
+/** 接続の状態を HUD の状態表示に。つながっている・ローカルのボードなら何も出さない。 */
+export function connectionStatusValue(status: WsConnectionStatus | null): HudStatusValue | null {
+	if (status === "connecting") return CONNECTING;
+	if (status === "failed") return FAILED;
+	return null;
+}
+
 function formatTimestamp(ts: number | null): string {
 	if (ts === null) return "—";
 	const d = new Date(ts);
@@ -38,12 +53,23 @@ export function createSyncStatusPanelPlugin(): UsketchPlugin {
 		name: "Sync",
 
 		setup(ctx: PluginContext) {
-			return ctx.hud.registerPanel({
+			const offPanel = ctx.hud.registerPanel({
 				id: "usketch-web-sync-status:panel",
 				title: "Sync",
 				order: 0,
 				render: () => <SyncStatusPanel />,
 			});
+			// 接続中・接続できないときだけ、HUD の状態表示に出す（HUD を閉じていても見える）。
+			const offStatus = ctx.hud.registerStatus?.({
+				id: "usketch-web-sync-status:connection",
+				order: 0,
+				get: () => connectionStatusValue(connectionStatusStore.get()),
+				subscribe: connectionStatusStore.subscribe,
+			});
+			return () => {
+				offStatus?.();
+				offPanel();
+			};
 		},
 	};
 }
