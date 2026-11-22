@@ -74,6 +74,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						ctx={renderCtx}
 						visibility={visibility}
 						dockPrefs={dockPrefs}
+						permissions={ctx.permissions}
 					/>
 				),
 			});

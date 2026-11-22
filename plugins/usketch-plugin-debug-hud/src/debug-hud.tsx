@@ -6,6 +6,7 @@ import type {
 	HudRegistry,
 	LayerManager,
 	LayerRenderContext,
+	PermissionProvider,
 	PluginInfoRegistry,
 	ShapeRegistry,
 	ToolRegistry,
@@ -44,6 +45,8 @@ interface DebugHudProps {
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
 	dockPrefs: DockPrefsStore;
+	/** What the viewer may do; the dock hides controls whose `requires` it denies. */
+	permissions?: PermissionProvider;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -68,6 +71,7 @@ export function DebugHud({
 	ctx,
 	visibility,
 	dockPrefs,
+	permissions,
 }: DebugHudProps) {
 	const subscribeVisibility = useCallback(
 		(cb: () => void) => visibility.subscribe(cb),
@@ -173,6 +177,7 @@ export function DebugHud({
 				collapsed={controlsCollapsed}
 				onToggleCollapsed={() => setControlsCollapsed((c) => !c)}
 				prefs={dockPrefs}
+				permissions={permissions}
 				shapesSection={
 					<ShapesPanel
 						store={store}

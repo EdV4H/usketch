@@ -3,9 +3,11 @@ import type {
 	HudPanel,
 	HudRegistry,
 	HudSettingsDescriptor,
+	PermissionSnapshot,
 	PluginAction,
 	PluginInfoRegistry,
 } from "@edv4h/usketch-shared";
+import { isPermitted } from "@edv4h/usketch-shared";
 
 /** A plugin's aggregated HUD contributions, rendered as one section. */
 export interface PluginBucket {
@@ -40,12 +42,16 @@ export function bucketSize(b: PluginBucket): number {
  * settings (label / id / field names & labels) and panels (title / id) that
  * match are kept. Within a plugin, actions keep their `group` as a sub-heading
  * (empty string when ungrouped).
+ *
+ * Contributions whose `requires` permission `permissions` denies are left out
+ * (all are kept when no `permissions` is given).
  */
 export function buildPluginBuckets(
 	actions: ActionRegistry,
 	hud: HudRegistry,
 	plugins: PluginInfoRegistry,
 	q: string,
+	permissions?: PermissionSnapshot,
 ): PluginBucket[] {
 	const order: string[] = [];
 	const byId = new Map<string, PluginBucket>();
@@ -77,6 +83,7 @@ export function buildPluginBuckets(
 
 	for (const { pluginId, descriptor } of hud.getSettings()) {
 		const b = bucketFor(pluginId);
+		if (!isPermitted(permissions, descriptor.requires)) continue;
 		if (
 			pluginMatches(b) ||
 			matches(
@@ -91,6 +98,7 @@ export function buildPluginBuckets(
 	}
 	for (const { pluginId, action } of actions.getOrdered()) {
 		const b = bucketFor(pluginId);
+		if (!isPermitted(permissions, action.requires)) continue;
 		if (!pluginMatches(b) && !matches(q, action.label, action.group, action.id)) continue;
 		const g = action.group ?? "";
 		const list = b.actionGroups.get(g) ?? [];
@@ -99,6 +107,7 @@ export function buildPluginBuckets(
 	}
 	for (const { pluginId, panel } of hud.getPanels()) {
 		const b = bucketFor(pluginId);
+		if (!isPermitted(permissions, panel.requires)) continue;
 		if (pluginMatches(b) || matches(q, panel.title, panel.id)) b.panels.push(panel);
 	}
 

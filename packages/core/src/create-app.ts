@@ -1,5 +1,6 @@
 import {
 	type ActionRegistry,
+	allowAllPermissions,
 	type BoardHeightApi,
 	type BoardStore,
 	boardHeight,
@@ -10,6 +11,7 @@ import {
 	type HudRegistry,
 	type LayerManager,
 	type LodPolicy,
+	type PermissionProvider,
 	type PluginContext,
 	type PluginInfoRegistry,
 	type PluginTeardown,
@@ -86,6 +88,8 @@ export interface AppInstance {
 	services: ServiceRegistry;
 	/** The board's height (ground + solid providers); the plugins' `ctx.height`. */
 	height: BoardHeightApi;
+	/** What the viewer may do (`CreateAppOptions.permissions`, allow-all by default); the plugins' `ctx.permissions`. */
+	permissions: PermissionProvider;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -117,6 +121,13 @@ export interface CreateAppOptions {
 	 * the overlapping keys once the plugins are set up (`warnConflicts`, default false).
 	 */
 	keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
+	/**
+	 * What the viewer may do, answered by the permission system the host connects (an adapter
+	 * such as `createStaticPermissionProvider`, a CASL adapter, or the host's own API). Plugins
+	 * read it as `ctx.permissions`; the HUD hides controls whose `requires` it denies.
+	 * Default: everything is allowed.
+	 */
+	permissions?: PermissionProvider;
 }
 
 export async function createApp(options: CreateAppOptions): Promise<AppInstance> {
@@ -161,6 +172,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		externalContent,
 	}));
 	const pluginRegistry = createPluginRegistry();
+	const permissions = options.permissions ?? allowAllPermissions();
 
 	const lodPolicy =
 		options.lod?.policy ??
@@ -196,6 +208,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		plugins: pluginInfo,
 		services,
 		height,
+		permissions,
 	};
 
 	// Bridge store mutations to EventBus
@@ -314,6 +327,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		hud,
 		services,
 		height,
+		permissions,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			if (destroyed) return;

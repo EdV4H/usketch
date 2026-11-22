@@ -4,6 +4,7 @@ import type {
 	EventBus,
 	HudPanel,
 	HudRegistry,
+	PermissionProvider,
 	PluginAction,
 	PluginInfoRegistry,
 	ShapeStyle,
@@ -65,6 +66,8 @@ interface ControlsPanelProps {
 	prefs: DockPrefsStore;
 	/** The shapes inspector, rendered as a section inside the dock. */
 	shapesSection?: React.ReactNode;
+	/** What the viewer may do; controls whose `requires` it denies are hidden. */
+	permissions?: PermissionProvider;
 }
 
 /**
@@ -88,11 +91,14 @@ export function ControlsPanel({
 	onToggleCollapsed,
 	prefs: prefsStore,
 	shapesSection,
+	permissions,
 }: ControlsPanelProps) {
 	// Re-render when actions or HUD contributions register/unregister at runtime.
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => actions.subscribe(bump), [actions]);
 	useEffect(() => hud.subscribe(bump), [hud]);
+	// …and when what the viewer may do changes (role changed, invited…).
+	useEffect(() => permissions?.subscribe(bump), [permissions]);
 
 	const subscribePrefs = useCallback((cb: () => void) => prefsStore.subscribe(cb), [prefsStore]);
 	const getPrefs = useCallback(() => prefsStore.get(), [prefsStore]);
@@ -121,7 +127,7 @@ export function ControlsPanel({
 	const toolList = tools.getOrdered();
 	const q = query.trim().toLowerCase();
 	const searching = q !== "";
-	const buckets = buildPluginBuckets(actions, hud, plugins, q);
+	const buckets = buildPluginBuckets(actions, hud, plugins, q, permissions);
 	const { pinned, rest } = partitionPinned(buckets, prefs.pinned);
 	const totalActions = actions.getAll().size;
 

@@ -75,6 +75,23 @@ export {
 	isEmptyRestorePlan,
 	planRestore,
 } from "./history/restore.js";
+// Permissions (the port any permission system plugs into)
+export {
+	allowAllPermissions,
+	createStaticPermissionProvider,
+	denyAllPermissions,
+	isPermitted,
+	PERMISSIONS,
+	type Permission,
+	type PermissionProvider,
+	type PermissionResource,
+	type PermissionRule,
+	type PermissionSnapshot,
+	type PermissionSubject,
+	permissionsOf,
+	type ServerPermissionResolver,
+	type StaticPermissionProvider,
+} from "./permissions.js";
 // 3D view state (Mode 7 etc.) shared across plugins
 export {
 	cameraEye,

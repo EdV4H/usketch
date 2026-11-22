@@ -6,6 +6,7 @@ import type {
 	PluginAction,
 	PluginInfoRegistry,
 } from "@edv4h/usketch-shared";
+import { createStaticPermissionProvider } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { bucketSize, buildPluginBuckets, partitionPinned } from "../plugin-buckets.js";
 
@@ -79,6 +80,50 @@ describe("buildPluginBuckets", () => {
 	it("returns nothing when no control matches", () => {
 		const { actions, hud, plugins } = fixture();
 		expect(buildPluginBuckets(actions, hud, plugins, "zzz")).toEqual([]);
+	});
+
+	it("hides the controls whose `requires` the viewer lacks", () => {
+		const plugins: PluginInfoRegistry = { getAll: () => [{ id: "map", name: "Map" }] };
+		const paint = { ...action("map:paint", "Paint cell"), requires: "page.edit" };
+		const look = action("map:look", "Look around");
+		const actionList = [
+			{ id: paint.id, pluginId: "map", action: paint },
+			{ id: look.id, pluginId: "map", action: look },
+		];
+		const actions = {
+			getAll: () => new Map(actionList.map((a) => [a.id, a.action])),
+			getOrdered: () => actionList,
+			subscribe: noop,
+		} as unknown as ActionRegistry;
+		const hud = {
+			getSettings: () => [
+				{
+					pluginId: "map",
+					descriptor: { ...settings("map:brush", "Brush", ["size"]), requires: "page.edit" },
+				},
+			],
+			getPanels: () => [
+				{
+					pluginId: "map",
+					panel: { id: "map:admin", render: () => null, requires: "board.admin" },
+				},
+			],
+			subscribe: noop,
+		} as unknown as HudRegistry;
+
+		const viewer = createStaticPermissionProvider(["page.view"]);
+		const [asViewer] = buildPluginBuckets(actions, hud, plugins, "", viewer);
+		expect([...asViewer.actionGroups.values()].flat().map((a) => a.id)).toEqual(["map:look"]);
+		expect(asViewer.settings).toEqual([]);
+		expect(asViewer.panels).toEqual([]);
+
+		const editor = createStaticPermissionProvider(["page.view", "page.edit"]);
+		const [asEditor] = buildPluginBuckets(actions, hud, plugins, "", editor);
+		expect(bucketSize(asEditor)).toBe(3);
+
+		// No permission system connected: everything shows.
+		const [all] = buildPluginBuckets(actions, hud, plugins, "");
+		expect(bucketSize(all)).toBe(4);
 	});
 });
 

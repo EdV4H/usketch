@@ -197,6 +197,17 @@ interface PluginContext {
 - 設定画面・チートシート向けの純関数（DOM / React なし）: `formatCombo`（mac は ⌃⌥⇧⌘ 記号）/ `formatKeyCode` / `formatBindingKey`、`comboFromKeyEvent`（押したキーを保存用のコンボに。アクセラレータは `mod` で保存するので OS をまたいでも同じ）、`isReservedCombo`（修飾キーだけ・ブラウザ予約の `Mod+W` など）、`bindingsUsingKey`、`assignKey(keymap, id, key, { slot, steal })` / `unassignKey`。HUD のキー設定パネル（`usketch-plugin-key-settings`）もこれを使う。
 - **キー設定の画面は `usketch-plugin-key-settings` の共通パネル 1 つ**（全プラグインの binding を一覧・付け替え・保存）。プラグインは自分用のキー設定パネルを作らず、binding に `label` / `category` / `order` を付けて共通パネルに出す。
 
+### 3.1.2 権限（permissions）
+
+「この人はこれをしてよいか」は **`ctx.permissions.can(permission, resource?)` で聞く**。コアは口（`PermissionProvider`、`@edv4h/usketch-shared`）だけを持ち、判定の中身は知らない。つなぎ先はホストが選ぶ（#1558）。
+
+- ホストは `createApp({ permissions })` に `PermissionProvider`（同期の `can` + 答えが変わったときの `subscribe`）を渡す。省略すると全部可（`allowAllPermissions()`）なので、権限を使わないホストは何も変わらない。
+- 素朴なアダプターは shared にある: `allowAllPermissions()` / `denyAllPermissions()` / `createStaticPermissionProvider(一覧 | 関数)`（`set()` で差し替えて知らせる）。CASL や利用先の API につなぐものは別パッケージのアダプターにする。
+- コアの権限名は `PERMISSIONS`（`page.view` / `page.edit` / `page.manage` / `page.create` / `board.admin`）。プラグイン独自の権限は `"<plugin id>:<操作>"` の形で名付ける。
+- HUD に出すもの（`PluginAction` / `HudSettingsDescriptor` / `HudPanel`）は **`requires` に要る権限を書くだけ**でよい。HUD が `can(requires)` が false のものを隠し、権限が変われば出し直す。プラグインが自分で出し分けを書かない。
+- プラグインの中で読むときは `permissionsOf(ctx)`（古いコアの文脈には `permissions` が無いので、そのときは全部可）。
+- サーバー側（Workers / Durable Object）は `ServerPermissionResolver`（非同期）で `PermissionSnapshot` を作って使う。ブラウザの出し分けは見た目のためで、**書き込みを止めるのはサーバー**。
+
 ### 3.2 ツールプラグイン
 
 シェイプを持たない汎用ツール（選択、パン等）。
