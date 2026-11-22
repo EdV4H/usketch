@@ -1,5 +1,13 @@
 # @edv4h/usketch-session-gather
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+  - @edv4h/usketch-plugin-session@0.4.2
+
 ## 0.5.1
 
 ### Patch Changes
