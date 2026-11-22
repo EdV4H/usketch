@@ -1,5 +1,13 @@
 # @edv4h/usketch-session-respond
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-plugin-session@0.4.3
+
 ## 0.2.2
 
 ### Patch Changes

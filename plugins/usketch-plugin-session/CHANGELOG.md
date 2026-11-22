@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-session
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+
 ## 0.4.2
 
 ### Patch Changes

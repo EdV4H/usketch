@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.9.4
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-css3d-renderer@0.1.5
+  - @edv4h/usketch-store@3.13.2
+
 ## 0.9.3
 
 ### Patch Changes

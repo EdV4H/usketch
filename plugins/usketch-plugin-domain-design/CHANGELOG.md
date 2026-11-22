@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-domain-design
 
+## 1.1.31
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-core@2.8.0
+  - @edv4h/usketch-canvas-engine@1.8.4
+  - @edv4h/usketch-store@3.13.2
+  - @edv4h/usketch-connector-anchor@0.5.12
+  - @edv4h/usketch-shape-utils@2.4.11
+
 ## 1.1.30
 
 ### Patch Changes

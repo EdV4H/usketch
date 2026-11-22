@@ -1,5 +1,13 @@
 # @edv4h/usketch-css3d-renderer
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-dom-renderer@2.4.5
+
 ## 0.1.4
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-croupier
 
+## 0.1.13
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-store@3.13.2
+
 ## 0.1.12
 
 ### Patch Changes
