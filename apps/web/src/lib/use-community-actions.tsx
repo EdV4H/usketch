@@ -65,6 +65,13 @@ export function useCommunityActions(app: AppInstance | null, authed: boolean): v
 			icon: () => <I.map size={14} />,
 			run: () => navigate("/community"),
 		});
+		reg({
+			id: "nav:try",
+			group: "移動",
+			label: "手元で試す（お試しボード）",
+			icon: () => <I.home size={14} />,
+			run: () => navigate("/try"),
+		});
 
 		if (authed) {
 			reg({

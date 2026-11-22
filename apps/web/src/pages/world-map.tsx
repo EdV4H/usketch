@@ -292,41 +292,39 @@ function WorldMapHeader({
 			>
 				🖥 デスクトップを追加
 			</button>
+			<button
+				type="button"
+				onClick={() => navigate("/try")}
+				className="u-surface"
+				style={{
+					border: "none",
+					padding: "6px 12px",
+					fontSize: 12,
+					cursor: "pointer",
+					color: "var(--brand-violet)",
+					fontFamily: "var(--font-sans)",
+					borderRadius: 10,
+				}}
+			>
+				手元で試す
+			</button>
 			{user ? (
-				<>
-					<button
-						type="button"
-						onClick={() => navigate("/dashboard")}
-						className="u-surface"
-						style={{
-							border: "none",
-							padding: "6px 12px",
-							fontSize: 12,
-							cursor: "pointer",
-							color: "var(--brand-violet)",
-							fontFamily: "var(--font-sans)",
-							borderRadius: 10,
-						}}
-					>
-						ダッシュボード
-					</button>
-					<button
-						type="button"
-						onClick={onLogout}
-						className="u-surface"
-						style={{
-							border: "none",
-							padding: "6px 12px",
-							fontSize: 11.5,
-							cursor: "pointer",
-							color: "var(--fg-tertiary)",
-							fontFamily: "var(--font-sans)",
-							borderRadius: 10,
-						}}
-					>
-						{user.name} — サインアウト
-					</button>
-				</>
+				<button
+					type="button"
+					onClick={onLogout}
+					className="u-surface"
+					style={{
+						border: "none",
+						padding: "6px 12px",
+						fontSize: 11.5,
+						cursor: "pointer",
+						color: "var(--fg-tertiary)",
+						fontFamily: "var(--font-sans)",
+						borderRadius: 10,
+					}}
+				>
+					{user.name} — サインアウト
+				</button>
 			) : (
 				<a
 					href="/login"
