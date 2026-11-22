@@ -39,9 +39,16 @@ export function createDropTargetFinder(
 	let dragged: ShapeData[] = [];
 	return (point) => {
 		if (!candidates) {
+			// Only the drag roots get reparented on drop (descendants following a
+			// dragged container keep their parent), and connectors / auto-attach
+			// containers never attach — so only the rest decide `accepts`.
 			dragged = [...excludeIds].flatMap((id) => {
 				const shape = ctx.store.getShape(id);
-				return shape ? [shape] : [];
+				if (!shape) return [];
+				if (typeof shape.parentId === "string" && excludeIds.has(shape.parentId)) return [];
+				if (shape.type === "connector") return [];
+				if (isContainerAutoAttach(ctx.shapes.get(shape.type), shape)) return [];
+				return [shape];
 			});
 			candidates = [];
 			for (const [id, shape] of ctx.store.getShapes()) {

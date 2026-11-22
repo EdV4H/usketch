@@ -62,6 +62,17 @@ describe("findDropTarget", () => {
 		expect(findDropTarget(c, { x: 50, y: 50 }, new Set(["note", "card1"]))).toBe("s");
 	});
 
+	it("container.accepts はドラッグ中のコンテナの子（付け替わらない）では判定しない", () => {
+		defs.slot = def({ autoAttach: true, accepts: (child) => child.type === "card" });
+		const c = ctx([
+			shape("back", "frame", 0, 0, 300, 300),
+			shape("s", "slot"),
+			shape("group1", "rect", 400),
+			{ ...shape("card1", "card", 400), parentId: "group1" },
+		]);
+		expect(findDropTarget(c, { x: 50, y: 50 }, new Set(["group1", "card1"]))).toBe("back");
+	});
+
 	it("container.autoAttach の関数形式をインスタンスごとに評価する", () => {
 		defs.dynamic = def({ autoAttach: (s) => s.id === "yes" });
 		const c = ctx([shape("yes", "dynamic"), shape("no", "dynamic", 200, 0)]);

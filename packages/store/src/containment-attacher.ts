@@ -123,7 +123,9 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 			const parent = store.getShape(shape.parentId);
 			if (
 				parent &&
-				(!isAttachTarget(parent) || isInsideForAttach(parent, shape, rules.attachHit?.(parent)))
+				(!isAttachTarget(parent) ||
+					(isInsideForAttach(parent, shape, rules.attachHit?.(parent)) &&
+						(!rules.accepts || rules.accepts(parent, shape))))
 			) {
 				return;
 			}

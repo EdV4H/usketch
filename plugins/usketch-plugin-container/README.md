@@ -73,8 +73,9 @@ ctx.shapes.register("card-slot", {
 });
 ```
 
-The drop-target highlight of the select tool (and Option+drag copies) follow the
-same rules.
+Option+drag copies get their parent by the same rules. The select tool's
+drop-target highlight skips containers whose `accepts` rejects what is dragged,
+but still picks the container under the pointer (not the dragged shape's center).
 
 ## Attachable child shapes (`createAttachablePlugin`)
 
