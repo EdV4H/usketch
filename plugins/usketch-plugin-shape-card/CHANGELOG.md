@@ -1,5 +1,20 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.9.0
+
+### Minor Changes
+
+- f5366ad: New plugin `@edv4h/usketch-plugin-tabletop` with zones (`tabletop-zone`): places on the board that hold cards or pieces and lay out what is dropped in them (pile, spread, grid or free), optionally turning it up or down. `@edv4h/usketch-plugin-shape-card` adds `cardTurnFace`, which turns a card or deck up or down for a zone.
+
+### Patch Changes
+
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+  - @edv4h/usketch-store@3.13.0
+  - @edv4h/usketch-canvas-engine@1.8.2
+  - @edv4h/usketch-core@2.6.3
+  - @edv4h/usketch-shape-utils@2.4.9
+
 ## 1.8.8
 
 ### Patch Changes

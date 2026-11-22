@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-tool-openui
 
+## 1.1.30
+
+### Patch Changes
+
+- 47b7978: AI 画像・OpenUI の生成物と音声メモのフレームを置く「画面中央」を、各プラグインの手書き計算から shared の `screenCenterWorld` に置き換え。ビューが回転しているときも画面の中央に置かれるようになった。
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+  - @edv4h/usketch-store@3.13.0
+  - @edv4h/usketch-canvas-engine@1.8.2
+  - @edv4h/usketch-plugin-export@2.4.3
+  - @edv4h/usketch-plugin-shape-openui@1.0.29
+
 ## 1.1.29
 
 ### Patch Changes
