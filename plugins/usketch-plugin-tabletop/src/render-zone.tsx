@@ -1,5 +1,5 @@
-import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
-import { type ReactElement, useSyncExternalStore } from "react";
+import type { BoardStore, ShapeData, StoreEvent } from "@edv4h/usketch-shared";
+import { type ReactElement, useCallback, useRef, useSyncExternalStore } from "react";
 import { readZoneMeta, type TabletopZoneMeta } from "./zone.js";
 import { zoneCount } from "./zone-ops.js";
 
@@ -69,7 +69,27 @@ export function DefaultZone({ meta, count }: TabletopZoneRenderProps): ReactElem
 	);
 }
 
-/** Keeps the count live: re-renders when what the zone holds changes. */
+/**
+ * Whether a store mutation can change what some zone holds: a shape added or
+ * removed, a shape moved to another parent, or a batch (checked as a whole).
+ * Plain moves and resizes inside a zone do not, so a drag does not recount.
+ */
+export function mayChangeZoneContents(event: StoreEvent): boolean {
+	switch (event.type) {
+		case "shape:added":
+		case "shape:removed":
+			return true;
+		case "shape:updated":
+			return (
+				event.payload.ids.length > 1 ||
+				event.payload.before.parentId !== event.payload.after.parentId
+			);
+		default:
+			return false;
+	}
+}
+
+/** Keeps the count live: recounts only when what the zone holds may have changed. */
 export function ZoneView({
 	store,
 	zone,
@@ -79,10 +99,22 @@ export function ZoneView({
 	zone: ShapeData;
 	render: (props: TabletopZoneRenderProps) => ReactElement;
 }): ReactElement {
-	const count = useSyncExternalStore(
-		(listener) => store.subscribe(listener),
-		() => zoneCount(store, zone.id),
-		() => zoneCount(store, zone.id),
+	const countRef = useRef<{ zoneId: string; count: number } | null>(null);
+	const subscribe = useCallback(
+		(listener: () => void) =>
+			store.onMutation((event) => {
+				if (!mayChangeZoneContents(event)) return;
+				countRef.current = null;
+				listener();
+			}),
+		[store],
 	);
+	const getCount = () => {
+		if (countRef.current?.zoneId !== zone.id) {
+			countRef.current = { zoneId: zone.id, count: zoneCount(store, zone.id) };
+		}
+		return countRef.current.count;
+	};
+	const count = useSyncExternalStore(subscribe, getCount, getCount);
 	return render({ zone, meta: readZoneMeta(zone), count });
 }

@@ -61,8 +61,10 @@ import { getTabletopApi } from "@edv4h/usketch-plugin-tabletop";
 
 const tabletop = getTabletopApi(app.services);
 const deck = tabletop?.addZone({ x: 0, y: 0, label: "Deck", face: "down" });
-tabletop?.setArrange(deck.id, "spread");
-tabletop?.count(deck.id);
+if (tabletop && deck) {
+	tabletop.setArrange(deck.id, "spread");
+	tabletop.count(deck.id);
+}
 ```
 
 The same operations are exported as plain functions taking a `BoardStore`

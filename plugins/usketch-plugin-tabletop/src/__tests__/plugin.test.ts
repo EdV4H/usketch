@@ -6,7 +6,12 @@ import {
 	createShapeRegistry,
 	createToolRegistry,
 } from "@edv4h/usketch-core";
-import type { PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import type {
+	CanvasPointerEvent,
+	PluginContext,
+	ShapeData,
+	ToolContext,
+} from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { createTabletopPlugin, ZONE_TOOL_ID } from "../plugin.js";
@@ -52,6 +57,24 @@ describe("createTabletopPlugin", () => {
 	it("does not register the tool when tool is false", () => {
 		const { ctx } = harness({ tool: false });
 		expect(ctx.tools.get(ZONE_TOOL_ID)).toBeUndefined();
+	});
+
+	it("the tool draws one zone at a time, with the primary button only", () => {
+		const { ctx, store } = harness();
+		const tool = ctx.tools.get(ZONE_TOOL_ID);
+		if (!tool?.onPointerDown) throw new Error("no tool");
+		const toolCtx = { store } as unknown as ToolContext;
+		const down = (button: number, x: number) =>
+			tool.onPointerDown?.(toolCtx, { button, worldPoint: { x, y: 0 } } as CanvasPointerEvent);
+		const zones = () => store.getShapesSorted().filter((s) => s.type === ZONE_TYPE);
+
+		down(2, 0);
+		down(1, 0);
+		expect(zones()).toHaveLength(0);
+
+		down(0, 0);
+		down(0, 50); // a second pointer while the first draft is out
+		expect(zones()).toHaveLength(1);
 	});
 
 	it("accepts shapes by the zone's list and the host's filter, never zones or connectors", () => {

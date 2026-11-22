@@ -1,4 +1,9 @@
-import { type PluginContext, type ShapeData, zIndexAfterAll } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	type PluginContext,
+	type ShapeData,
+	zIndexAfterAll,
+} from "@edv4h/usketch-shared";
 import { isZone, readZoneMeta, type ZoneFace } from "./zone.js";
 
 /** Event emitted on `ctx.events` when the local user drops a shape into a zone. */
@@ -42,8 +47,15 @@ export function setupAttachWatch(ctx: PluginContext, opts: AttachWatchOptions): 
 
 	const off = ctx.events.on<{ shapeIds: string[] }>("shapes:move-end", (data) => {
 		if (!data?.shapeIds?.length) return;
+		// Settle in the current stacking order, so shapes dropped together keep
+		// their order in the zone (each is raised on top of the previous one).
+		const ids = data.shapeIds
+			.map((id) => ctx.store.getShape(id))
+			.filter((s): s is ShapeData => s !== undefined)
+			.sort((a, b) => compareZIndex(a.zIndex, b.zIndex))
+			.map((s) => s.id);
 		const before = new Map<string, string | undefined>();
-		for (const id of data.shapeIds) {
+		for (const id of ids) {
 			const parentId = ctx.store.getShape(id)?.parentId;
 			before.set(id, typeof parentId === "string" ? parentId : undefined);
 		}

@@ -147,6 +147,9 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					cursor: "crosshair",
 					order: 29,
 					onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+						// Primary button only, and one zone at a time (a second finger or a
+						// pen + finger must not leave the first draft behind).
+						if (event.button !== 0 || draw) return;
 						const { x, y } = event.worldPoint;
 						const draft = createZoneShape({ x, y, width: 0, height: 0 });
 						draw = { startX: x, startY: y, id: draft.id };
