@@ -35,9 +35,11 @@ export {
 	createUpdateShapeCommand,
 } from "./commands.js";
 export {
+	type AttachParentRules,
 	type ContainmentAttacherOptions,
 	createContainmentAttacher,
 	findAttachParent,
+	isInsideForAttach,
 } from "./containment-attacher.js";
 export {
 	type CloneShapesOptions,

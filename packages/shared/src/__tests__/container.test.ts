@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ShapeDefinition } from "../types/plugin.js";
 import type { ShapeData } from "../types/shape.js";
 import {
+	containerAccepts,
+	getContainerAttachHit,
 	getContainerLayout,
 	hasSelectableChildren,
 	isContainerAutoAttach,
@@ -84,5 +86,34 @@ describe("getContainerLayout", () => {
 		expect(getContainerLayout(def({ layout }))).toBe(layout);
 		expect(getContainerLayout(def({}))).toBeUndefined();
 		expect(getContainerLayout(undefined)).toBeUndefined();
+	});
+});
+
+describe("getContainerAttachHit", () => {
+	it("defaults to contain", () => {
+		expect(getContainerAttachHit(def({ autoAttach: true }), shape())).toBe("contain");
+		expect(getContainerAttachHit(undefined, shape())).toBe("contain");
+	});
+	it("honors the value and the predicate form", () => {
+		expect(getContainerAttachHit(def({ attachHit: "center" }), shape())).toBe("center");
+		const d = def({ attachHit: (s) => (s.meta?.snug ? "center" : "contain") });
+		expect(getContainerAttachHit(d, shape({ meta: { snug: true } }))).toBe("center");
+		expect(getContainerAttachHit(d, shape())).toBe("contain");
+	});
+});
+
+describe("containerAccepts", () => {
+	it("accepts everything without a filter", () => {
+		expect(containerAccepts(def({ autoAttach: true }), shape(), shape({ id: "c" }))).toBe(true);
+		expect(containerAccepts(undefined, shape(), shape({ id: "c" }))).toBe(true);
+	});
+	it("passes child and container to the filter", () => {
+		const d = def({
+			accepts: (child, container) => child.type === "card" && container.id === "slot",
+		});
+		expect(containerAccepts(d, shape({ id: "slot" }), shape({ id: "c", type: "card" }))).toBe(true);
+		expect(containerAccepts(d, shape({ id: "slot" }), shape({ id: "c", type: "note" }))).toBe(
+			false,
+		);
 	});
 });

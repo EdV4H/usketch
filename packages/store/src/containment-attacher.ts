@@ -1,4 +1,10 @@
-import type { BoardStore, CommandRegistry, EventBus, ShapeData } from "@edv4h/usketch-shared";
+import type {
+	BoardStore,
+	CommandRegistry,
+	ContainerAttachHit,
+	EventBus,
+	ShapeData,
+} from "@edv4h/usketch-shared";
 import { containsAABB } from "./collision-utils.js";
 import { createReparentCommand } from "./commands.js";
 import { wouldCreateCycle } from "./hierarchy-utils.js";
@@ -19,29 +25,66 @@ export interface ContainmentAttacherOptions {
 	 * non-attach containers (e.g. group) and plain shapes may attach.
 	 */
 	canAttach?: (shape: ShapeData) => boolean;
+	/**
+	 * How much of a shape must be inside `container` for it to attach (and stay
+	 * attached). Default: `"contain"` for every container. Typically
+	 * registry-aware: `getContainerAttachHit(def, container)`.
+	 */
+	attachHit?: (container: ShapeData) => ContainerAttachHit;
+	/**
+	 * Whether `container` adopts `shape`. Default: always. Typically
+	 * registry-aware: `containerAccepts(def, container, shape)`.
+	 */
+	accepts?: (container: ShapeData, shape: ShapeData) => boolean;
+}
+
+/** Container-specific rules {@link findAttachParent} applies to each candidate. */
+export interface AttachParentRules {
+	attachHit?: (container: ShapeData) => ContainerAttachHit;
+	accepts?: (container: ShapeData, shape: ShapeData) => boolean;
 }
 
 const boundsOf = (s: ShapeData) => ({ x: s.x, y: s.y, width: s.width, height: s.height });
 
 /**
+ * Whether `shape` is inside `container` enough to be its child: wholly
+ * (`"contain"`) or by its center (`"center"`).
+ */
+export function isInsideForAttach(
+	container: ShapeData,
+	shape: ShapeData,
+	hit: ContainerAttachHit = "contain",
+): boolean {
+	const c = boundsOf(container);
+	if (hit === "center") {
+		const cx = shape.x + shape.width / 2;
+		const cy = shape.y + shape.height / 2;
+		return cx >= c.x && cx <= c.x + c.width && cy >= c.y && cy <= c.y + c.height;
+	}
+	return containsAABB(c, boundsOf(shape));
+}
+
+/**
  * The container {@link createContainmentAttacher} attaches `shape` to: the
- * smallest attach-target container that fully contains it (never one of its
- * own descendants), or null. `shape` may be a not-yet-added copy; the store
- * entry with its id, if any, is skipped.
+ * smallest attach-target container that contains it (wholly, or by its center
+ * for a container whose `rules.attachHit` is `"center"`) and accepts it (never
+ * one of its own descendants), or null. `shape` may be a not-yet-added copy;
+ * the store entry with its id, if any, is skipped.
  */
 export function findAttachParent(
 	store: BoardStore,
 	shape: ShapeData,
 	isAttachTarget: (shape: ShapeData) => boolean,
+	rules: AttachParentRules = {},
 ): ShapeData | null {
-	const shapeBounds = boundsOf(shape);
 	let best: ShapeData | null = null;
 	for (const [id, candidate] of store.getShapes()) {
 		if (id === shape.id) continue;
 		if (!isAttachTarget(candidate)) continue;
 		// Never nest a shape into one of its own descendants.
 		if (wouldCreateCycle(store, shape.id, id)) continue;
-		if (!containsAABB(boundsOf(candidate), shapeBounds)) continue;
+		if (!isInsideForAttach(candidate, shape, rules.attachHit?.(candidate))) continue;
+		if (rules.accepts && !rules.accepts(candidate, shape)) continue;
 		if (!best || candidate.width * candidate.height < best.width * best.height) {
 			best = candidate;
 		}
@@ -52,7 +95,8 @@ export function findAttachParent(
 /**
  * Wire up automatic parent-child attachment by containment. When a shape is
  * added or finishes a move, find the smallest attach-target container that
- * fully contains it and set its `parentId` (or clear it when moved out).
+ * contains it (wholly by default, or by its center — see `attachHit`) and
+ * accepts it, and set its `parentId` (or clear it when moved out).
  *
  * Generalizes the frame plugin's former bespoke `autoReparent` so any shape
  * whose definition opts in via `container.autoAttach` participates. Reuses
@@ -62,6 +106,7 @@ export function findAttachParent(
  */
 export function createContainmentAttacher(opts: ContainmentAttacherOptions): () => void {
 	const { store, commands, events, isAttachTarget } = opts;
+	const rules: AttachParentRules = { attachHit: opts.attachHit, accepts: opts.accepts };
 	const canAttach =
 		opts.canAttach ?? ((s: ShapeData) => s.type !== "connector" && !isAttachTarget(s));
 
@@ -69,7 +114,6 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 		const shape = store.getShape(shapeId);
 		if (!shape || !canAttach(shape)) return;
 
-		const shapeBounds = boundsOf(shape);
 		// A shape added with a parentId (duplicate / paste) keeps that parent: an
 		// attach-target parent (frame) while it still contains the shape — re-picking
 		// would tie-break same-size containers (e.g. the original frame under its
@@ -77,11 +121,14 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 		// that membership is not decided by containment.
 		if (keepContainingParent && typeof shape.parentId === "string") {
 			const parent = store.getShape(shape.parentId);
-			if (parent && (!isAttachTarget(parent) || containsAABB(boundsOf(parent), shapeBounds))) {
+			if (
+				parent &&
+				(!isAttachTarget(parent) || isInsideForAttach(parent, shape, rules.attachHit?.(parent)))
+			) {
 				return;
 			}
 		}
-		const best = findAttachParent(store, shape, isAttachTarget);
+		const best = findAttachParent(store, shape, isAttachTarget, rules);
 
 		const currentParentId = shape.parentId as string | undefined;
 		const newParentId = best?.id;

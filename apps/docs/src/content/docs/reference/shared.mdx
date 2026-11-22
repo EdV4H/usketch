@@ -125,6 +125,10 @@ interface ShapeDefinition {
     enabled?: boolean | ((data: ShapeData) => boolean);
     selectableChildren?: boolean | ((data: ShapeData) => boolean);
     autoAttach?: boolean | ((data: ShapeData) => boolean);
+    // Attach when the child's center is inside (default "contain" = wholly inside).
+    attachHit?: "contain" | "center" | ((data: ShapeData) => "contain" | "center");
+    // Which shapes to adopt (rejected ones pass through to an outer container).
+    accepts?: (child: ShapeData, container: ShapeData) => boolean;
     layout?: (ctx: { container: ShapeData; children: ShapeData[] }) =>
       Array<{ id: string; patch: Partial<ShapeData> }>;
   };

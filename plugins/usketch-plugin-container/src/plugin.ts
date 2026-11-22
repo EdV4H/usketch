@@ -1,5 +1,9 @@
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
-import { isContainerAutoAttach } from "@edv4h/usketch-shared";
+import {
+	containerAccepts,
+	getContainerAttachHit,
+	isContainerAutoAttach,
+} from "@edv4h/usketch-shared";
 import { createContainmentAttacher } from "@edv4h/usketch-store";
 import { setupArrange } from "./arrange.js";
 import { setupSnapExclude } from "./snap-exclude.js";
@@ -11,6 +15,8 @@ import { setupSnapExclude } from "./snap-exclude.js";
  *
  * - **Auto-attach** — a shape dropped inside a container with
  *   `container.autoAttach` gets `parentId` set (and cleared when moved out).
+ *   `container.attachHit: "center"` adopts a shape whose center is inside;
+ *   `container.accepts` limits which shapes are adopted.
  * - **Arrange** — a container's `container.layout` positions its children.
  * - **Snap exclusion** — children following a dragged container are excluded
  *   from snapping (requires `plugin-snap`; no-op without it).
@@ -33,6 +39,9 @@ export function createContainerPlugin(): UsketchPlugin {
 				commands: ctx.commands,
 				events: ctx.events,
 				isAttachTarget,
+				attachHit: (container) => getContainerAttachHit(ctx.shapes.get(container.type), container),
+				accepts: (container, shape) =>
+					containerAccepts(ctx.shapes.get(container.type), container, shape),
 			});
 			const stopArrange = setupArrange(ctx);
 			const stopSnap = setupSnapExclude(ctx);

@@ -49,6 +49,19 @@ describe("findDropTarget", () => {
 		expect(findDropTarget(c, { x: 10, y: 10 }, new Set())).toBe("back");
 	});
 
+	it("container.accepts がドラッグ中の図形をどれも受け入れないコンテナは対象外", () => {
+		defs.slot = def({ autoAttach: true, accepts: (child) => child.type === "card" });
+		const c = ctx([
+			shape("back", "frame", 0, 0, 300, 300),
+			shape("s", "slot"),
+			shape("card1", "card", 400),
+			shape("note", "rect", 400),
+		]);
+		expect(findDropTarget(c, { x: 50, y: 50 }, new Set(["card1"]))).toBe("s");
+		expect(findDropTarget(c, { x: 50, y: 50 }, new Set(["note"]))).toBe("back");
+		expect(findDropTarget(c, { x: 50, y: 50 }, new Set(["note", "card1"]))).toBe("s");
+	});
+
 	it("container.autoAttach の関数形式をインスタンスごとに評価する", () => {
 		defs.dynamic = def({ autoAttach: (s) => s.id === "yes" });
 		const c = ctx([shape("yes", "dynamic"), shape("no", "dynamic", 200, 0)]);
