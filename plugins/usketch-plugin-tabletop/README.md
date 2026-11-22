@@ -44,6 +44,41 @@ The HUD gets four actions on a selected zone: **Zone layout**, **Zone
 alignment**, **Turn dropped shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
 out, or places one of the default size (140 × 196) with a click.
 
+## Player views
+
+A **player view** (`tabletop-view`) is a dashed frame on the table that marks
+what a player sees while a game is played. A board can have any number of them
+(one per seat, or one for everyone). Its meta is `label` and `camera`:
+
+| `camera` | While the view is applied |
+| -------- | ------------------------- |
+| `fixed`  | The camera can't be moved at all. |
+| `zoom` (default) | Zooming in and panning inside the view are allowed; it can't zoom out past the view or show what is outside it. |
+| `free`   | The camera is brought to the view once and can then go anywhere. |
+
+Only the frame's edge and its label strip take clicks, so a view drawn over the
+table doesn't get in the way of the cards inside it. The HUD gets **Add player
+view** (what is on screen becomes the view), **View camera** and **View label**.
+
+The plugin doesn't move anyone's camera by itself. The host applies a view when
+play starts, and decides who gets which view:
+
+```ts
+import { applyViewCamera, readViewMeta } from "@edv4h/usketch-plugin-tabletop";
+
+const view = app.store.getShape(seatViewId);
+const camera = applyViewCamera(app.store, () => app.store.getShape(seatViewId) ?? null, readViewMeta(view).camera, {
+	getSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+});
+camera.returnToView(); // after zooming in
+camera.release(); // when play ends
+```
+
+`applyViewCamera` fits the whole view on any screen shape, then holds it with
+the store's viewport constraint (`fixed` / `zoom`). It only removes the
+constraint it installed. The pieces are exported too: `fitViewToScreen`,
+`stayInViewConstraint`, `pinToViewConstraint`, `isAtView`.
+
 ## Plugin options
 
 | Option        | What it does |
@@ -55,6 +90,8 @@ out, or places one of the default size (140 × 196) with a click.
 | `defaultSize` | Size of a zone placed by a click. |
 | `arrange`     | Spacing: `padding`, `gap`, `spreadStep`. |
 | `tool`        | Register the drawing tool. Default `true`. |
+| `views`       | Register the player view shape and its actions. Default `true`. |
+| `renderView`  | A view's look, from `{ view, meta }`. Default: a dashed frame with a camera mark and the label. |
 
 Turning and raising a dropped shape run only for the user who dropped it and
 are not part of undo (like flipping a card).
