@@ -1,11 +1,17 @@
 import type { AppInstance } from "@edv4h/usketch-core";
 import { useRef, useState } from "react";
 import type { BoardRuntime, PagesState } from "../lib/board-pages.js";
+import { PAGE_PRESETS, type PresetId, pagePlugins, pagePreset } from "./page-presets.js";
 import { type BoardSource, useBoardConnection } from "./use-board-connection.js";
 import { type LastOpen, type PageAppOptions, usePageApp } from "./use-page-app.js";
 
-export interface BoardHostOptions extends Omit<PageAppOptions, "board" | "pageId"> {
+export interface BoardHostOptions extends Omit<PageAppOptions, "board" | "pageId" | "plugins"> {
 	source: BoardSource | null;
+	/**
+	 * プリセットの無いページ（とページを使わないボード）を開くプリセット。ページは
+	 * `PageMeta.plugins`、無ければ `PageMeta.preset` のプラグインで開く。
+	 */
+	defaultPreset: PresetId;
 	/**
 	 * 開くページを選ぶ。ページを使わないボードは null、まだ決められない（URL のページが
 	 * 届いていないなど）ときは undefined。
@@ -37,7 +43,24 @@ export function useBoardHost(options: BoardHostOptions): BoardHost {
 	const pageId = current && pagesState ? options.pickPage(pagesState) : undefined;
 	// ページの App を先に宣言する: React は cleanup を宣言順に走らせるので、ボードを閉じる
 	// ときは接続より先に App を壊せる。
-	const { app, error, lastOpen } = usePageApp({ ...options, board: current, pageId });
+	const page = pageId ? (pagesState?.pages.find((p) => p.id === pageId) ?? null) : null;
+	const plugins = new Set(pagePlugins(page, options.defaultPreset));
+	const preset = PAGE_PRESETS[pagePreset(page, options.defaultPreset)];
+	const { app, error, lastOpen } = usePageApp({
+		...options,
+		board: current,
+		pageId,
+		plugins,
+		host: { ...options.host, defaultPreset: options.defaultPreset },
+		onCreated: (created, wiring) => {
+			// ホストのもの（地域の決まった地形など）を先に
+			options.onCreated?.(created, wiring);
+			// 空のページを初めて開いたら、プリセットの「最初に置くもの」を置く（地形など）
+			if (wiring.pageId && preset.setupEmptyPage && created.store.getShapes().size === 0) {
+				preset.setupEmptyPage(created.store, wiring.pageId);
+			}
+		},
+	});
 	useBoardConnection(options.source, switchPageRef, setBoard, setPagesState);
 	return { app, error, board: current, pagesState: current ? pagesState : null, pageId, lastOpen };
 }

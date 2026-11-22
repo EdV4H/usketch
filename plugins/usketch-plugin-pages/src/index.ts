@@ -1,3 +1,9 @@
+export type {
+	PagePluginChoice,
+	PagePluginsOptions,
+	PagePresetChoice,
+} from "./page-plugins.js";
+export { conflictingPlugins, togglePlugin } from "./page-plugins.js";
 export {
 	collectTransferShapes,
 	copyShapesToPage,

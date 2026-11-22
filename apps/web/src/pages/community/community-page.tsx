@@ -1,18 +1,16 @@
 import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { API_URL, type BoardSource, presetPlugins, useBoardHost } from "../../board-host/index.js";
+import { API_URL, type BoardSource, useBoardHost } from "../../board-host/index.js";
 import { boardMetaStore } from "../../lib/board-meta-store.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
 import { useCommunityActions } from "../../lib/use-community-actions.js";
 import { useKeyboardShortcuts } from "../../lib/use-keyboard-shortcuts.js";
 import { CommunityHeader } from "./community-header.js";
-import { ensureRegionTerrain } from "./community-terrain.js";
+import { ELEVATION_REGIONS, ensureRegionTerrain } from "./community-terrain.js";
 
-const MAP = presetPlugins("map");
-
-/** `/community/:slug` の地域。地域のボードを map プリセットで開く（ページを使うボードは先頭ページ）。 */
+/** `/community/:slug` の地域。地域のボードを map / map-terrain プリセットで開く（ページを使うボードは先頭ページ）。 */
 export function CommunityPage() {
 	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
@@ -59,7 +57,8 @@ export function CommunityPage() {
 		source,
 		// ページを使うボード（マルチページ移行後）は先頭ページ。
 		pickPage: (state) => (state.paged ? (state.pages[0]?.id ?? undefined) : null),
-		plugins: MAP,
+		// 標高の地域（Playground）は地形マップ、ほかはタイルのマップ。
+		defaultPreset: slug && Object.hasOwn(ELEVATION_REGIONS, slug) ? "map-terrain" : "map",
 		host: { navigate },
 		user: { id: authUserId, name: authUser?.name ?? null, image: authUser?.image ?? null },
 		switchPage: () => {},

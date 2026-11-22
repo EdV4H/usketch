@@ -119,6 +119,7 @@ import { createPresencePanelPlugin } from "../plugins/presence-panel.js";
 import { createSyncStatusPanelPlugin } from "../plugins/sync-status-panel.js";
 import { createViewportLodControlPlugin } from "../plugins/viewport-lod-control.js";
 import { type HostWiring, localUserId, localUserName } from "./host-wiring.js";
+import { PAGE_PRESETS, PRESET_IDS, pagePlugins } from "./page-presets.js";
 
 type Created = UsketchPlugin | UsketchPlugin[] | null;
 
@@ -131,6 +132,8 @@ export interface CatalogEntry {
 	base?: boolean;
 	/** サーバーとの接続が要る。接続の無いボード（お試しボード・未ログイン）では読まない。 */
 	needsServer?: boolean;
+	/** 同じページに入れられないもの（HUD で入れると外れる）。 */
+	conflicts?: readonly string[];
 	/** 配線を受けてプラグインを作る。null ならこのホストでは読まない。 */
 	create(w: HostWiring): Created | Promise<Created>;
 }
@@ -297,7 +300,12 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 	},
 	// 標高（連続した高さの地形）。地面の高さを提供するので、キャラは坂を上り下りし、
 	// 3D の Shape は丘に乗る。HUD「標高」で地形を作る。
-	{ id: "elevation", label: "標高", create: () => createElevationPlugin() },
+	{
+		id: "elevation",
+		label: "標高",
+		conflicts: ["map"],
+		create: () => createElevationPlugin(),
+	},
 	// 3D 表示の描画（既定は CSS 3D）。Mode 7 などの 3D ビューはボードの 3D 表示の状態を
 	// 変えるだけで、描くのはこのレンダラー。
 	{
@@ -391,19 +399,31 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 		base: true,
 		create: () => createSyncStatusPanelPlugin(),
 	},
+	// ページパネル。ページごとのプラグイン（プリセットから作る・1 つずつ足し引き）も選べる。
 	{
 		id: "pages",
 		label: "ページ",
 		base: true,
-		create: (w) =>
-			w.pageId && w.host.pagesPanel
-				? createPagesPlugin({
-						rootDoc: w.board.rootDoc,
-						pageId: w.pageId,
-						switchPage: w.switchPage,
-						openPageDoc: (id) => w.board.pageDocs.open(id),
-					})
-				: null,
+		create: (w) => {
+			if (!w.pageId || !w.host.pagesPanel) return null;
+			const fallback = w.host.defaultPreset ?? "whiteboard";
+			const connected = w.wsProvider !== null;
+			return createPagesPlugin({
+				rootDoc: w.board.rootDoc,
+				pageId: w.pageId,
+				switchPage: w.switchPage,
+				openPageDoc: (id) => w.board.pageDocs.open(id),
+				pagePlugins: {
+					presets: PRESET_IDS.map((id) => ({ id, label: PAGE_PRESETS[id].label })),
+					defaultPreset: fallback,
+					// 外せないもの・この接続では読めないものは選べない
+					choices: PLUGIN_CATALOG.filter((e) => !e.base && (connected || !e.needsServer)).map(
+						(e) => ({ id: e.id, label: e.label, conflicts: e.conflicts }),
+					),
+					resolve: (page) => pagePlugins(page, fallback),
+				},
+			});
+		},
 	},
 	{
 		id: "laser",
