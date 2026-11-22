@@ -8,8 +8,45 @@ export {
 	type ZoneAttachEvent,
 } from "./attach-watch.js";
 export { type CreateTabletopPluginOptions, createTabletopPlugin, ZONE_TOOL_ID } from "./plugin.js";
+export {
+	DefaultView,
+	type TabletopViewRenderProps,
+	VIEW_LABEL_HEIGHT,
+} from "./render-view.js";
 export { DefaultZone, type TabletopZoneRenderProps } from "./render-zone.js";
 export { createTabletopApi, getTabletopApi, type TabletopApi, tabletopService } from "./service.js";
+export {
+	type CreateViewShapeParams,
+	createViewShape,
+	DEFAULT_VIEW_SIZE,
+	isView,
+	listViews,
+	nextViewLabel,
+	readViewMeta,
+	setViewCamera,
+	setViewLabel,
+	type TabletopViewMeta,
+	updateViewMeta,
+	VIEW_CAMERAS,
+	VIEW_TYPE,
+	type ViewCamera,
+	viewEdgeHit,
+	viewLabelWidth,
+} from "./view.js";
+export {
+	type ApplyViewCameraOptions,
+	applyViewCamera,
+	fitViewToScreen,
+	isAtView,
+	pinToViewConstraint,
+	screenWorldBounds,
+	stayInViewConstraint,
+	VIEW_FIT_PADDING,
+	type ViewCameraHandle,
+	type ViewportSize,
+	viewFitZoom,
+	visibleWorldRect,
+} from "./view-camera.js";
 export {
 	type CreateZoneShapeParams,
 	createZoneShape,

@@ -16,6 +16,7 @@ import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { createTabletopPlugin, ZONE_TOOL_ID } from "../plugin.js";
 import { getTabletopApi } from "../service.js";
+import { readViewMeta, VIEW_TYPE } from "../view.js";
 import { createZoneShape, readZoneMeta, ZONE_TYPE } from "../zone.js";
 
 function harness(opts: Parameters<typeof createTabletopPlugin>[0] = {}) {
@@ -53,6 +54,29 @@ describe("createTabletopPlugin", () => {
 				"tabletop-zone:label",
 			]),
 		);
+	});
+
+	it("registers the player view shape (edge-only hit) and its actions, unless views is false", () => {
+		const { ctx, api, store } = harness();
+		const def = ctx.shapes.get(VIEW_TYPE);
+		expect(def).toBeDefined();
+		const view = api.addView({ id: "v", x: 0, y: 0, width: 400, height: 300, label: "Seat 1" });
+		expect(def?.hitTest?.(view, { x: 200, y: 150 })).toBe(false);
+		expect(def?.hitTest?.(view, { x: 1, y: 150 })).toBe(true);
+		expect(def?.hitTest?.(view, { x: 40, y: 20 })).toBe(true); // the label strip
+		expect(def?.hitTest?.(view, { x: 200, y: 20 })).toBe(false); // past the short label
+		const zone = ctx.shapes.get(ZONE_TYPE)?.container;
+		expect(zone?.accepts?.(view, createZoneShape({ x: 0, y: 0 }))).toBe(false);
+		expect(api.views().map((v) => v.id)).toEqual(["v"]);
+		expect(api.setViewCamera("v", "fixed")).toBe(true);
+		expect(readViewMeta(store.getShape("v") ?? {}).camera).toBe("fixed");
+		const ids = ctx.actions.getOrdered().map((a) => a.id);
+		expect(ids).toEqual(
+			expect.arrayContaining(["tabletop-view:add", "tabletop-view:camera", "tabletop-view:label"]),
+		);
+		const off = harness({ views: false });
+		expect(off.ctx.shapes.get(VIEW_TYPE)).toBeUndefined();
+		expect(off.ctx.actions.getOrdered().map((a) => a.id)).not.toContain("tabletop-view:add");
 	});
 
 	it("does not register the tool when tool is false", () => {
