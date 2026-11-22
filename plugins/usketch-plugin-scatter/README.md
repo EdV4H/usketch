@@ -23,6 +23,10 @@ await api?.scatter({
   spawned + placed in the same undoable command.
 - **Patterns** — `radial` / `scatter` (random + rotation) / `unoverlap` (delegates to
   `findFreePosition`) / `grid`; add more with `registerPattern`.
+- **Seed point** — `origin: { point, radius? }` scatters around a bare point (e.g. where a
+  tool was clicked) instead of a seed shape; pass explicit `items` with it.
+- **Occupied filter** — `occupiedIn` (a box, via the store's spatial index) and
+  `occupiedFilter` (a predicate) narrow what `unoverlap` / host patterns must avoid.
 - **Animation** — `animate` + `durationMs` + `easing` for a fly-out tween.
 
 UI: registered on the Control HUD (`ぶちまけ設定` + the `関連Shapeをぶちまける` action,

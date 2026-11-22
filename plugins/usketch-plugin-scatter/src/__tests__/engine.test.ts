@@ -7,7 +7,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { scatter } from "../engine.js";
-import type { ScatterDeps } from "../types.js";
+import type { PatternContext, ScatterDeps } from "../types.js";
 
 function makeEnv(initial: Partial<ShapeData>[]) {
 	const shapes = new Map<string, ShapeData>(initial.map((s) => [s.id as string, s as ShapeData]));
@@ -22,6 +22,17 @@ function makeEnv(initial: Partial<ShapeData>[]) {
 			if (s) shapes.set(id, { ...s, ...patch });
 		},
 		deleteShape: (id: string) => shapes.delete(id),
+		// Exact AABB intersection stands in for the store's spatial index.
+		getVisibleShapeIds: (b: { x: number; y: number; width: number; height: number }) =>
+			[...shapes.values()]
+				.filter(
+					(s) =>
+						s.x <= b.x + b.width &&
+						b.x <= s.x + s.width &&
+						s.y <= b.y + b.height &&
+						b.y <= s.y + s.height,
+				)
+				.map((s) => s.id),
 		getSelection: () => selection,
 		setSelection: (ids: Iterable<string>) => {
 			selection = new Set(ids);
@@ -153,5 +164,141 @@ describe("scatter() — new + mixed", () => {
 			}),
 		).rejects.toThrow();
 		expect(env.shapes.get("dup")).toMatchObject({ x: 10, y: 10 }); // untouched
+	});
+});
+
+describe("scatter() — origin (seed point)", () => {
+	const note = { kind: "new", spec: { type: "note", width: 20, height: 20 } } as const;
+
+	it("scatters around a bare point with no seed shape", async () => {
+		const env = makeEnv([]);
+		let seen: PatternContext | null = null;
+		const res = await scatter(env.deps, {
+			origin: { point: { x: 100, y: 200 }, radius: 50 },
+			items: [note, note],
+			pattern: (ctx) => {
+				seen = ctx;
+				return ctx.items.map((it) => ({ key: it.key, x: ctx.seedCenter.x, y: ctx.seedCenter.y }));
+			},
+			animate: false,
+		});
+		expect(res.createdIds).toHaveLength(2);
+		expect(env.shapes.size).toBe(2);
+		const ctx = seen as unknown as PatternContext;
+		expect(ctx.seedCenter).toEqual({ x: 100, y: 200 });
+		expect(ctx.seedBounds).toEqual({ x: 50, y: 150, width: 100, height: 100 });
+	});
+
+	it("uses a zero-size seed box when radius is omitted", async () => {
+		const env = makeEnv([]);
+		let bounds: unknown = null;
+		await scatter(env.deps, {
+			origin: { point: { x: 10, y: 20 } },
+			items: [note],
+			pattern: (ctx) => {
+				bounds = ctx.seedBounds;
+				return [];
+			},
+			animate: false,
+		});
+		expect(bounds).toEqual({ x: 10, y: 20, width: 0, height: 0 });
+	});
+
+	it("prefers seedId over origin, and origin over the selection", async () => {
+		const env = makeEnv([rect("seed", 0, 0), rect("sel", 1000, 1000)]);
+		env.store.setSelection(["sel"]);
+		const centers: unknown[] = [];
+		const pattern = (ctx: PatternContext) => {
+			centers.push(ctx.seedCenter);
+			return [];
+		};
+		await scatter(env.deps, {
+			seedId: "seed",
+			origin: { point: { x: 500, y: 500 } },
+			items: [note],
+			pattern,
+		});
+		await scatter(env.deps, { origin: { point: { x: 500, y: 500 } }, items: [note], pattern });
+		expect(centers).toEqual([
+			{ x: 20, y: 20 },
+			{ x: 500, y: 500 },
+		]);
+	});
+
+	it("rejects a relation without a seed shape", async () => {
+		const env = makeEnv([]);
+		await expect(
+			scatter(env.deps, {
+				origin: { point: { x: 0, y: 0 } },
+				relation: "children",
+				pattern: "grid",
+			}),
+		).rejects.toThrow(/relation needs a seed shape/);
+	});
+
+	it("rejects a non-finite origin point", async () => {
+		const env = makeEnv([]);
+		await expect(
+			scatter(env.deps, {
+				origin: { point: { x: Number.NaN, y: 0 } },
+				items: [note],
+				pattern: "grid",
+			}),
+		).rejects.toThrow(/finite/);
+	});
+});
+
+describe("scatter() — occupiedIn / occupiedFilter", () => {
+	const note = { kind: "new", spec: { type: "note", width: 20, height: 20 } } as const;
+	const captureOccupied = async (
+		env: ReturnType<typeof makeEnv>,
+		extra: Partial<Parameters<typeof scatter>[1]>,
+	) => {
+		let occupied: unknown = null;
+		await scatter(env.deps, {
+			origin: { point: { x: 0, y: 0 } },
+			items: [note],
+			pattern: (ctx) => {
+				occupied = ctx.occupied;
+				return [];
+			},
+			...extra,
+		});
+		return occupied as { x: number; y: number }[];
+	};
+
+	it("defaults to every shape on the board", async () => {
+		const env = makeEnv([rect("near", 0, 0), rect("far", 5000, 5000)]);
+		const occ = await captureOccupied(env, {});
+		expect(occ).toHaveLength(2);
+	});
+
+	it("limits occupied to shapes intersecting occupiedIn", async () => {
+		const env = makeEnv([rect("near", 0, 0), rect("far", 5000, 5000)]);
+		const occ = await captureOccupied(env, {
+			occupiedIn: { x: -100, y: -100, width: 200, height: 200 },
+		});
+		expect(occ).toEqual([{ x: 0, y: 0, width: 40, height: 40 }]);
+	});
+
+	it("drops shapes rejected by occupiedFilter", async () => {
+		const env = makeEnv([rect("note", 0, 0), rect("frame", 0, 0, { type: "frame" })]);
+		const occ = await captureOccupied(env, { occupiedFilter: (s) => s.type !== "frame" });
+		expect(occ).toHaveLength(1);
+	});
+
+	it("still excludes moving items from occupied", async () => {
+		const env = makeEnv([rect("seed", 0, 0), rect("a", 10, 10, { parentId: "seed" })]);
+		let occupied: unknown[] = [];
+		await scatter(env.deps, {
+			seedId: "seed",
+			relation: "children",
+			occupiedIn: { x: -100, y: -100, width: 200, height: 200 },
+			pattern: (ctx) => {
+				occupied = ctx.occupied;
+				return [];
+			},
+		});
+		expect(occupied).toEqual([{ x: 0, y: 0, width: 40, height: 40 }]);
 	});
 });
