@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-timter
 
+## 0.3.27
+
+### Patch Changes
+
+- 0c54787: タイマー・投票・Croupier テーブルをアクションで置くときの「画面中央」を shared の `screenCenterWorld` で求めるようにした。ビューが回転しているときも画面の中央に置かれる。
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+  - @edv4h/usketch-store@3.13.0
+
 ## 0.3.26
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-shape-image
 
+## 3.3.13
+
+### Patch Changes
+
+- ca81f12: 画像・Markdown（テキスト / 表）・URL 埋め込みを貼り付け / ドロップしたときの置き場所（画面の中央）を、各プラグインの手書きの座標計算ではなく共通の `screenCenterWorld` で求めるようにした。ビューが回転しているとき（Mode 7 のヨー回転、キャラ追従など）に、貼り付けた図形が画面の中央から外れた位置に置かれていたのが直る。回転していないときの置き場所は変わらない。
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+  - @edv4h/usketch-store@3.13.0
+  - @edv4h/usketch-shape-utils@2.4.9
+  - @edv4h/usketch-plugin-asset-store@0.2.11
+
 ## 3.3.12
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-reactions
 
+## 2.1.22
+
+### Patch Changes
+
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+
 ## 2.1.21
 
 ### Patch Changes

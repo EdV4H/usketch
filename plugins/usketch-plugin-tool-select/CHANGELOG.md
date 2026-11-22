@@ -1,5 +1,24 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.8.0
+
+### Minor Changes
+
+- 3d0a677: `container.autoAttach` のコンテナに、付ける条件を 2 つ足した。
+  
+  - `container.attachHit: "center"` — 図形の「中心」がコンテナに入れば子にする（中心が出たら外す）。既定の `"contain"`（図形全体が入ったときだけ）は変わらない。カードの置き場や席のように、中身とほぼ同じ大きさのコンテナでも、だいたいの位置に落とせば付く。
+  - `container.accepts(child, container)` — 子にする図形を絞る。`false` を返した図形はそのコンテナを素通りし、外側のコンテナ（フレームなど）に付く。
+  
+  判定は `getContainerAttachHit` / `containerAccepts`（shared）で読む。store の `createContainmentAttacher` / `findAttachParent` は `attachHit` / `accepts` を受け取れるようになり（`isInsideForAttach` も export）、container プラグインがシェイプ定義から渡す。Option+ドラッグの複製の親も同じ規則で決まる。select ツールのドロップ先のハイライトは、ドラッグ中の図形を受け入れないコンテナを飛ばす（ハイライトする位置は今までどおりポインタの下）。
+
+### Patch Changes
+
+- Updated dependencies [3d0a677]
+  - @edv4h/usketch-shared@4.28.0
+  - @edv4h/usketch-store@3.13.0
+  - @edv4h/usketch-core@2.6.3
+  - @edv4h/usketch-tool-helpers@0.8.11
+
 ## 3.7.0
 
 ### Minor Changes
