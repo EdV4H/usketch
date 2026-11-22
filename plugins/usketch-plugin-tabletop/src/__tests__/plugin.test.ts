@@ -134,6 +134,14 @@ describe("createTabletopPlugin", () => {
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).arrange).toBe("grid");
 	});
 
+	it("editing a zone drops an unknown align", () => {
+		const { api, store } = harness();
+		const zone = api.addZone({ x: 0, y: 0 });
+		store.updateShape(zone.id, { meta: { ...zone.meta, align: "up" } as ShapeData["meta"] });
+		expect(api.setLabel(zone.id, "Deck")).toBe(true);
+		expect((store.getShape(zone.id) as ShapeData).meta).not.toHaveProperty("align");
+	});
+
 	it("the align action sets the selected zone's alignment", () => {
 		const { ctx, api, store } = harness();
 		const zone = api.addZone({ x: 0, y: 0 });

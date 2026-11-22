@@ -42,7 +42,9 @@ export function updateZoneMeta(
 	const zone = store.getShape(zoneId);
 	if (!isZone(zone) || !zone) return false;
 	// Keep `align` unset unless the zone or the patch sets it (it then follows `arrange`).
-	const next = { ...(zone.meta ?? {}), ...storedZoneMeta(zone), ...patch };
+	// Drop an unknown `align` too, like the other fields are cleaned up.
+	const { align: _raw, ...rest } = (zone.meta ?? {}) as Record<string, unknown>;
+	const next = { ...rest, ...storedZoneMeta(zone), ...patch };
 	store.updateShape(zoneId, { meta: next as ShapeData["meta"] });
 	return true;
 }
