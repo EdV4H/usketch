@@ -152,13 +152,6 @@ export function useAppActions(
 		}
 
 		reg({
-			id: "nav:dashboard",
-			group: "移動",
-			label: "ダッシュボードへ戻る",
-			icon: () => <I.home size={14} />,
-			run: () => navigate("/dashboard"),
-		});
-		reg({
 			id: "nav:community",
 			group: "移動",
 			label: "コミュニティマップ",
