@@ -1,4 +1,4 @@
-import type { ShapeDefinition } from "../types/plugin.js";
+import type { ContainerAttachHit, ShapeDefinition } from "../types/plugin.js";
 import type { ShapeData } from "../types/shape.js";
 
 /**
@@ -51,4 +51,30 @@ export function isContainerAutoAttach(def: ShapeDefinition | undefined, shape: S
 /** The container's child-layout function, or `undefined` if it uses free positioning. */
 export function getContainerLayout(def: ShapeDefinition | undefined) {
 	return def?.container?.layout;
+}
+
+/**
+ * How much of a dropped shape must be inside `container` to be auto-attached:
+ * `"contain"` (the whole shape, the default) or `"center"` (its center).
+ */
+export function getContainerAttachHit(
+	def: ShapeDefinition | undefined,
+	container: ShapeData,
+): ContainerAttachHit {
+	const h = def?.container?.attachHit;
+	const value = typeof h === "function" ? h(container) : h;
+	return value === "center" ? "center" : "contain";
+}
+
+/**
+ * Whether `container` adopts `child` when it is dropped on it. `true` when the
+ * definition sets no {@link ShapeDefinition.container.accepts} filter.
+ */
+export function containerAccepts(
+	def: ShapeDefinition | undefined,
+	container: ShapeData,
+	child: ShapeData,
+): boolean {
+	const accepts = def?.container?.accepts;
+	return accepts ? accepts(child, container) : true;
 }

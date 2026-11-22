@@ -122,6 +122,10 @@ interface ShapeDefinition {
     enabled?: boolean | ((data: ShapeData) => boolean);
     selectableChildren?: boolean | ((data: ShapeData) => boolean);
     autoAttach?: boolean | ((data: ShapeData) => boolean);
+    // 中身の「中心」が入れば付ける（既定 "contain" = 全体が入ったときだけ）。
+    attachHit?: "contain" | "center" | ((data: ShapeData) => "contain" | "center");
+    // 付ける図形を絞る（false を返した図形は素通りして外側のコンテナへ）。
+    accepts?: (child: ShapeData, container: ShapeData) => boolean;
     layout?: (ctx: { container: ShapeData; children: ShapeData[] }) =>
       Array<{ id: string; patch: Partial<ShapeData> }>;
   };

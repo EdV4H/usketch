@@ -192,6 +192,7 @@ export type {
 	CanvasWheelEvent,
 	Command,
 	CommandRegistry,
+	ContainerAttachHit,
 	CoreEventMap,
 	EventBus,
 	ExternalContent,
@@ -280,6 +281,8 @@ export {
 export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
 // Container
 export {
+	containerAccepts,
+	getContainerAttachHit,
 	getContainerLayout,
 	hasSelectableChildren,
 	isContainerAutoAttach,

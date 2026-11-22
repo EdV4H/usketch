@@ -7,7 +7,13 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { isContainerAutoAttach, isView3dShown, safeRotation } from "@edv4h/usketch-shared";
+import {
+	containerAccepts,
+	getContainerAttachHit,
+	isContainerAutoAttach,
+	isView3dShown,
+	safeRotation,
+} from "@edv4h/usketch-shared";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -258,6 +264,14 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			const isAttachTarget = (shape: ShapeData) =>
 				isContainerAutoAttach(ctx.shapes.get(shape.type), shape);
+			// The container plugin's attacher applies each container's attachHit / accepts;
+			// the copies' parents must follow the same rules.
+			const attachRules = {
+				attachHit: (container: ShapeData) =>
+					getContainerAttachHit(ctx.shapes.get(container.type), container),
+				accepts: (container: ShapeData, shape: ShapeData) =>
+					containerAccepts(ctx.shapes.get(container.type), container, shape),
+			};
 
 			// Snap must not nudge the shapes put back to their start positions when the
 			// drag switches between the originals and the copies.
@@ -287,6 +301,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 							state.selectedIds,
 							state.originalMovingIds,
 							isAttachTarget,
+							attachRules,
 						);
 						store.setSelection(state.copies.rootIds);
 					} else {
@@ -726,7 +741,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						const now = toolCtx.store.getShape(s.id);
 						return !!now && (now.x !== s.x || now.y !== s.y);
 					});
-					const add = moved ? commitDragCopies(toolCtx.store, copies, isAttachTarget) : null;
+					const add = moved
+						? commitDragCopies(toolCtx.store, copies, isAttachTarget, attachRules)
+						: null;
 					if (!add) discardCopies();
 					dragState = null;
 					if (add) {

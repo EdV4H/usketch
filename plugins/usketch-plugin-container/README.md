@@ -6,6 +6,8 @@ shape definition can't express on its own:
 
 - **Auto-attach** — a shape dropped fully inside a container that sets
   `container.autoAttach` gets its `parentId` set (and cleared when moved out).
+  With `container.attachHit: "center"` its center being inside is enough, and
+  `container.accepts` limits which shapes are adopted.
 - **Arrange** — a container's `container.layout` positions its children on
   attach/detach, resize, and (non-drag) updates.
 - **Snap exclusion** — while a container is dragged, its children (which follow
@@ -50,6 +52,30 @@ ctx.shapes.register("wireframe", {
 ```
 
 Children are ordinary shapes referencing the container via native `parentId`.
+
+### Snug containers (`attachHit`, `accepts`)
+
+By default a shape attaches only when it is **wholly** inside the container. A
+container about the size of what it holds (a card slot, a seat) would then only
+catch a pixel-perfect drop. Set `attachHit: "center"` to adopt a shape whose
+**center** is inside (it detaches once its center leaves), and `accepts` to let
+only some shapes in — the rest pass through:
+
+```ts
+ctx.shapes.register("card-slot", {
+  // ...
+  container: {
+    autoAttach: true,
+    attachHit: "center",                    // drop roughly on it
+    accepts: (child) => child.type === "card", // only cards
+    layout: myPileLayout,
+  },
+});
+```
+
+Option+drag copies get their parent by the same rules. The select tool's
+drop-target highlight skips containers whose `accepts` rejects what is dragged,
+but still picks the container under the pointer (not the dragged shape's center).
 
 ## Attachable child shapes (`createAttachablePlugin`)
 

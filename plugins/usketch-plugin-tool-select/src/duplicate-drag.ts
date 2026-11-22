@@ -1,5 +1,6 @@
 import type { BoardStore, Command, ShapeData } from "@edv4h/usketch-shared";
 import {
+	type AttachParentRules,
 	cloneShapes,
 	connectorsBetween,
 	createAddShapesCommand,
@@ -28,19 +29,21 @@ export interface DragCopies {
 
 /**
  * 親が複製に含まれない shape（複製の起点）の `parentId` を、containment-attacher と
- * 同じ規則（それを完全に含む最小の autoAttach コンテナ）で決め直す。追加時に attacher が
+ * 同じ規則（それを含み、受け入れる最小の autoAttach コンテナ。含むかはコンテナの
+ * `attachHit`、受け入れるかは `accepts` で決まる。`rules` に渡す）で決め直す。追加時に attacher が
  * 別の reparent コマンドを積まないようにするため。コネクタと autoAttach コンテナ自身は対象外。
  */
 export function resolveCopyParents(
 	store: BoardStore,
 	shapes: readonly ShapeData[],
 	isAttachTarget: (shape: ShapeData) => boolean,
+	rules: AttachParentRules = {},
 ): ShapeData[] {
 	const ids = new Set(shapes.map((s) => s.id));
 	return shapes.map((shape) => {
 		if (typeof shape.parentId === "string" && ids.has(shape.parentId)) return shape;
 		if (shape.type === "connector" || isAttachTarget(shape)) return shape;
-		const parent = findAttachParent(store, shape, isAttachTarget);
+		const parent = findAttachParent(store, shape, isAttachTarget, rules);
 		const parentId = parent?.id;
 		if (parentId === shape.parentId) return shape;
 		return { ...shape, parentId } as ShapeData;
@@ -73,13 +76,14 @@ export function addDragCopies(
 	selectedIds: Iterable<string>,
 	movingIds: Iterable<string>,
 	isAttachTarget: (shape: ShapeData) => boolean,
+	rules: AttachParentRules = {},
 ): DragCopies {
 	const originals = duplicateTargetIds(store, movingIds).flatMap((id) => {
 		const shape = store.getShape(id);
 		return shape ? [{ ...shape }] : [];
 	});
 	const { shapes: cloned, idMap } = cloneShapes(originals);
-	const shapes = parentsFirst(resolveCopyParents(store, cloned, isAttachTarget));
+	const shapes = parentsFirst(resolveCopyParents(store, cloned, isAttachTarget, rules));
 	for (const shape of shapes) store.addShape(shape);
 	const rootIds = [...selectedIds].flatMap((id) => {
 		const copyId = idMap.get(id);
@@ -104,12 +108,13 @@ export function commitDragCopies(
 	store: BoardStore,
 	copies: DragCopies,
 	isAttachTarget: (shape: ShapeData) => boolean,
+	rules: AttachParentRules = {},
 ): Command {
 	const current = copies.shapes.flatMap((s) => {
 		const shape = store.getShape(s.id);
 		return shape ? [{ ...shape }] : [];
 	});
-	const placed = parentsFirst(resolveCopyParents(store, current, isAttachTarget));
+	const placed = parentsFirst(resolveCopyParents(store, current, isAttachTarget, rules));
 	removeDragCopies(store, copies);
 	return createAddShapesCommand(store, placed);
 }

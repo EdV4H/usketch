@@ -1,7 +1,11 @@
 import type { CommandRegistry, EventBus, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
 import { createBoardStore } from "../board-store.js";
-import { createContainmentAttacher } from "../containment-attacher.js";
+import {
+	createContainmentAttacher,
+	findAttachParent,
+	isInsideForAttach,
+} from "../containment-attacher.js";
 
 function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
 	return {
@@ -167,5 +171,125 @@ describe("createContainmentAttacher", () => {
 		expect(store.getShape("child")?.parentId).toBeUndefined();
 		stop();
 		vi.useRealTimers();
+	});
+
+	describe("attachHit / accepts (snug containers such as card slots)", () => {
+		const isSlot = (s: ShapeData) => s.type === "slot" || s.type === "frame";
+		const centerForSlots = (c: ShapeData) => (c.type === "slot" ? "center" : "contain");
+
+		it("attaches a shape whose center is inside a center-hit container, though it sticks out", () => {
+			const store = createBoardStore();
+			const stop = createContainmentAttacher({
+				store,
+				commands: makeCommands(),
+				events: makeEvents(),
+				isAttachTarget: isSlot,
+				attachHit: centerForSlots,
+			});
+
+			store.addShape(makeShape({ id: "slot", type: "slot", x: 0, y: 0, width: 100, height: 140 }));
+			// 20px off to the bottom-right: not wholly inside, but its center (70, 90) is.
+			store.addShape(makeShape({ id: "card", x: 20, y: 20, width: 100, height: 140 }));
+
+			expect(store.getShape("card")?.parentId).toBe("slot");
+			stop();
+		});
+
+		it("keeps the default (wholly inside) for containers without attachHit", () => {
+			const store = createBoardStore();
+			const stop = createContainmentAttacher({
+				store,
+				commands: makeCommands(),
+				events: makeEvents(),
+				isAttachTarget: isSlot,
+			});
+
+			store.addShape(makeShape({ id: "slot", type: "slot", x: 0, y: 0, width: 100, height: 140 }));
+			store.addShape(makeShape({ id: "card", x: 20, y: 20, width: 100, height: 140 }));
+
+			expect(store.getShape("card")?.parentId).toBeUndefined();
+			stop();
+		});
+
+		it("detaches on move-end once the center leaves a center-hit container", () => {
+			vi.useFakeTimers();
+			const store = createBoardStore();
+			const events = makeEvents();
+			const stop = createContainmentAttacher({
+				store,
+				commands: makeCommands(),
+				events,
+				isAttachTarget: isSlot,
+				attachHit: centerForSlots,
+			});
+
+			store.addShape(makeShape({ id: "slot", type: "slot", x: 0, y: 0, width: 100, height: 140 }));
+			store.addShape(makeShape({ id: "card", x: 10, y: 10, width: 100, height: 140 }));
+			expect(store.getShape("card")?.parentId).toBe("slot");
+
+			// Still overlapping, center (40, 50) still inside → stays.
+			store.updateShape("card", { x: -10, y: -20 });
+			events.emit("shapes:move-end", { shapeIds: ["card"] });
+			vi.runAllTimers();
+			expect(store.getShape("card")?.parentId).toBe("slot");
+
+			// Center (130, 70) outside → detached.
+			store.updateShape("card", { x: 80, y: 0 });
+			events.emit("shapes:move-end", { shapeIds: ["card"] });
+			vi.runAllTimers();
+			expect(store.getShape("card")?.parentId).toBeUndefined();
+			stop();
+			vi.useRealTimers();
+		});
+
+		it("lets a shape the container does not accept pass through to the next container", () => {
+			const store = createBoardStore();
+			const stop = createContainmentAttacher({
+				store,
+				commands: makeCommands(),
+				events: makeEvents(),
+				isAttachTarget: isSlot,
+				attachHit: centerForSlots,
+				accepts: (container, shape) => container.type !== "slot" || shape.type === "card",
+			});
+
+			store.addShape(
+				makeShape({ id: "frame", type: "frame", x: -100, y: -100, width: 400, height: 400 }),
+			);
+			store.addShape(makeShape({ id: "slot", type: "slot", x: 0, y: 0, width: 100, height: 140 }));
+			store.addShape(makeShape({ id: "card", type: "card", x: 0, y: 0, width: 100, height: 140 }));
+			store.addShape(
+				makeShape({ id: "note", type: "sticky", x: 0, y: 0, width: 100, height: 100 }),
+			);
+
+			// The smallest container wins for the card; the sticky note skips the slot.
+			expect(store.getShape("card")?.parentId).toBe("slot");
+			expect(store.getShape("note")?.parentId).toBe("frame");
+			stop();
+		});
+
+		it("findAttachParent applies the same rules to a not-yet-added copy", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "slot", type: "slot", x: 0, y: 0, width: 100, height: 140 }));
+			const copy = makeShape({ id: "copy", type: "card", x: 30, y: 30, width: 100, height: 140 });
+
+			expect(findAttachParent(store, copy, isSlot)).toBeNull();
+			expect(findAttachParent(store, copy, isSlot, { attachHit: centerForSlots })?.id).toBe("slot");
+			expect(
+				findAttachParent(store, copy, isSlot, {
+					attachHit: centerForSlots,
+					accepts: () => false,
+				}),
+			).toBeNull();
+		});
+
+		it('isInsideForAttach compares wholly by default and by center for "center"', () => {
+			const container = makeShape({ id: "c", x: 0, y: 0, width: 100, height: 100 });
+			const half = makeShape({ id: "h", x: 40, y: 40, width: 100, height: 100 });
+			expect(isInsideForAttach(container, half)).toBe(false);
+			expect(isInsideForAttach(container, half, "center")).toBe(true);
+			const out = makeShape({ id: "o", x: 60, y: 60, width: 100, height: 100 });
+			expect(isInsideForAttach(container, out, "center")).toBe(false);
+		});
 	});
 });

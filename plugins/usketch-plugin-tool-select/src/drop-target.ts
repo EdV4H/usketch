@@ -1,5 +1,5 @@
 import type { Point, ShapeData, ShapeDefinition, ToolContext } from "@edv4h/usketch-shared";
-import { isContainerAutoAttach } from "@edv4h/usketch-shared";
+import { containerAccepts, isContainerAutoAttach } from "@edv4h/usketch-shared";
 
 type DropTargetCtx = Pick<ToolContext, "store" | "shapes">;
 
@@ -9,8 +9,10 @@ type DropTargetCtx = Pick<ToolContext, "store" | "shapes">;
  * (`container.autoAttach`, see {@link isContainerAutoAttach}). Shapes in
  * `excludeIds` (the ones being dragged) are skipped.
  *
- * Uses the same predicate as the containment attacher, so only containers that
- * will actually adopt the dropped shapes get highlighted.
+ * Uses the same predicates as the containment attacher, so only containers that
+ * will actually adopt the dropped shapes get highlighted: a container whose
+ * `container.accepts` rejects every dragged shape is skipped (the dragged shapes
+ * are the ones in `excludeIds`).
  */
 export function findDropTarget(
 	ctx: DropTargetCtx,
@@ -34,8 +36,20 @@ export function createDropTargetFinder(
 	excludeIds: ReadonlySet<string>,
 ): (point: Point) => string | null {
 	let candidates: string[] | null = null;
+	let dragged: ShapeData[] = [];
 	return (point) => {
 		if (!candidates) {
+			// Only the drag roots get reparented on drop (descendants following a
+			// dragged container keep their parent), and connectors / auto-attach
+			// containers never attach — so only the rest decide `accepts`.
+			dragged = [...excludeIds].flatMap((id) => {
+				const shape = ctx.store.getShape(id);
+				if (!shape) return [];
+				if (typeof shape.parentId === "string" && excludeIds.has(shape.parentId)) return [];
+				if (shape.type === "connector") return [];
+				if (isContainerAutoAttach(ctx.shapes.get(shape.type), shape)) return [];
+				return [shape];
+			});
 			candidates = [];
 			for (const [id, shape] of ctx.store.getShapes()) {
 				if (excludeIds.has(id)) continue;
@@ -49,7 +63,9 @@ export function createDropTargetFinder(
 			if (!shape) continue;
 			const def = ctx.shapes.get(shape.type);
 			if (!isContainerAutoAttach(def, shape)) continue;
-			if (containsPoint(def, shape, point)) return id;
+			if (!containsPoint(def, shape, point)) continue;
+			if (dragged.length > 0 && !dragged.some((d) => containerAccepts(def, shape, d))) continue;
+			return id;
 		}
 		return null;
 	};

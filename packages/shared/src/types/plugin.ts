@@ -449,6 +449,12 @@ export interface ShapeSerializeContext {
 	readonly registry: Pick<ShapeRegistry, "get" | "getAll">;
 }
 
+/**
+ * How much of a shape must be inside an auto-attach container to be adopted by
+ * it (see {@link ShapeDefinition.container.attachHit}).
+ */
+export type ContainerAttachHit = "contain" | "center";
+
 export interface ShapeDefinition {
 	render: (data: ShapeData) => ReactElement;
 	getBounds: (data: ShapeData) => BoundingBox;
@@ -520,6 +526,23 @@ export interface ShapeDefinition {
 		 * overlap. Evaluate via {@link isContainerAutoAttach}.
 		 */
 		autoAttach?: boolean | ((data: ShapeData) => boolean);
+		/**
+		 * How much of a dropped shape must be inside this container for
+		 * {@link autoAttach} to adopt it (and how far out it must go to be
+		 * detached). Default: `"contain"` — the whole shape must be inside.
+		 * `"center"` — the shape's center must be inside, so a container about the
+		 * size of what it holds (a card slot, a seat) adopts a shape dropped
+		 * roughly on it. Evaluate via {@link getContainerAttachHit}.
+		 */
+		attachHit?: ContainerAttachHit | ((data: ShapeData) => ContainerAttachHit);
+		/**
+		 * Which shapes {@link autoAttach} adopts into this container. Default:
+		 * every shape the attacher considers attachable. Return `false` to let a
+		 * shape pass through (e.g. a card slot that only takes cards). Also
+		 * consulted for the drop-target highlight. Evaluate via
+		 * {@link containerAccepts}.
+		 */
+		accepts?: (child: ShapeData, container: ShapeData) => boolean;
 		/**
 		 * Arrange the container's children (shapes referencing it via `parentId`).
 		 * Invoked by the container plugin on attach/detach, container move/resize,
