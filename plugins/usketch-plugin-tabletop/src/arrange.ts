@@ -1,5 +1,5 @@
 import { compareZIndex, type ShapeData } from "@edv4h/usketch-shared";
-import { readZoneMeta, type ZoneArrange } from "./zone.js";
+import { defaultZoneAlign, readZoneMeta, type ZoneAlign, type ZoneArrange } from "./zone.js";
 
 /** Spacing for {@link arrangeZone}, in world units. */
 export interface ZoneArrangeOptions {
@@ -27,15 +27,16 @@ function moved(child: ShapeData, x: number, y: number): Patch | null {
 
 /**
  * Where a zone puts what it holds: patches that move each child into place.
- * Pure: reads the zone's `arrange` from its meta and the children as given
- * (sorted by zIndex, bottom first). Children already in place get no patch.
+ * Pure: reads the zone's `arrange` and `align` from its meta and the children
+ * as given (sorted by zIndex, bottom first). Children already in place get no patch.
  */
 export function arrangeZone(
 	zone: ShapeData,
 	children: readonly ShapeData[],
 	options: ZoneArrangeOptions = {},
 ): Patch[] {
-	return arrangeBy(readZoneMeta(zone).arrange, zone, children, options);
+	const { arrange, align } = readZoneMeta(zone);
+	return arrangeBy(arrange, zone, children, options, align);
 }
 
 export function arrangeBy(
@@ -43,21 +44,27 @@ export function arrangeBy(
 	zone: ShapeData,
 	children: readonly ShapeData[],
 	options: ZoneArrangeOptions = {},
+	align: ZoneAlign = defaultZoneAlign(arrange),
 ): Patch[] {
 	const { padding = 8, gap = 8, spreadStep = 0.35 } = options;
+	// Left edge of a run `width` wide, leaning to `align` inside the padding.
+	const leftOf = (width: number): number => {
+		if (align === "start") return zone.x + padding;
+		if (align === "end") return zone.x + zone.width - padding - width;
+		return zone.x + zone.width / 2 - width / 2;
+	};
 	const sorted = byZ(children);
 	const out: Patch[] = [];
 	const push = (p: Patch | null) => {
 		if (p) out.push(p);
 	};
-	const cx = zone.x + zone.width / 2;
 	const cy = zone.y + zone.height / 2;
 
 	switch (arrange) {
 		case "free":
 			return [];
 		case "pile":
-			for (const child of sorted) push(moved(child, cx - child.width / 2, cy - child.height / 2));
+			for (const child of sorted) push(moved(child, leftOf(child.width), cy - child.height / 2));
 			return out;
 		case "spread": {
 			const n = sorted.length;
@@ -71,8 +78,8 @@ export function arrangeBy(
 			const room = n > 1 ? Math.max(0, (inner - last) / (n - 1)) : 0;
 			const step = Math.min(maxStep, room);
 			const total = step * (n - 1) + last;
-			// Centered in the zone (overflowing evenly when even step 0 doesn't fit).
-			let x = cx - total / 2;
+			// Leaning to `align` (centered overflows evenly when even step 0 doesn't fit).
+			let x = leftOf(total);
 			for (const child of sorted) {
 				push(moved(child, x, cy - child.height / 2));
 				x += step;
@@ -86,13 +93,18 @@ export function arrangeBy(
 			const cellH = Math.max(...sorted.map((c) => c.height));
 			const inner = zone.width - padding * 2;
 			const cols = Math.max(1, Math.floor((inner + gap) / (cellW + gap)));
+			// Each row leans to `align` on its own (a short last row too).
+			const rowLeft = (row: number): number => {
+				const inRow = Math.min(cols, sorted.length - row * cols);
+				return leftOf(inRow * cellW + (inRow - 1) * gap);
+			};
 			sorted.forEach((child, i) => {
 				const col = i % cols;
 				const row = Math.floor(i / cols);
 				push(
 					moved(
 						child,
-						zone.x + padding + col * (cellW + gap) + (cellW - child.width) / 2,
+						rowLeft(row) + col * (cellW + gap) + (cellW - child.width) / 2,
 						zone.y + padding + row * (cellH + gap) + (cellH - child.height) / 2,
 					),
 				);

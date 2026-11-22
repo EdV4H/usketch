@@ -7,11 +7,13 @@ import {
 import {
 	type CreateZoneShapeParams,
 	createZoneShape,
+	type ZoneAlign,
 	type ZoneArrange,
 	type ZoneFace,
 } from "./zone.js";
 import {
 	setZoneAccepts,
+	setZoneAlign,
 	setZoneArrange,
 	setZoneFace,
 	setZoneLabel,
@@ -26,6 +28,7 @@ export interface TabletopApi {
 	addZone(params: CreateZoneShapeParams): ShapeData;
 	setLabel(zoneId: string, label: string): boolean;
 	setArrange(zoneId: string, arrange: ZoneArrange): boolean;
+	setAlign(zoneId: string, align: ZoneAlign): boolean;
 	setFace(zoneId: string, face: ZoneFace): boolean;
 	setAccepts(zoneId: string, accepts: readonly string[]): boolean;
 	/** The zone a shape is in, or `undefined`. */
@@ -45,6 +48,7 @@ export function createTabletopApi(store: BoardStore): TabletopApi {
 		},
 		setLabel: (id, label) => setZoneLabel(store, id, label),
 		setArrange: (id, arrange) => setZoneArrange(store, id, arrange),
+		setAlign: (id, align) => setZoneAlign(store, id, align),
 		setFace: (id, face) => setZoneFace(store, id, face),
 		setAccepts: (id, accepts) => setZoneAccepts(store, id, accepts),
 		zoneOf: (id) => zoneOf(store, id),

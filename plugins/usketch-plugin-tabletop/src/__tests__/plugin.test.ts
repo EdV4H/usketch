@@ -48,6 +48,7 @@ describe("createTabletopPlugin", () => {
 		expect(ids).toEqual(
 			expect.arrayContaining([
 				"tabletop-zone:arrange",
+				"tabletop-zone:align",
 				"tabletop-zone:face",
 				"tabletop-zone:label",
 			]),
@@ -105,9 +106,17 @@ describe("createTabletopPlugin", () => {
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData)).toEqual({
 			label: "Deck",
 			arrange: "spread",
+			align: "center",
 			face: "down",
 			accepts: ["card"],
 		});
+		// Without an align of its own, the zone keeps following its layout.
+		expect((store.getShape(zone.id) as ShapeData).meta).not.toHaveProperty("align");
+		expect(api.setArrange(zone.id, "grid")).toBe(true);
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("start");
+		expect(api.setAlign(zone.id, "end")).toBe(true);
+		expect(api.setArrange(zone.id, "spread")).toBe(true);
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
 		expect(api.setArrange("c2", "grid")).toBe(false);
 		expect(api.count(zone.id)).toBe(1);
 		expect(api.zoneOf("c1")?.id).toBe(zone.id);
@@ -123,6 +132,18 @@ describe("createTabletopPlugin", () => {
 		expect(action?.isEnabled?.()).toBe(true);
 		action?.run({ arrange: "grid" });
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).arrange).toBe("grid");
+	});
+
+	it("the align action sets the selected zone's alignment", () => {
+		const { ctx, api, store } = harness();
+		const zone = api.addZone({ x: 0, y: 0 });
+		const action = ctx.actions.get("tabletop-zone:align");
+		expect(action?.isEnabled?.()).toBe(false);
+		store.setSelection([zone.id]);
+		action?.run({ align: "end" });
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
+		action?.run({ align: "bogus" });
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
 	});
 
 	it("teardown removes the service", () => {
