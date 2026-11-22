@@ -26,17 +26,22 @@ plugins: [
 | --------- | --------------------------------------- | ------- |
 | `label`   | text shown on the zone                  | `""`    |
 | `arrange` | `pile` / `spread` / `grid` / `free`     | `pile`  |
+| `align`   | `start` / `center` / `end` (left / center / right) | `start` for `grid`, else `center` |
 | `face`    | `keep` / `up` / `down`                  | `keep`  |
 | `accepts` | shape types the zone takes (empty = any) | `[]`    |
 
 - `pile` stacks on the center (a deck), `spread` lays side by side and overlaps
   when it runs out of room (a hand, a row), `grid` fills rows and columns,
   `free` leaves shapes where they were dropped.
+- `align` leans the layout to the left edge, the middle or the right edge
+  (`free` ignores it). `grid` aligns each row on its own, so a short last row
+  sits on the same side. A zone without its own `align` follows its `arrange`
+  (`readZoneMeta` fills it in; `storedZoneMeta` is what gets written back).
 - `face` needs the `turnFace` option; without it, `face` does nothing.
 - The newest drop goes on top (except in `free`).
 
-The HUD gets three actions on a selected zone: **Zone layout**, **Turn dropped
-shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
+The HUD gets four actions on a selected zone: **Zone layout**, **Zone
+alignment**, **Turn dropped shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
 out, or places one of the default size (140 × 196) with a click.
 
 ## Plugin options
@@ -63,10 +68,11 @@ const tabletop = getTabletopApi(app.services);
 const deck = tabletop?.addZone({ x: 0, y: 0, label: "Deck", face: "down" });
 if (tabletop && deck) {
 	tabletop.setArrange(deck.id, "spread");
+	tabletop.setAlign(deck.id, "start");
 	tabletop.count(deck.id);
 }
 ```
 
 The same operations are exported as plain functions taking a `BoardStore`
-(`setZoneArrange`, `zoneContents`, `zoneOf`, …), and `arrangeZone` is the pure
+(`setZoneArrange`, `setZoneAlign`, `zoneContents`, `zoneOf`, …), and `arrangeZone` is the pure
 layout.

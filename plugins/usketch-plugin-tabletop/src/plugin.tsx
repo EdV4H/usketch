@@ -19,14 +19,16 @@ import {
 	DEFAULT_ZONE_SIZE,
 	isZone,
 	readZoneMeta,
+	ZONE_ALIGNS,
 	ZONE_ARRANGES,
 	ZONE_FACES,
 	ZONE_TYPE,
+	type ZoneAlign,
 	type ZoneArrange,
 	type ZoneFace,
 	zoneAcceptsType,
 } from "./zone.js";
-import { setZoneArrange, setZoneFace, setZoneLabel } from "./zone-ops.js";
+import { setZoneAlign, setZoneArrange, setZoneFace, setZoneLabel } from "./zone-ops.js";
 
 export const ZONE_TOOL_ID = "tabletop-zone-draw";
 
@@ -71,6 +73,11 @@ const ARRANGE_LABELS: Record<ZoneArrange, string> = {
 	spread: "Spread",
 	grid: "Grid",
 	free: "Free",
+};
+const ALIGN_LABELS: Record<ZoneAlign, string> = {
+	start: "Left",
+	center: "Center",
+	end: "Right",
 };
 const FACE_LABELS: Record<ZoneFace, string> = {
 	keep: "As dropped",
@@ -217,6 +224,26 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 						const id = selectedZone();
 						if (id && ZONE_ARRANGES.includes(arrange as ZoneArrange)) {
 							setZoneArrange(ctx.store, id, arrange as ZoneArrange);
+						}
+					},
+				}),
+				ctx.actions.register({
+					id: "tabletop-zone:align",
+					label: "Zone alignment",
+					group: "Tabletop",
+					params: [
+						{
+							name: "align",
+							type: "enum",
+							options: ZONE_ALIGNS.map((value) => ({ value, label: ALIGN_LABELS[value] })),
+							default: "center",
+						},
+					],
+					isEnabled: () => selectedZone() !== undefined,
+					run: ({ align }) => {
+						const id = selectedZone();
+						if (id && ZONE_ALIGNS.includes(align as ZoneAlign)) {
+							setZoneAlign(ctx.store, id, align as ZoneAlign);
 						}
 					},
 				}),
