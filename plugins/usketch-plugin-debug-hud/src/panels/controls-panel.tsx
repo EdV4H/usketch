@@ -157,9 +157,13 @@ export function ControlsPanel({
 					))}
 				</div>
 			))}
-			{bucket.panels.map((panel) => (
-				<PanelSlot key={panel.id} panel={panel} />
-			))}
+			{bucket.panels.map((panel) =>
+				panel.placement === "side" ? (
+					<SidePanelOpener key={panel.id} panel={panel} hud={hud} />
+				) : (
+					<PanelSlot key={panel.id} panel={panel} />
+				),
+			)}
 		</Section>
 	);
 
@@ -338,6 +342,20 @@ function Section({
 }
 
 /** Render a plugin-provided custom panel, isolating render errors. */
+/** A side panel shows in the side panel, not in the dock: the dock gets a button to open it. */
+function SidePanelOpener({ panel, hud }: { panel: HudPanel; hud: HudRegistry }) {
+	const open = hud.getOpenSidePanel?.() === panel.id;
+	return (
+		<button
+			type="button"
+			onClick={() => hud.toggleSidePanel?.(panel.id)}
+			style={{ ...(open ? MINI_BUTTON_ACCENT : MINI_BUTTON), marginBottom: 4 }}
+		>
+			{open ? "▾" : "▸"} {panel.title ?? panel.id}
+		</button>
+	);
+}
+
 function PanelSlot({ panel }: { panel: HudPanel }) {
 	try {
 		return (

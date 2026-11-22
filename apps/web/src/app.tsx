@@ -112,7 +112,6 @@ import {
 	observePages,
 	PAGE_SHAPES_MAP_KEY,
 	resolvePageId,
-	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -138,6 +137,7 @@ import {
 	renderCharacter,
 	renderCharacterShadow,
 } from "./lib/character-renderer.js";
+import { connectionStatusStore } from "./lib/connection-status-store.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -382,7 +382,6 @@ export function App() {
 	const appRef = useRef<AppInstance | null>(null);
 	appRef.current = app;
 	const [error, setError] = useState<string | null>(null);
-	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
@@ -889,7 +888,7 @@ export function App() {
 			}
 			wsProvider = createWsProvider({ url: wsUrl, doc: rootDoc });
 			wsProviderRef.current = wsProvider;
-			wsProvider.onStatusChange(setWsStatus);
+			wsProvider.onStatusChange(connectionStatusStore.set);
 
 			// オンラインメンバーを Control HUD (Members パネル) へ供給。
 			// TopBar の PresencePill を置き換え。ページに関係なくボードの全員を出す。
@@ -946,6 +945,7 @@ export function App() {
 			presenceStore.set([]);
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
+			connectionStatusStore.set(null);
 			serverClock.destroy();
 			rootPersistence.destroy();
 			rootDoc.destroy();
@@ -969,6 +969,8 @@ export function App() {
 			// 最後に開き終えたページと、そこまでの時間（ms）
 			lastOpen: () => lastOpenRef.current,
 			store: () => appRef.current?.store ?? null,
+			// 開いている App（HUD のレジストリなどを開発中に触るため）
+			app: () => appRef.current,
 		};
 		return () => {
 			delete w.__usketchPages;
@@ -1212,44 +1214,6 @@ export function App() {
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				{showShare && boardId && (
 					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} store={app?.store} />
-				)}
-				{isCloudBoard && wsStatus === "failed" && (
-					<div
-						className="u-surface"
-						style={{
-							position: "fixed",
-							bottom: 60,
-							left: "50%",
-							transform: "translateX(-50%)",
-							background: "var(--danger)",
-							color: "white",
-							padding: "8px 20px",
-							borderRadius: 10,
-							fontSize: 13,
-							zIndex: 200,
-						}}
-					>
-						接続できません — このボードへのアクセス権限がない可能性があります
-					</div>
-				)}
-				{isCloudBoard && wsStatus === "connecting" && (
-					<div
-						className="u-surface"
-						style={{
-							position: "fixed",
-							bottom: 60,
-							left: "50%",
-							transform: "translateX(-50%)",
-							background: "var(--warning)",
-							color: "white",
-							padding: "8px 20px",
-							borderRadius: 10,
-							fontSize: 13,
-							zIndex: 200,
-						}}
-					>
-						接続中…
-					</div>
 				)}
 			</div>
 			{isPresenting &&

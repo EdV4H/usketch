@@ -11,10 +11,11 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { DockPrefsStore } from "./dock-prefs-store.js";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
+import { openSidePanel } from "./hud-slots.js";
 import { Minimap } from "./overlays/minimap.js";
 import { ShapeBoundsOverlay } from "./overlays/shape-bounds-overlay.js";
 import {
@@ -23,8 +24,10 @@ import {
 	ControlsPanel,
 } from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
-import { GeneralPanel } from "./panels/general-panel.js";
+import { GENERAL_PANEL_WIDTH, GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
+import { SIDE_PANEL_WIDTH, SidePanelHost } from "./panels/side-panel-host.js";
+import { StatusBar } from "./panels/status-bar.js";
 import type { PointerTracker } from "./pointer-tracker.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
 import type { VisibilityStore } from "./visibility-store.js";
@@ -81,6 +84,10 @@ export function DebugHud({
 	const visible = useSyncExternalStore(subscribeVisibility, getVisibility, getVisibility);
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
 	const [controlsCollapsed, setControlsCollapsed] = useState(false);
+	// Re-render when a side panel opens / closes (the right column moves aside for it).
+	const [, bump] = useReducer((n: number) => n + 1, 0);
+	useEffect(() => hud.subscribe(bump), [hud]);
+	useEffect(() => permissions?.subscribe(bump), [permissions]);
 	// Left offset for the Shapes panel / Minimap so they clear the Controls dock.
 	const leftOffset = 8 + (controlsCollapsed ? CONTROLS_DOCK_COLLAPSED : CONTROLS_DOCK_WIDTH) + 8;
 
@@ -141,13 +148,32 @@ export function DebugHud({
 		</div>
 	);
 
+	// The side panel and the status bar stay on screen while the rest of the HUD is closed.
+	const sideOpen = openSidePanel(hud, permissions) !== null;
+	const rightColumn = 8 + (sideOpen ? SIDE_PANEL_WIDTH + 8 : 0);
+	// The status bar keeps to the space the open panels leave free at the top.
+	const statusLeft = visible ? leftOffset : 8;
+	const statusRight = rightColumn + (visible ? GENERAL_PANEL_WIDTH + 8 : 0);
+	const persistent = (
+		<>
+			<StatusBar hud={hud} permissions={permissions} left={statusLeft} right={statusRight} />
+			<SidePanelHost hud={hud} permissions={permissions} />
+		</>
+	);
+
 	if (!visible) {
-		return hint;
+		return (
+			<div ref={wheelGuardRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+				{hint}
+				{persistent}
+			</div>
+		);
 	}
 
 	return (
 		<div ref={wheelGuardRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 			{hint}
+			{persistent}
 
 			{/* Bounding box overlay (behind panels, no pointer events) */}
 			<ShapeBoundsOverlay shape={hoveredShape} store={store} />
@@ -163,6 +189,7 @@ export function DebugHud({
 				shapes={shapes}
 				viewport={viewport}
 				activeToolId={activeToolId}
+				right={rightColumn}
 			/>
 
 			{/* Left dock: universal control panel (tools + actions + shapes + event console + style) */}
@@ -192,7 +219,7 @@ export function DebugHud({
 			/>
 
 			{/* Right-bottom: Event Log */}
-			<EventsPanel eventLogger={eventLogger} />
+			<EventsPanel eventLogger={eventLogger} right={rightColumn} />
 
 			{/* Bottom-left (right of the dock): Minimap + zoom controls */}
 			<Minimap
