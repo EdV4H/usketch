@@ -21,6 +21,7 @@ export {
 	DEFAULT_VIEW_SIZE,
 	isView,
 	listViews,
+	nextViewLabel,
 	readViewMeta,
 	setViewCamera,
 	setViewLabel,
@@ -30,6 +31,7 @@ export {
 	VIEW_TYPE,
 	type ViewCamera,
 	viewEdgeHit,
+	viewLabelWidth,
 } from "./view.js";
 export {
 	type ApplyViewCameraOptions,
@@ -37,6 +39,7 @@ export {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenWorldBounds,
 	stayInViewConstraint,
 	VIEW_FIT_PADDING,
 	type ViewCameraHandle,

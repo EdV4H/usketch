@@ -56,7 +56,7 @@ what a player sees while a game is played. A board can have any number of them
 | `zoom` (default) | Zooming in and panning inside the view are allowed; it can't zoom out past the view or show what is outside it. |
 | `free`   | The camera is brought to the view once and can then go anywhere. |
 
-Only the frame's edge and its label strip take clicks, so a view drawn over the
+Only the frame's edge and its label take clicks, so a view drawn over the
 table doesn't get in the way of the cards inside it. The HUD gets **Add player
 view** (what is on screen becomes the view), **View camera** and **View label**.
 
@@ -75,8 +75,9 @@ camera.release(); // when play ends
 ```
 
 `applyViewCamera` fits the whole view on any screen shape, then holds it with
-the store's viewport constraint (`fixed` / `zoom`). It only removes the
-constraint it installed. The pieces are exported too: `fitViewToScreen`,
+the store's viewport constraint (`fixed` / `zoom`; a held camera stays upright).
+Applying another view on the same store releases the first, and `release` only
+removes the constraint it installed. Zones never take views. The pieces are exported too: `fitViewToScreen`,
 `stayInViewConstraint`, `pinToViewConstraint`, `isAtView`.
 
 ## Plugin options

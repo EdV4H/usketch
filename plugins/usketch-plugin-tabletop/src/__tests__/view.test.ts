@@ -4,6 +4,7 @@ import {
 	createViewShape,
 	isView,
 	listViews,
+	nextViewLabel,
 	readViewMeta,
 	setViewCamera,
 	setViewLabel,
@@ -43,5 +44,11 @@ describe("view shape", () => {
 		expect(viewEdgeHit(b, { x: 100, y: 99 })).toBe(true);
 		expect(viewEdgeHit(b, { x: 100, y: 50 })).toBe(false);
 		expect(viewEdgeHit(b, { x: 300, y: 50 })).toBe(false);
+	});
+
+	it("picks the lowest unused label number", () => {
+		const views = ["View 1", "View 3"].map((label) => createViewShape({ x: 0, y: 0, label }));
+		expect(nextViewLabel(views, "View")).toBe("View 2");
+		expect(nextViewLabel([], "Seat")).toBe("Seat 1");
 	});
 });

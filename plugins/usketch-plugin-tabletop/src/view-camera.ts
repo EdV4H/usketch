@@ -1,9 +1,9 @@
 import {
 	type BoardStore,
 	type BoundingBox,
+	screenToWorld,
 	type Viewport,
 	type ViewportConstraint,
-	viewportRotation,
 } from "@edv4h/usketch-shared";
 import type { ViewCamera } from "./view.js";
 
@@ -27,6 +27,24 @@ export function visibleWorldRect(vp: Viewport, size: ViewportSize): BoundingBox 
 		width: size.width / vp.zoom,
 		height: size.height / vp.zoom,
 	};
+}
+
+/**
+ * The world bounds of what a screen of `size` shows: the box around its four
+ * corners, so a turned camera is covered too.
+ */
+export function screenWorldBounds(vp: Viewport, size: ViewportSize): BoundingBox {
+	const corners = [
+		screenToWorld(0, 0, vp),
+		screenToWorld(size.width, 0, vp),
+		screenToWorld(0, size.height, vp),
+		screenToWorld(size.width, size.height, vp),
+	];
+	const xs = corners.map((c) => c.x);
+	const ys = corners.map((c) => c.y);
+	const x = Math.min(...xs);
+	const y = Math.min(...ys);
+	return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
 
 /** Zoom at which `rect` plus `padding` fits the screen. */
@@ -81,22 +99,27 @@ const readRect = (opts: RectConstraintOptions) => {
 	return { rect, size };
 };
 
+/** Drop the camera's turn (a held view is always shown upright). */
+const upright = ({ rotation: _r, ...vp }: Viewport): Viewport => vp;
+
 /**
  * `zoom`: keep the camera inside `getRect()` — no zooming out past the fit (zooming
  * in is free), no panning outside; an axis where the view is smaller than the screen
- * stays centred. A rotated camera is left alone. Read live on every commit, so a
- * resized screen is followed.
+ * stays centred. The camera can't be turned (turning it would show what is outside
+ * the view). Read live on every commit, so a resized screen is followed.
  */
 export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
-	return (vp) => {
-		if (viewportRotation(vp) !== 0) return vp;
+	return (proposed) => {
 		const read = readRect(opts);
-		if (!read) return vp;
+		if (!read) return proposed;
 		const { rect, size } = read;
+		const vp = upright(proposed);
 		const minZoom = viewFitZoom(rect, size, padding);
 		let { x, y, zoom } = vp;
-		if (zoom < minZoom) {
+		if (!Number.isFinite(zoom) || zoom <= 0) {
+			({ x, y, zoom } = fitViewToScreen(rect, size, padding));
+		} else if (zoom < minZoom) {
 			// Zoom back about the screen centre so the pivot doesn't jump.
 			const scale = minZoom / zoom;
 			x = size.width / 2 - (size.width / 2 - x) * scale;
@@ -112,11 +135,10 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
 	};
 }
 
-/** `fixed`: the camera always shows `getRect()` fitted, whatever is asked. */
+/** `fixed`: the camera always shows `getRect()` fitted and upright, whatever is asked. */
 export function pinToViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
 	return (vp) => {
-		if (viewportRotation(vp) !== 0) return vp;
 		const read = readRect(opts);
 		if (!read) return vp;
 		return fitViewToScreen(read.rect, read.size, padding);
@@ -155,10 +177,14 @@ export interface ViewCameraHandle {
 	returnToView(opts?: { animate?: boolean }): void;
 }
 
+/** The view camera applied on each store (applying another releases it). */
+const applied = new WeakMap<BoardStore, ViewCameraHandle>();
+
 /**
  * Bring the camera to a view and hold it there by `camera` (see {@link ViewCamera}).
  * `getRect` is read live (the view's bounds; null = leave the camera alone). Uses the
- * store's single viewport constraint: call `release()` before applying another.
+ * store's single viewport constraint. Applying another view on the same store
+ * releases this one first.
  */
 export function applyViewCamera(
 	store: BoardStore,
@@ -166,6 +192,7 @@ export function applyViewCamera(
 	camera: ViewCamera,
 	opts: ApplyViewCameraOptions,
 ): ViewCameraHandle {
+	applied.get(store)?.release();
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
 	const durationMs = opts.durationMs ?? 350;
 	const constraintOpts = { getRect, getSize: opts.getSize, padding };
@@ -178,9 +205,13 @@ export function applyViewCamera(
 	let installTimer: ReturnType<typeof setTimeout> | null = null;
 	let released = false;
 
-	const install = () => {
+	const install = (settle: boolean) => {
 		installTimer = null;
-		if (!released && constraint) store.setViewportConstraint(constraint);
+		if (released || !constraint) return;
+		// Installing cancels a move still running (a busy or background tab lags the
+		// frames behind the timer), so finish it first instead of holding a midway camera.
+		if (settle) moveTo(false);
+		store.setViewportConstraint(constraint);
 	};
 
 	const moveTo = (animate: boolean) => {
@@ -197,13 +228,15 @@ export function applyViewCamera(
 	// passed through it, so a move from outside the view would jump instead of glide.
 	const animate = opts.animate ?? true;
 	const moved = moveTo(animate);
-	if (animate && moved && constraint) installTimer = setTimeout(install, durationMs + 50);
-	else install();
+	if (animate && moved && constraint)
+		installTimer = setTimeout(() => install(true), durationMs + 50);
+	else install(false);
 
-	return {
+	const handle: ViewCameraHandle = {
 		release() {
 			if (released) return;
 			released = true;
+			if (applied.get(store) === handle) applied.delete(store);
 			if (installTimer !== null) clearTimeout(installTimer);
 			installTimer = null;
 			if (constraint && store.getViewportConstraint() === constraint) {
@@ -215,4 +248,6 @@ export function applyViewCamera(
 			moveTo(o?.animate ?? true);
 		},
 	};
+	applied.set(store, handle);
+	return handle;
 }

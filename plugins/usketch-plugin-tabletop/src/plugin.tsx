@@ -20,6 +20,7 @@ import {
 	createViewShape,
 	isView,
 	listViews,
+	nextViewLabel,
 	readViewMeta,
 	setViewCamera,
 	setViewLabel,
@@ -27,8 +28,9 @@ import {
 	VIEW_TYPE,
 	type ViewCamera,
 	viewEdgeHit,
+	viewLabelWidth,
 } from "./view.js";
-import { visibleWorldRect } from "./view-camera.js";
+import { screenWorldBounds } from "./view-camera.js";
 import {
 	createZoneShape,
 	DEFAULT_ZONE_SIZE,
@@ -157,6 +159,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					attachHit: "center",
 					accepts: (child, zone) =>
 						!isZone(child) &&
+						!isView(child) &&
 						!isShapeContainer(ctx.shapes.get(child.type), child) &&
 						hostAccepts(child, zone) &&
 						zoneAcceptsType(zone, child),
@@ -177,9 +180,11 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					hitTest: withRotation((data, point) => {
 						const b = getBounds(data);
 						if (viewEdgeHit(b, point)) return true;
+						const { label } = readViewMeta(data);
+						if (!label) return false;
 						return (
 							point.x >= b.x &&
-							point.x <= b.x + Math.min(b.width, 240) &&
+							point.x <= b.x + Math.min(b.width, viewLabelWidth(label)) &&
 							point.y >= b.y &&
 							point.y <= b.y + Math.min(b.height, VIEW_LABEL_HEIGHT)
 						);
@@ -274,10 +279,10 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 								group: "Tabletop",
 								run: () => {
 									// What is on screen now becomes the view.
-									const area = visibleWorldRect(ctx.store.getViewport(), getScreenSize());
+									const area = screenWorldBounds(ctx.store.getViewport(), getScreenSize());
 									const view = createViewShape({
 										...area,
-										label: `View ${listViews(ctx.store).length + 1}`,
+										label: nextViewLabel(listViews(ctx.store), "View"),
 									});
 									ctx.commands.execute(createAddShapeCommand(ctx.store, view));
 									ctx.store.setSelection([view.id]);
@@ -291,8 +296,8 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 									{
 										name: "camera",
 										type: "enum",
+										// No default: confirming without a pick must not reset the view's camera.
 										options: VIEW_CAMERAS.map((value) => ({ value, label: CAMERA_LABELS[value] })),
-										default: "zoom",
 									},
 								],
 								isEnabled: () => selectedView() !== undefined,
@@ -307,11 +312,11 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 								id: "tabletop-view:label",
 								label: "View label",
 								group: "Tabletop",
-								params: [{ name: "label", type: "string", default: "" }],
+								params: [{ name: "label", type: "string" }],
 								isEnabled: () => selectedView() !== undefined,
 								run: ({ label }) => {
 									const id = selectedView();
-									if (id) setViewLabel(ctx.store, id, String(label ?? ""));
+									if (id && typeof label === "string") setViewLabel(ctx.store, id, label);
 								},
 							}),
 						];

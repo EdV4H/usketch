@@ -64,6 +64,9 @@ describe("createTabletopPlugin", () => {
 		expect(def?.hitTest?.(view, { x: 200, y: 150 })).toBe(false);
 		expect(def?.hitTest?.(view, { x: 1, y: 150 })).toBe(true);
 		expect(def?.hitTest?.(view, { x: 40, y: 20 })).toBe(true); // the label strip
+		expect(def?.hitTest?.(view, { x: 200, y: 20 })).toBe(false); // past the short label
+		const zone = ctx.shapes.get(ZONE_TYPE)?.container;
+		expect(zone?.accepts?.(view, createZoneShape({ x: 0, y: 0 }))).toBe(false);
 		expect(api.views().map((v) => v.id)).toEqual(["v"]);
 		expect(api.setViewCamera("v", "fixed")).toBe(true);
 		expect(readViewMeta(store.getShape("v") ?? {}).camera).toBe("fixed");

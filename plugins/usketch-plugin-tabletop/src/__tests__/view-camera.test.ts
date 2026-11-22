@@ -5,6 +5,7 @@ import {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenWorldBounds,
 	stayInViewConstraint,
 	visibleWorldRect,
 } from "../view-camera.js";
@@ -43,10 +44,22 @@ describe("view camera math", () => {
 		expect(constrain({ x: 123, y: -9, zoom: 3 })).toEqual(fitViewToScreen(rect, size));
 	});
 
-	it("leaves a rotated camera alone", () => {
+	it("keeps a held camera upright (turning it would show outside the view)", () => {
 		const vp = { x: 1, y: 2, zoom: 3, rotation: 30 };
-		expect(pinToViewConstraint(opts)(vp)).toBe(vp);
-		expect(stayInViewConstraint(opts)(vp)).toBe(vp);
+		expect(pinToViewConstraint(opts)(vp).rotation ?? 0).toBe(0);
+		expect(stayInViewConstraint(opts)(vp).rotation ?? 0).toBe(0);
+	});
+
+	it("zoom: a zero or broken zoom falls back to the fit", () => {
+		const constrain = stayInViewConstraint(opts);
+		expect(constrain({ x: 5, y: 5, zoom: 0 })).toEqual(fitViewToScreen(rect, size));
+		expect(constrain({ x: 5, y: 5, zoom: Number.NaN })).toEqual(fitViewToScreen(rect, size));
+	});
+
+	it("bounds what a turned screen shows by its corners", () => {
+		const b = screenWorldBounds({ x: 0, y: 0, zoom: 1, rotation: 90 }, { width: 200, height: 100 });
+		expect(b.width).toBeCloseTo(100);
+		expect(b.height).toBeCloseTo(200);
 	});
 });
 
@@ -84,6 +97,26 @@ describe("applyViewCamera", () => {
 		early.release();
 		vi.advanceTimersByTime(200);
 		expect(store.getViewportConstraint()).toBeNull();
+	});
+
+	it("finishes a move the timer outran before holding", () => {
+		vi.useFakeTimers();
+		const store = createBoardStore();
+		applyViewCamera(store, () => rect, "zoom", { ...opts, durationMs: 100 });
+		vi.advanceTimersByTime(200);
+		expect(isAtView(store.getViewport(), rect, size)).toBe(true);
+	});
+
+	it("applying another view releases the first", () => {
+		vi.useFakeTimers();
+		const store = createBoardStore();
+		const other = { x: 2000, y: 0, width: 500, height: 300 };
+		const a = applyViewCamera(store, () => rect, "fixed", { ...opts, durationMs: 100 });
+		applyViewCamera(store, () => other, "fixed", { ...opts, durationMs: 100 });
+		vi.advanceTimersByTime(300);
+		expect(isAtView(store.getViewport(), other, size)).toBe(true);
+		a.release(); // already released: leaves the second hold alone
+		expect(store.getViewportConstraint()).not.toBeNull();
 	});
 
 	it("doesn't clear a constraint someone else installed", () => {

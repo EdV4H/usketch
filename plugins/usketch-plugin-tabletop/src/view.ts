@@ -114,3 +114,23 @@ export function viewEdgeHit(
 		point.y < y + height - band / 2;
 	return !inner;
 }
+
+/**
+ * The lowest "`prefix` N" no view is labelled yet ("View 1", "View 2", …), so a
+ * deleted view's number is reused instead of repeating one still in use.
+ */
+export function nextViewLabel(views: readonly Pick<ShapeData, "meta">[], prefix: string): string {
+	const used = new Set(views.map((v) => readViewMeta(v).label));
+	let n = 1;
+	while (used.has(`${prefix} ${n}`)) n++;
+	return `${prefix} ${n}`;
+}
+
+/**
+ * About how wide the default look's label strip is for `label`, in world units
+ * (icon and padding plus ~15 per character, wide enough for CJK). The strip takes
+ * clicks only this far, not across the whole top edge.
+ */
+export function viewLabelWidth(label: string): number {
+	return 44 + 15 * Array.from(label).length;
+}
