@@ -40,6 +40,7 @@ export type {
 	RelationResolver,
 	ScatterDeps,
 	ScatterItem,
+	ScatterOrigin,
 	ScatterPattern,
 	ScatterRequest,
 	ScatterResult,

@@ -64,9 +64,32 @@ export interface Placement {
 /** A pure layout function: place the items around the seed. */
 export type ScatterPattern = (ctx: PatternContext) => Placement[];
 
+/** A seed POINT (with an optional radius) used instead of a seed shape — e.g. a
+ *  tool that scatters around where the user clicked on empty canvas. The pattern
+ *  sees `seedCenter = point` and `seedBounds` = the circle's AABB (a zero-size box
+ *  at `point` when `radius` is omitted). Unlike a seed shape, the origin is NOT
+ *  added to `occupied`: the circle is the area to fill, not an obstacle. So
+ *  `radius` only steers patterns that read `seedBounds` (`radial`, `scatter`, or a
+ *  host pattern); `unoverlap` / `grid` start right at `point`. */
+export interface ScatterOrigin {
+	point: Point;
+	radius?: number;
+}
+
 export interface ScatterRequest {
-	/** Seed shape id. Defaults to the sole selected shape. */
+	/** Seed shape id. Defaults to `origin` when given, else the sole selected shape. */
 	seedId?: string;
+	/** Seed point instead of a seed shape (ignored when `seedId` is given). With an
+	 *  origin there is no seed shape, so a `relation` resolver can't be used — pass
+	 *  explicit `items`. */
+	origin?: ScatterOrigin;
+	/** Limit `PatternContext.occupied` to shapes whose (rotated) `getBounds` AABB
+	 *  intersects this box (must be finite, width/height >= 0). Default: every
+	 *  shape on the board. */
+	occupiedIn?: BoundingBox;
+	/** Keep a shape in `PatternContext.occupied` only when this returns true — e.g.
+	 *  let items land on frames/backgrounds. Default: keep every shape. */
+	occupiedFilter?: (shape: ShapeData) => boolean;
 	/** Explicit item set … */
 	items?: ScatterItem[];
 	/** … or derive it from the seed (a registered resolver name or a function). */

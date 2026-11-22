@@ -56,28 +56,117 @@ interface ScatterPlan {
 	createdIds: string[];
 }
 
-/** Build the full plan: pattern placements → new shapes + existing move patches. */
-function planScatter(
-	deps: ScatterDeps,
-	seedShape: ShapeData,
-	request: ScatterRequest,
-): ScatterPlan {
-	const { store, shapes } = deps;
-	const items = resolveItems({ store }, seedShape.id, request.relation, request.items);
-
-	const seedBounds = boundsOf(deps, seedShape);
-	const seedCenter: Point = {
-		x: seedBounds.x + seedBounds.width / 2,
-		y: seedBounds.y + seedBounds.height / 2,
-	};
-
-	// Occupied = every shape that ISN'T a moving item (so items avoid the seed +
-	// unrelated shapes). Used by the `unoverlap` pattern.
-	const movingIds = new Set(items.filter((i) => i.kind === "existing").map((i) => i.id));
-	const occupied: BoundingBox[] = [];
-	for (const [id, s] of store.getShapes()) {
-		if (!movingIds.has(id)) occupied.push(occupiedAABB(deps, s));
+/** seedId wins; then an explicit origin; then the sole selected shape. A falsy
+ *  `seedId` (`null` / `""` from a serialized caller) counts as "not given". */
+function resolveSeed(deps: ScatterDeps, request: ScatterRequest): ScatterSeed {
+	if (!request.seedId && request.origin) {
+		const { point, radius } = request.origin;
+		if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+			throw new Error("[scatter] origin.point must be finite");
+		}
+		if (radius !== undefined && !(Number.isFinite(radius) && radius >= 0)) {
+			throw new Error("[scatter] origin.radius must be a finite number >= 0");
+		}
+		return { kind: "origin", point, radius: radius ?? 0 };
 	}
+	const seedId = request.seedId || soleSelection(deps);
+	if (!seedId) {
+		throw new Error(
+			"[scatter] no seed: select exactly one shape or pass request.seedId / request.origin",
+		);
+	}
+	const seedShape = deps.store.getShape(seedId);
+	if (!seedShape) throw new Error(`[scatter] seed shape not found: ${seedId}`);
+	return { kind: "shape", shape: seedShape };
+}
+
+/** The seed of a scatter: an existing shape, or a bare point (+ radius). */
+type ScatterSeed =
+	| { kind: "shape"; shape: ShapeData }
+	| { kind: "origin"; point: Point; radius: number };
+
+function seedGeometry(
+	deps: ScatterDeps,
+	seed: ScatterSeed,
+): { seedBounds: BoundingBox; seedCenter: Point } {
+	if (seed.kind === "origin") {
+		const { point, radius } = seed;
+		return {
+			seedBounds: {
+				x: point.x - radius,
+				y: point.y - radius,
+				width: radius * 2,
+				height: radius * 2,
+			},
+			seedCenter: { x: point.x, y: point.y },
+		};
+	}
+	const seedBounds = boundsOf(deps, seed.shape);
+	return {
+		seedBounds,
+		seedCenter: { x: seedBounds.x + seedBounds.width / 2, y: seedBounds.y + seedBounds.height / 2 },
+	};
+}
+
+function intersects(a: BoundingBox, b: BoundingBox): boolean {
+	return (
+		a.x <= b.x + b.width && b.x <= a.x + a.width && a.y <= b.y + b.height && b.y <= a.y + a.height
+	);
+}
+
+/** Occupied = every shape that ISN'T a moving item (so items avoid the seed +
+ *  unrelated shapes), optionally narrowed to `occupiedIn` and `occupiedFilter`.
+ *  `occupiedIn` is checked against each shape's own (rotated) `getBounds`, not
+ *  the store's spatial index: the index keys shapes by their stored x/y/w/h,
+ *  which can be smaller than `getBounds` (freedraw stroke padding, connector
+ *  endpoints), so it would miss shapes that really reach into the area. */
+function collectOccupied(
+	deps: ScatterDeps,
+	request: ScatterRequest,
+	movingIds: ReadonlySet<string>,
+): BoundingBox[] {
+	const area = request.occupiedIn;
+	if (area && !isValidBox(area)) {
+		throw new Error("[scatter] occupiedIn must be a finite box with width/height >= 0");
+	}
+	const occupied: BoundingBox[] = [];
+	for (const s of deps.store.getShapes().values()) {
+		if (movingIds.has(s.id)) continue;
+		if (request.occupiedFilter && !request.occupiedFilter(s)) continue;
+		const box = occupiedAABB(deps, s);
+		if (area && !intersects(box, area)) continue;
+		occupied.push(box);
+	}
+	return occupied;
+}
+
+function isValidBox(b: BoundingBox): boolean {
+	return (
+		Number.isFinite(b.x) &&
+		Number.isFinite(b.y) &&
+		Number.isFinite(b.width) &&
+		Number.isFinite(b.height) &&
+		b.width >= 0 &&
+		b.height >= 0
+	);
+}
+
+/** Build the full plan: pattern placements → new shapes + existing move patches. */
+function planScatter(deps: ScatterDeps, seed: ScatterSeed, request: ScatterRequest): ScatterPlan {
+	const { store, shapes } = deps;
+	if (seed.kind === "origin" && !request.items && request.relation) {
+		throw new Error("[scatter] a relation needs a seed shape — pass items when using origin");
+	}
+	const items =
+		seed.kind === "shape"
+			? resolveItems({ store }, seed.shape.id, request.relation, request.items)
+			: (request.items ?? []);
+
+	const { seedBounds, seedCenter } = seedGeometry(deps, seed);
+
+	// Used by the `unoverlap` pattern (and any host pattern that avoids shapes).
+	const movingIds = new Set(items.filter((i) => i.kind === "existing").map((i) => i.id));
+	const occupied = collectOccupied(deps, request, movingIds);
 
 	// Pattern items (INTRINSIC, origin-anchored bounds — matches PatternItem's
 	// contract; patterns place by size, not world position) + a map back to source.
@@ -181,14 +270,7 @@ function planScatter(
  * canvas using the chosen pattern, as one undoable step. Optionally animated.
  */
 export async function scatter(deps: ScatterDeps, request: ScatterRequest): Promise<ScatterResult> {
-	const seedId = request.seedId ?? soleSelection(deps);
-	if (!seedId) {
-		throw new Error("[scatter] no seed: select exactly one shape or pass request.seedId");
-	}
-	const seedShape = deps.store.getShape(seedId);
-	if (!seedShape) throw new Error(`[scatter] seed shape not found: ${seedId}`);
-
-	const plan = planScatter(deps, seedShape, request);
+	const plan = planScatter(deps, resolveSeed(deps, request), request);
 	if (plan.movedIds.length === 0 && plan.createdIds.length === 0) {
 		return { movedIds: [], createdIds: [] };
 	}
