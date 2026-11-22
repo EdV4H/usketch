@@ -1,5 +1,6 @@
 import type { ComponentType, ReactElement } from "react";
 import type { BoardHeightApi } from "../board-height.js";
+import type { Permission, PermissionProvider } from "../permissions.js";
 import type { ShapeTypeView3d } from "../shape-view-3d.js";
 import type { View3dPatch, View3dState } from "../view-3d-state.js";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
@@ -1042,6 +1043,11 @@ export interface PluginAction {
 	isActive?(): boolean;
 	/** Whether the action can currently run (e.g. requires a selection). Default: enabled. */
 	isEnabled?(): boolean;
+	/**
+	 * The permission needed to see and run this action (e.g. `"page.edit"`). The HUD hides
+	 * it when `app.permissions.can(requires)` is false. Omit for an action anyone may use.
+	 */
+	requires?: Permission;
 }
 
 /**
@@ -1088,6 +1094,8 @@ export interface HudSettingsDescriptor {
 	set(name: string, value: unknown): void;
 	/** Subscribe to external changes so the control re-reads `get`. Returns an unsubscribe fn. */
 	subscribe(listener: () => void): () => void;
+	/** The permission needed to see these settings; the HUD hides them without it. */
+	requires?: Permission;
 }
 
 /** An arbitrary React panel a plugin contributes to the HUD (telemetry / bespoke UI). */
@@ -1097,6 +1105,8 @@ export interface HudPanel {
 	/** Sort order within the owning plugin's section. Lower first. */
 	order?: number;
 	render(): ReactElement | null;
+	/** The permission needed to see this panel; the HUD hides it without it. */
+	requires?: Permission;
 }
 
 /**
@@ -1490,6 +1500,13 @@ export interface PluginContext {
 	 * plugin uses until the next major (a context from an older core has no `height`).
 	 */
 	height?: BoardHeightApi;
+	/**
+	 * What the viewer may do (`can("page.edit")` …), answered by whatever permission system the
+	 * host connects (see `PermissionProvider`). Allows everything when the host passes none.
+	 * Optional until the next major (a context from an older core has no `permissions`):
+	 * read it through `permissionsOf(ctx)`.
+	 */
+	permissions?: PermissionProvider;
 }
 
 /**
