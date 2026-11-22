@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-shape-community-region
 
+## 3.0.30
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+
 ## 3.0.29
 
 ### Patch Changes

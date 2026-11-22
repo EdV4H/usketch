@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.7.4
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+  - @edv4h/usketch-core@2.7.0
+  - @edv4h/usketch-store@3.13.1
+
 ## 3.7.3
 
 ### Patch Changes
