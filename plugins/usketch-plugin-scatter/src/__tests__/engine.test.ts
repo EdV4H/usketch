@@ -22,17 +22,6 @@ function makeEnv(initial: Partial<ShapeData>[]) {
 			if (s) shapes.set(id, { ...s, ...patch });
 		},
 		deleteShape: (id: string) => shapes.delete(id),
-		// Exact AABB intersection stands in for the store's spatial index.
-		getVisibleShapeIds: (b: { x: number; y: number; width: number; height: number }) =>
-			[...shapes.values()]
-				.filter(
-					(s) =>
-						s.x <= b.x + b.width &&
-						b.x <= s.x + s.width &&
-						s.y <= b.y + b.height &&
-						b.y <= s.y + s.height,
-				)
-				.map((s) => s.id),
 		getSelection: () => selection,
 		setSelection: (ids: Iterable<string>) => {
 			selection = new Set(ids);
@@ -40,7 +29,11 @@ function makeEnv(initial: Partial<ShapeData>[]) {
 	} as unknown as BoardStore;
 	const registry = {
 		get: (type: string) => ({
-			getBounds: (s: ShapeData) => ({ x: s.x, y: s.y, width: s.width, height: s.height }),
+			// "wide" mimics freedraw/connector: getBounds reaches past the stored box.
+			getBounds: (s: ShapeData) =>
+				type === "wide"
+					? { x: s.x - 100, y: s.y, width: s.width + 100, height: s.height }
+					: { x: s.x, y: s.y, width: s.width, height: s.height },
 			createDefault: ({ id, x, y }: { id: string; x: number; y: number }) => ({
 				id,
 				type,
@@ -236,6 +229,36 @@ describe("scatter() — origin (seed point)", () => {
 		).rejects.toThrow(/relation needs a seed shape/);
 	});
 
+	it("treats a null / empty seedId as not given", async () => {
+		const env = makeEnv([rect("sel", 1000, 1000)]);
+		env.store.setSelection(["sel"]);
+		const centers: unknown[] = [];
+		const pattern = (ctx: PatternContext) => {
+			centers.push(ctx.seedCenter);
+			return [];
+		};
+		const origin = { point: { x: 5, y: 6 } };
+		await scatter(env.deps, { seedId: null as unknown as string, origin, items: [note], pattern });
+		await scatter(env.deps, { seedId: "", origin, items: [note], pattern });
+		expect(centers).toEqual([
+			{ x: 5, y: 6 },
+			{ x: 5, y: 6 },
+		]);
+	});
+
+	it("rejects a non-finite or negative origin radius", async () => {
+		const env = makeEnv([]);
+		for (const radius of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+			await expect(
+				scatter(env.deps, {
+					origin: { point: { x: 0, y: 0 }, radius },
+					items: [note],
+					pattern: "grid",
+				}),
+			).rejects.toThrow(/radius/);
+		}
+	});
+
 	it("rejects a non-finite origin point", async () => {
 		const env = makeEnv([]);
 		await expect(
@@ -279,6 +302,27 @@ describe("scatter() — occupiedIn / occupiedFilter", () => {
 			occupiedIn: { x: -100, y: -100, width: 200, height: 200 },
 		});
 		expect(occ).toEqual([{ x: 0, y: 0, width: 40, height: 40 }]);
+	});
+
+	it("uses getBounds (not the stored box) to test occupiedIn", async () => {
+		// Stored box starts at x=150 (outside the area); getBounds reaches back to x=50.
+		const env = makeEnv([rect("stroke", 150, 0, { type: "wide" })]);
+		const occ = await captureOccupied(env, {
+			occupiedIn: { x: -100, y: -100, width: 200, height: 200 },
+		});
+		expect(occ).toEqual([{ x: 50, y: 0, width: 140, height: 40 }]);
+	});
+
+	it("rejects a non-finite or negative occupiedIn", async () => {
+		const env = makeEnv([]);
+		await expect(
+			captureOccupied(env, {
+				occupiedIn: { x: Number.NEGATIVE_INFINITY, y: 0, width: 10, height: 10 },
+			}),
+		).rejects.toThrow(/occupiedIn/);
+		await expect(
+			captureOccupied(env, { occupiedIn: { x: 0, y: 0, width: -1, height: 10 } }),
+		).rejects.toThrow(/occupiedIn/);
 	});
 
 	it("drops shapes rejected by occupiedFilter", async () => {

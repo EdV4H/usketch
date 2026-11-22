@@ -56,17 +56,20 @@ interface ScatterPlan {
 	createdIds: string[];
 }
 
-/** seedId wins; then an explicit origin; then the sole selected shape. */
+/** seedId wins; then an explicit origin; then the sole selected shape. A falsy
+ *  `seedId` (`null` / `""` from a serialized caller) counts as "not given". */
 function resolveSeed(deps: ScatterDeps, request: ScatterRequest): ScatterSeed {
-	if (request.seedId === undefined && request.origin) {
+	if (!request.seedId && request.origin) {
 		const { point, radius } = request.origin;
 		if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
 			throw new Error("[scatter] origin.point must be finite");
 		}
-		const r = radius !== undefined && Number.isFinite(radius) && radius > 0 ? radius : 0;
-		return { kind: "origin", point, radius: r };
+		if (radius !== undefined && !(Number.isFinite(radius) && radius >= 0)) {
+			throw new Error("[scatter] origin.radius must be a finite number >= 0");
+		}
+		return { kind: "origin", point, radius: radius ?? 0 };
 	}
-	const seedId = request.seedId ?? soleSelection(deps);
+	const seedId = request.seedId || soleSelection(deps);
 	if (!seedId) {
 		throw new Error(
 			"[scatter] no seed: select exactly one shape or pass request.seedId / request.origin",
@@ -77,7 +80,6 @@ function resolveSeed(deps: ScatterDeps, request: ScatterRequest): ScatterSeed {
 	return { kind: "shape", shape: seedShape };
 }
 
-/** Build the full plan: pattern placements → new shapes + existing move patches. */
 /** The seed of a scatter: an existing shape, or a bare point (+ radius). */
 type ScatterSeed =
 	| { kind: "shape"; shape: ShapeData }
@@ -113,35 +115,43 @@ function intersects(a: BoundingBox, b: BoundingBox): boolean {
 }
 
 /** Occupied = every shape that ISN'T a moving item (so items avoid the seed +
- *  unrelated shapes), optionally narrowed to `occupiedIn` and `occupiedFilter`. */
+ *  unrelated shapes), optionally narrowed to `occupiedIn` and `occupiedFilter`.
+ *  `occupiedIn` is checked against each shape's own (rotated) `getBounds`, not
+ *  the store's spatial index: the index keys shapes by their stored x/y/w/h,
+ *  which can be smaller than `getBounds` (freedraw stroke padding, connector
+ *  endpoints), so it would miss shapes that really reach into the area. */
 function collectOccupied(
 	deps: ScatterDeps,
 	request: ScatterRequest,
 	movingIds: ReadonlySet<string>,
 ): BoundingBox[] {
-	const { store } = deps;
 	const area = request.occupiedIn;
-	const candidates: ShapeData[] = [];
-	if (area) {
-		for (const id of store.getVisibleShapeIds(area)) {
-			const s = store.getShape(id);
-			if (s) candidates.push(s);
-		}
-	} else {
-		for (const s of store.getShapes().values()) candidates.push(s);
+	if (area && !isValidBox(area)) {
+		throw new Error("[scatter] occupiedIn must be a finite box with width/height >= 0");
 	}
 	const occupied: BoundingBox[] = [];
-	for (const s of candidates) {
+	for (const s of deps.store.getShapes().values()) {
 		if (movingIds.has(s.id)) continue;
 		if (request.occupiedFilter && !request.occupiedFilter(s)) continue;
 		const box = occupiedAABB(deps, s);
-		// The spatial index may be coarse — re-check against the exact area.
 		if (area && !intersects(box, area)) continue;
 		occupied.push(box);
 	}
 	return occupied;
 }
 
+function isValidBox(b: BoundingBox): boolean {
+	return (
+		Number.isFinite(b.x) &&
+		Number.isFinite(b.y) &&
+		Number.isFinite(b.width) &&
+		Number.isFinite(b.height) &&
+		b.width >= 0 &&
+		b.height >= 0
+	);
+}
+
+/** Build the full plan: pattern placements → new shapes + existing move patches. */
 function planScatter(deps: ScatterDeps, seed: ScatterSeed, request: ScatterRequest): ScatterPlan {
 	const { store, shapes } = deps;
 	if (seed.kind === "origin" && !request.items && request.relation) {
