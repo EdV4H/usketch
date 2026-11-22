@@ -1107,6 +1107,40 @@ export interface HudPanel {
 	render(): ReactElement | null;
 	/** The permission needed to see this panel; the HUD hides it without it. */
 	requires?: Permission;
+	/**
+	 * Where the HUD shows the panel. `"dock"` (default): inside the owning plugin's section of
+	 * the controls dock. `"side"`: a tab of the HUD's side panel — for something people keep open
+	 * while they work (comments, chat, AI chat…). Open one with `hud.openSidePanel(id)`.
+	 */
+	placement?: "dock" | "side";
+	/** Icon for the side panel's tab (`placement: "side"`). */
+	icon?: () => ReactElement;
+}
+
+/** What a {@link HudStatus} says right now. */
+export interface HudStatusValue {
+	text: string;
+	/** Colour of the pill. Default `"info"`. */
+	tone?: "info" | "success" | "warning" | "danger";
+	/** One button next to the text, e.g. "stop following". */
+	action?: { label: string; run(): void };
+}
+
+/**
+ * A small piece of state the HUD shows in its status bar (bottom of the screen), even while
+ * the rest of the HUD is closed: "connecting…", "following Alice", "recording", the Vim mode…
+ * Declarative like {@link HudSettingsDescriptor}: the HUD owns the look, the plugin says what
+ * to show. `get` returns null while there is nothing to say.
+ */
+export interface HudStatus {
+	id: string;
+	/** Sort order in the status bar. Lower first. */
+	order?: number;
+	get(): HudStatusValue | null;
+	/** Call the listener when `get` would return something else. Returns an unsubscribe fn. */
+	subscribe(listener: () => void): () => void;
+	/** The permission needed to see this status. */
+	requires?: Permission;
 }
 
 /**
@@ -1121,6 +1155,19 @@ export interface HudRegistry {
 	getSettings(): readonly { pluginId: string | undefined; descriptor: HudSettingsDescriptor }[];
 	getPanels(): readonly { pluginId: string | undefined; panel: HudPanel }[];
 	subscribe(listener: () => void): () => void;
+	/**
+	 * Show a {@link HudStatus} in the status bar. Optional until the next major (an older
+	 * core has none): call it as `ctx.hud.registerStatus?.(status)`.
+	 */
+	registerStatus?(status: HudStatus): () => void;
+	getStatuses?(): readonly { pluginId: string | undefined; status: HudStatus }[];
+	/** Open the side panel (`placement: "side"`) with this id; unknown ids are ignored. */
+	openSidePanel?(id: string): void;
+	/** Open it if closed, close it if open. */
+	toggleSidePanel?(id: string): void;
+	closeSidePanel?(): void;
+	/** The open side panel's id, or null. Changes notify `subscribe`. */
+	getOpenSidePanel?(): string | null;
 }
 
 /** Read-only view of the active plugins (id + name), for UIs that group by plugin. */

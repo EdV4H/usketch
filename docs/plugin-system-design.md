@@ -208,6 +208,16 @@ interface PluginContext {
 - プラグインの中で読むときは `permissionsOf(ctx)`（古いコアの文脈には `permissions` が無いので、そのときは全部可）。
 - サーバー側（Workers / Durable Object）は `ServerPermissionResolver`（非同期）で `PermissionSnapshot` を作って使う。ブラウザの出し分けは見た目のためで、**書き込みを止めるのはサーバー**。
 
+### 3.1.3 HUD の置き場（サイドパネル・状態表示）
+
+HUD の中で、プラグインの UI を置ける場所は次の 3 つ。どれも HUD が描くので、プラグインは画面に固定の UI を自分で出さない（#1558 R7）。
+
+- **ドック**（既定）: `ctx.hud.registerPanel({ id, label, render })`。Control HUD の中に出る。
+- **サイドパネル**: `registerPanel({ ..., placement: "side", icon? })`。画面の右にタブで並び、**HUD を閉じていても開いたまま**にできる（コメント・チャット・ページ一覧のように、ずっと横に置いておきたいもの）。開け閉めは `ctx.hud.openSidePanel(id)` / `toggleSidePanel(id)` / `closeSidePanel()`、今開いているものは `getOpenSidePanel()`。Control HUD にもサイドパネルを開くボタンが出る。
+- **状態表示**: `ctx.hud.registerStatus?.({ id, get, subscribe, order?, requires? })`。画面の上の真ん中に、短い文（`text`）と色（`tone`: info / success / warning / danger）と、あれば 1 つのボタン（`action: { label, run }`）を出す。**HUD を閉じていても見える**ので、接続の状態・誰かを追従中・発表中のような「今こうなっている」を知らせるのに使う。言うことが無いときは `get()` が `null` を返す。
+
+`registerStatus` / `openSidePanel` などは新しいコアにしか無いので、`?.` で呼ぶ（古いコアでは何も出ないだけ）。
+
 ### 3.2 ツールプラグイン
 
 シェイプを持たない汎用ツール（選択、パン等）。

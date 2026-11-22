@@ -33,7 +33,12 @@ interface GeneralPanelProps {
 	shapes: ShapeRegistry;
 	viewport: Viewport;
 	activeToolId: string;
+	/** Distance from the right edge (moves left while the side panel is open). */
+	right?: number;
 }
+
+/** Outer width of the panel (220 content + 10 padding each side). */
+export const GENERAL_PANEL_WIDTH = 240;
 
 export function GeneralPanel({
 	store,
@@ -45,6 +50,7 @@ export function GeneralPanel({
 	shapes,
 	viewport,
 	activeToolId,
+	right = 8,
 }: GeneralPanelProps) {
 	const fps = useSyncExternalStore(
 		useCallback((cb: () => void) => fpsCounter.subscribe(cb), [fpsCounter]),
@@ -92,8 +98,8 @@ export function GeneralPanel({
 				...PANEL_BASE,
 				position: "absolute",
 				top: 8,
-				right: 8,
-				width: 220,
+				right,
+				width: GENERAL_PANEL_WIDTH - 20,
 			}}
 		>
 			{/* FPS */}

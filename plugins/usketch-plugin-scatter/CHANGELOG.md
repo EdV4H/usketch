@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-scatter
 
+## 0.3.0
+
+### Minor Changes
+
+- 6fdf40a: `scatter()` can now start from a bare point: `origin: { point, radius? }` (used when no `seedId` is given; pattern sees `seedCenter = point` and `seedBounds` = the circle's box). `occupiedIn` (a box, checked against each shape's own bounds) and `occupiedFilter` (a predicate) narrow `PatternContext.occupied`, so a tool can avoid only the shapes around where it scatters and let items land on frames or backgrounds. Existing calls behave as before.
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+  - @edv4h/usketch-shape-utils@2.4.10
+
 ## 0.2.16
 
 ### Patch Changes

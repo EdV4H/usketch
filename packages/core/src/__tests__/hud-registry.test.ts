@@ -1,4 +1,4 @@
-import type { HudPanel, HudSettingsDescriptor } from "@edv4h/usketch-shared";
+import type { HudPanel, HudSettingsDescriptor, HudStatus } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
 import { createHudRegistry } from "../hud-registry.js";
 
@@ -66,5 +66,53 @@ describe("createHudRegistry", () => {
 		r.registerSettings(descriptor("s1", { label: "two" }));
 		expect(r.getSettings()).toHaveLength(1);
 		expect(r.getSettings()[0].descriptor.label).toBe("two");
+	});
+
+	it("statuses are ordered, attributed, and removed by their own unsubscribe", () => {
+		const r = createHudRegistry();
+		const status = (id: string, order?: number): HudStatus => ({
+			id,
+			order,
+			get: () => null,
+			subscribe: () => () => {},
+		});
+		const offB = r.registerStatusFor("b", status("b", 2));
+		r.registerStatus(status("a", 1));
+		expect(r.getStatuses().map((e) => [e.pluginId, e.status.id])).toEqual([
+			[undefined, "a"],
+			["b", "b"],
+		]);
+		offB();
+		expect(r.getStatuses().map((e) => e.status.id)).toEqual(["a"]);
+	});
+
+	it("opens, toggles and closes only side panels, and notifies", () => {
+		const r = createHudRegistry();
+		r.registerPanel(panel("dock"));
+		const offSide = r.registerPanel(panel("chat", { placement: "side" }));
+		r.registerPanel(panel("ai", { placement: "side" }));
+		const listener = vi.fn();
+		r.subscribe(listener);
+
+		r.openSidePanel("dock");
+		r.openSidePanel("missing");
+		expect(r.getOpenSidePanel()).toBeNull();
+		expect(listener).not.toHaveBeenCalled();
+
+		r.openSidePanel("chat");
+		expect(r.getOpenSidePanel()).toBe("chat");
+		r.toggleSidePanel("ai");
+		expect(r.getOpenSidePanel()).toBe("ai");
+		r.toggleSidePanel("ai");
+		expect(r.getOpenSidePanel()).toBeNull();
+		r.openSidePanel("chat");
+		r.closeSidePanel();
+		expect(r.getOpenSidePanel()).toBeNull();
+		expect(listener).toHaveBeenCalledTimes(5);
+
+		// An open side panel that unregisters closes.
+		r.openSidePanel("chat");
+		offSide();
+		expect(r.getOpenSidePanel()).toBeNull();
 	});
 });

@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-side-panel
 
+## 2.0.30
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+
 ## 2.0.29
 
 ### Patch Changes

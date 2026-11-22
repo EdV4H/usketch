@@ -241,9 +241,15 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 			const scopedHud: HudRegistry = {
 				registerSettings: (descriptor) => hud.registerSettingsFor(plugin.id, descriptor),
 				registerPanel: (panel) => hud.registerPanelFor(plugin.id, panel),
+				registerStatus: (status) => hud.registerStatusFor(plugin.id, status),
 				getSettings: hud.getSettings,
 				getPanels: hud.getPanels,
+				getStatuses: hud.getStatuses,
 				subscribe: hud.subscribe,
+				openSidePanel: hud.openSidePanel,
+				toggleSidePanel: hud.toggleSidePanel,
+				closeSidePanel: hud.closeSidePanel,
+				getOpenSidePanel: hud.getOpenSidePanel,
 			};
 			// Key bindings (incl. `shortcuts.register` and tool `shortcut`s) are attributed to
 			// the plugin and ranked by its position in `plugins` (earlier wins ties).

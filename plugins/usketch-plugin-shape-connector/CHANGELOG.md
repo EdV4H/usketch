@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.5.5
+
+### Patch Changes
+
+- Updated dependencies [66e8499]
+  - @edv4h/usketch-shared@4.29.0
+  - @edv4h/usketch-core@2.7.0
+  - @edv4h/usketch-canvas-engine@1.8.3
+  - @edv4h/usketch-store@3.13.1
+  - @edv4h/usketch-connector-anchor@0.5.11
+
 ## 3.5.4
 
 ### Patch Changes
