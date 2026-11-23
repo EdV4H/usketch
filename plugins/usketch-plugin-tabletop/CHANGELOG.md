@@ -1,5 +1,24 @@
 # @edv4h/usketch-plugin-tabletop
 
+## 0.3.0
+
+### Minor Changes
+
+- 8cb08f0: Player views: a new `tabletop-view` shape marks what a player sees while a game is played (`label`, `camera`: `fixed` / `zoom` / `free`, default `zoom`). Only its edge and label strip take clicks. `applyViewCamera(store, getRect, camera, { getSize })` brings the camera to a view and holds it with the store's viewport constraint (returns `release` / `returnToView`); the pieces (`fitViewToScreen`, `stayInViewConstraint`, `pinToViewConstraint`, `isAtView`, `visibleWorldRect`) are exported. Views come with `createViewShape`, `readViewMeta`, `listViews`, `setViewLabel` / `setViewCamera`, service methods (`addView`, `setViewLabel`, `setViewCamera`, `views`), HUD actions (**Add player view**, **View camera**, **View label**) and the `views` / `renderView` plugin options.
+
+## 0.2.0
+
+### Minor Changes
+
+- cff264e: Zones can lean their layout to the left, the middle or the right: new `align` meta (`start` / `center` / `end`), `setAlign` on the service, `setZoneAlign`, and a **Zone alignment** HUD action. `pile` and `spread` move as a block; `grid` aligns each row on its own. A zone without its own `align` keeps today's layout (`grid` from the left, the others centered) and follows its `arrange` when that changes (`storedZoneMeta` is what `updateZoneMeta` writes back). `arrangeBy` takes the alignment as an optional fifth argument.
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-store@3.13.2
+  - @edv4h/usketch-shape-utils@2.4.11
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @edv4h/usketch-session-voting
 
+## 0.2.23
+
+### Patch Changes
+
+- @edv4h/usketch-plugin-session@0.4.3
+
 ## 0.2.22
 
 ### Patch Changes

@@ -1,6 +1,7 @@
 import { createResize, getBounds } from "@edv4h/usketch-shape-utils";
 import {
 	type CanvasPointerEvent,
+	getScreenSize,
 	isShapeContainer,
 	type PluginContext,
 	type ShapeData,
@@ -12,21 +13,39 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ReactElement } from "react";
 import { arrangeZone, type ZoneArrangeOptions } from "./arrange.js";
 import { setupAttachWatch, type TurnFace, type ZoneAttachEvent } from "./attach-watch.js";
+import { DefaultView, type TabletopViewRenderProps, VIEW_LABEL_HEIGHT } from "./render-view.js";
 import { DefaultZone, type TabletopZoneRenderProps, ZoneView } from "./render-zone.js";
 import { createTabletopApi, tabletopService } from "./service.js";
+import {
+	createViewShape,
+	isView,
+	listViews,
+	nextViewLabel,
+	readViewMeta,
+	setViewCamera,
+	setViewLabel,
+	VIEW_CAMERAS,
+	VIEW_TYPE,
+	type ViewCamera,
+	viewEdgeHit,
+	viewLabelWidth,
+} from "./view.js";
+import { screenWorldBounds } from "./view-camera.js";
 import {
 	createZoneShape,
 	DEFAULT_ZONE_SIZE,
 	isZone,
 	readZoneMeta,
+	ZONE_ALIGNS,
 	ZONE_ARRANGES,
 	ZONE_FACES,
 	ZONE_TYPE,
+	type ZoneAlign,
 	type ZoneArrange,
 	type ZoneFace,
 	zoneAcceptsType,
 } from "./zone.js";
-import { setZoneArrange, setZoneFace, setZoneLabel } from "./zone-ops.js";
+import { setZoneAlign, setZoneArrange, setZoneFace, setZoneLabel } from "./zone-ops.js";
 
 export const ZONE_TOOL_ID = "tabletop-zone-draw";
 
@@ -54,6 +73,13 @@ export interface CreateTabletopPluginOptions {
 	arrange?: ZoneArrangeOptions;
 	/** Register the zone drawing tool. Default true. */
 	tool?: boolean;
+	/**
+	 * Register the player view shape (`tabletop-view`). Default true. Bringing the
+	 * camera to a view is the host's call (`applyViewCamera`), e.g. when play starts.
+	 */
+	views?: boolean;
+	/** A view's look. Default: a dashed frame with a camera mark and the label. */
+	renderView?: (props: TabletopViewRenderProps) => ReactElement;
 }
 
 function ZoneIcon(): ReactElement {
@@ -70,6 +96,16 @@ const ARRANGE_LABELS: Record<ZoneArrange, string> = {
 	pile: "Pile",
 	spread: "Spread",
 	grid: "Grid",
+	free: "Free",
+};
+const ALIGN_LABELS: Record<ZoneAlign, string> = {
+	start: "Left",
+	center: "Center",
+	end: "Right",
+};
+const CAMERA_LABELS: Record<ViewCamera, string> = {
+	fixed: "Fixed",
+	zoom: "Zoom in only",
 	free: "Free",
 };
 const FACE_LABELS: Record<ZoneFace, string> = {
@@ -92,6 +128,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 	const size = opts.defaultSize ?? DEFAULT_ZONE_SIZE;
 	const renderLook = opts.render ?? ((props) => <DefaultZone {...props} />);
 	const hostAccepts = opts.accepts ?? ((child) => child.type !== "connector");
+	const renderViewLook = opts.renderView ?? ((props) => <DefaultView {...props} />);
 
 	return {
 		id: "usketch-plugin-tabletop",
@@ -122,6 +159,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					attachHit: "center",
 					accepts: (child, zone) =>
 						!isZone(child) &&
+						!isView(child) &&
 						!isShapeContainer(ctx.shapes.get(child.type), child) &&
 						hostAccepts(child, zone) &&
 						zoneAcceptsType(zone, child),
@@ -132,6 +170,32 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					return { ...m, accepts: m.accepts.join(",") };
 				},
 			});
+
+			if (opts.views !== false) {
+				ctx.shapes.register(VIEW_TYPE, {
+					render: (view) => renderViewLook({ view, meta: readViewMeta(view) }),
+					getBounds,
+					// The edge and the label strip only: a view over the table must not take
+					// the clicks meant for what is inside it.
+					hitTest: withRotation((data, point) => {
+						const b = getBounds(data);
+						if (viewEdgeHit(b, point)) return true;
+						const { label } = readViewMeta(data);
+						if (!label) return false;
+						return (
+							point.x >= b.x &&
+							point.x <= b.x + Math.min(b.width, viewLabelWidth(label)) &&
+							point.y >= b.y &&
+							point.y <= b.y + Math.min(b.height, VIEW_LABEL_HEIGHT)
+						);
+					}),
+					resize,
+					createDefault: ({ id, x, y }) => createViewShape({ id, x, y }),
+					renderTarget: "html",
+					minSize: { width: 80, height: 60 },
+					debugFields: (shape) => ({ ...readViewMeta(shape) }),
+				});
+			}
 
 			const offWatch = setupAttachWatch(ctx, {
 				turnFace: opts.turnFace,
@@ -199,7 +263,65 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				}
 				return undefined;
 			};
+			const selectedView = (): string | undefined => {
+				for (const id of ctx.store.getSelection()) {
+					if (isView(ctx.store.getShape(id))) return id;
+				}
+				return undefined;
+			};
+			const viewActions =
+				opts.views === false
+					? []
+					: [
+							ctx.actions.register({
+								id: "tabletop-view:add",
+								label: "Add player view",
+								group: "Tabletop",
+								run: () => {
+									// What is on screen now becomes the view.
+									const area = screenWorldBounds(ctx.store.getViewport(), getScreenSize());
+									const view = createViewShape({
+										...area,
+										label: nextViewLabel(listViews(ctx.store), "View"),
+									});
+									ctx.commands.execute(createAddShapeCommand(ctx.store, view));
+									ctx.store.setSelection([view.id]);
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-view:camera",
+								label: "View camera",
+								group: "Tabletop",
+								params: [
+									{
+										name: "camera",
+										type: "enum",
+										// No default: confirming without a pick must not reset the view's camera.
+										options: VIEW_CAMERAS.map((value) => ({ value, label: CAMERA_LABELS[value] })),
+									},
+								],
+								isEnabled: () => selectedView() !== undefined,
+								run: ({ camera }) => {
+									const id = selectedView();
+									if (id && VIEW_CAMERAS.includes(camera as ViewCamera)) {
+										setViewCamera(ctx.store, id, camera as ViewCamera);
+									}
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-view:label",
+								label: "View label",
+								group: "Tabletop",
+								params: [{ name: "label", type: "string" }],
+								isEnabled: () => selectedView() !== undefined,
+								run: ({ label }) => {
+									const id = selectedView();
+									if (id && typeof label === "string") setViewLabel(ctx.store, id, label);
+								},
+							}),
+						];
 			const offActions = [
+				...viewActions,
 				ctx.actions.register({
 					id: "tabletop-zone:arrange",
 					label: "Zone layout",
@@ -217,6 +339,26 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 						const id = selectedZone();
 						if (id && ZONE_ARRANGES.includes(arrange as ZoneArrange)) {
 							setZoneArrange(ctx.store, id, arrange as ZoneArrange);
+						}
+					},
+				}),
+				ctx.actions.register({
+					id: "tabletop-zone:align",
+					label: "Zone alignment",
+					group: "Tabletop",
+					params: [
+						{
+							name: "align",
+							type: "enum",
+							options: ZONE_ALIGNS.map((value) => ({ value, label: ALIGN_LABELS[value] })),
+							default: "center",
+						},
+					],
+					isEnabled: () => selectedZone() !== undefined,
+					run: ({ align }) => {
+						const id = selectedZone();
+						if (id && ZONE_ALIGNS.includes(align as ZoneAlign)) {
+							setZoneAlign(ctx.store, id, align as ZoneAlign);
 						}
 					},
 				}),

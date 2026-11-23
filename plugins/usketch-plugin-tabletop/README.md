@@ -26,18 +26,59 @@ plugins: [
 | --------- | --------------------------------------- | ------- |
 | `label`   | text shown on the zone                  | `""`    |
 | `arrange` | `pile` / `spread` / `grid` / `free`     | `pile`  |
+| `align`   | `start` / `center` / `end` (left / center / right) | `start` for `grid`, else `center` |
 | `face`    | `keep` / `up` / `down`                  | `keep`  |
 | `accepts` | shape types the zone takes (empty = any) | `[]`    |
 
 - `pile` stacks on the center (a deck), `spread` lays side by side and overlaps
   when it runs out of room (a hand, a row), `grid` fills rows and columns,
   `free` leaves shapes where they were dropped.
+- `align` leans the layout to the left edge, the middle or the right edge
+  (`free` ignores it). `grid` aligns each row on its own, so a short last row
+  sits on the same side. A zone without its own `align` follows its `arrange`
+  (`readZoneMeta` fills it in; `storedZoneMeta` is what gets written back).
 - `face` needs the `turnFace` option; without it, `face` does nothing.
 - The newest drop goes on top (except in `free`).
 
-The HUD gets three actions on a selected zone: **Zone layout**, **Turn dropped
-shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
+The HUD gets four actions on a selected zone: **Zone layout**, **Zone
+alignment**, **Turn dropped shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
 out, or places one of the default size (140 × 196) with a click.
+
+## Player views
+
+A **player view** (`tabletop-view`) is a dashed frame on the table that marks
+what a player sees while a game is played. A board can have any number of them
+(one per seat, or one for everyone). Its meta is `label` and `camera`:
+
+| `camera` | While the view is applied |
+| -------- | ------------------------- |
+| `fixed`  | The camera can't be moved at all. |
+| `zoom` (default) | Zooming in and panning inside the view are allowed; it can't zoom out past the view or show what is outside it. |
+| `free`   | The camera is brought to the view once and can then go anywhere. |
+
+Only the frame's edge and its label take clicks, so a view drawn over the
+table doesn't get in the way of the cards inside it. The HUD gets **Add player
+view** (what is on screen becomes the view), **View camera** and **View label**.
+
+The plugin doesn't move anyone's camera by itself. The host applies a view when
+play starts, and decides who gets which view:
+
+```ts
+import { applyViewCamera, readViewMeta } from "@edv4h/usketch-plugin-tabletop";
+
+const view = app.store.getShape(seatViewId);
+const camera = applyViewCamera(app.store, () => app.store.getShape(seatViewId) ?? null, readViewMeta(view).camera, {
+	getSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+});
+camera.returnToView(); // after zooming in
+camera.release(); // when play ends
+```
+
+`applyViewCamera` fits the whole view on any screen shape, then holds it with
+the store's viewport constraint (`fixed` / `zoom`; a held camera stays upright).
+Applying another view on the same store releases the first, and `release` only
+removes the constraint it installed. Zones never take views. The pieces are exported too: `fitViewToScreen`,
+`stayInViewConstraint`, `pinToViewConstraint`, `isAtView`.
 
 ## Plugin options
 
@@ -50,6 +91,8 @@ out, or places one of the default size (140 × 196) with a click.
 | `defaultSize` | Size of a zone placed by a click. |
 | `arrange`     | Spacing: `padding`, `gap`, `spreadStep`. |
 | `tool`        | Register the drawing tool. Default `true`. |
+| `views`       | Register the player view shape and its actions. Default `true`. |
+| `renderView`  | A view's look, from `{ view, meta }`. Default: a dashed frame with a camera mark and the label. |
 
 Turning and raising a dropped shape run only for the user who dropped it and
 are not part of undo (like flipping a card).
@@ -63,10 +106,11 @@ const tabletop = getTabletopApi(app.services);
 const deck = tabletop?.addZone({ x: 0, y: 0, label: "Deck", face: "down" });
 if (tabletop && deck) {
 	tabletop.setArrange(deck.id, "spread");
+	tabletop.setAlign(deck.id, "start");
 	tabletop.count(deck.id);
 }
 ```
 
 The same operations are exported as plain functions taking a `BoardStore`
-(`setZoneArrange`, `zoneContents`, `zoneOf`, …), and `arrangeZone` is the pure
+(`setZoneArrange`, `setZoneAlign`, `zoneContents`, `zoneOf`, …), and `arrangeZone` is the pure
 layout.

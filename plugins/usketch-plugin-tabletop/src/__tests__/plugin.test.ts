@@ -16,6 +16,7 @@ import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { createTabletopPlugin, ZONE_TOOL_ID } from "../plugin.js";
 import { getTabletopApi } from "../service.js";
+import { readViewMeta, VIEW_TYPE } from "../view.js";
 import { createZoneShape, readZoneMeta, ZONE_TYPE } from "../zone.js";
 
 function harness(opts: Parameters<typeof createTabletopPlugin>[0] = {}) {
@@ -48,10 +49,34 @@ describe("createTabletopPlugin", () => {
 		expect(ids).toEqual(
 			expect.arrayContaining([
 				"tabletop-zone:arrange",
+				"tabletop-zone:align",
 				"tabletop-zone:face",
 				"tabletop-zone:label",
 			]),
 		);
+	});
+
+	it("registers the player view shape (edge-only hit) and its actions, unless views is false", () => {
+		const { ctx, api, store } = harness();
+		const def = ctx.shapes.get(VIEW_TYPE);
+		expect(def).toBeDefined();
+		const view = api.addView({ id: "v", x: 0, y: 0, width: 400, height: 300, label: "Seat 1" });
+		expect(def?.hitTest?.(view, { x: 200, y: 150 })).toBe(false);
+		expect(def?.hitTest?.(view, { x: 1, y: 150 })).toBe(true);
+		expect(def?.hitTest?.(view, { x: 40, y: 20 })).toBe(true); // the label strip
+		expect(def?.hitTest?.(view, { x: 200, y: 20 })).toBe(false); // past the short label
+		const zone = ctx.shapes.get(ZONE_TYPE)?.container;
+		expect(zone?.accepts?.(view, createZoneShape({ x: 0, y: 0 }))).toBe(false);
+		expect(api.views().map((v) => v.id)).toEqual(["v"]);
+		expect(api.setViewCamera("v", "fixed")).toBe(true);
+		expect(readViewMeta(store.getShape("v") ?? {}).camera).toBe("fixed");
+		const ids = ctx.actions.getOrdered().map((a) => a.id);
+		expect(ids).toEqual(
+			expect.arrayContaining(["tabletop-view:add", "tabletop-view:camera", "tabletop-view:label"]),
+		);
+		const off = harness({ views: false });
+		expect(off.ctx.shapes.get(VIEW_TYPE)).toBeUndefined();
+		expect(off.ctx.actions.getOrdered().map((a) => a.id)).not.toContain("tabletop-view:add");
 	});
 
 	it("does not register the tool when tool is false", () => {
@@ -105,9 +130,17 @@ describe("createTabletopPlugin", () => {
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData)).toEqual({
 			label: "Deck",
 			arrange: "spread",
+			align: "center",
 			face: "down",
 			accepts: ["card"],
 		});
+		// Without an align of its own, the zone keeps following its layout.
+		expect((store.getShape(zone.id) as ShapeData).meta).not.toHaveProperty("align");
+		expect(api.setArrange(zone.id, "grid")).toBe(true);
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("start");
+		expect(api.setAlign(zone.id, "end")).toBe(true);
+		expect(api.setArrange(zone.id, "spread")).toBe(true);
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
 		expect(api.setArrange("c2", "grid")).toBe(false);
 		expect(api.count(zone.id)).toBe(1);
 		expect(api.zoneOf("c1")?.id).toBe(zone.id);
@@ -123,6 +156,26 @@ describe("createTabletopPlugin", () => {
 		expect(action?.isEnabled?.()).toBe(true);
 		action?.run({ arrange: "grid" });
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).arrange).toBe("grid");
+	});
+
+	it("editing a zone drops an unknown align", () => {
+		const { api, store } = harness();
+		const zone = api.addZone({ x: 0, y: 0 });
+		store.updateShape(zone.id, { meta: { ...zone.meta, align: "up" } as ShapeData["meta"] });
+		expect(api.setLabel(zone.id, "Deck")).toBe(true);
+		expect((store.getShape(zone.id) as ShapeData).meta).not.toHaveProperty("align");
+	});
+
+	it("the align action sets the selected zone's alignment", () => {
+		const { ctx, api, store } = harness();
+		const zone = api.addZone({ x: 0, y: 0 });
+		const action = ctx.actions.get("tabletop-zone:align");
+		expect(action?.isEnabled?.()).toBe(false);
+		store.setSelection([zone.id]);
+		action?.run({ align: "end" });
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
+		action?.run({ align: "bogus" });
+		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
 	});
 
 	it("teardown removes the service", () => {

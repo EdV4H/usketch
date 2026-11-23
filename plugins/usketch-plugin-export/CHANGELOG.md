@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-export
 
+## 2.4.5
+
+### Patch Changes
+
+- Updated dependencies [3566290]
+  - @edv4h/usketch-shared@4.30.0
+  - @edv4h/usketch-core@2.8.0
+
 ## 2.4.4
 
 ### Patch Changes
