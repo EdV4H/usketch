@@ -92,8 +92,8 @@ removes the constraint it installed.
 
 A host that shows the board leaning back in 3D while a view is applied (e.g. with
 Mode 7) passes the tilt it draws with as `getTilt` (`{ pitch, fov, horizon }`, read
-live; `null` = flat). The view is then framed as that camera draws it: its far edge
-on the top margin, as large as fits with its wider near edge inside the screen.
+live; `null` = flat). The view is then framed as that camera draws it: centred, as
+large as fits with every corner (the wider near edge too) inside the margin.
 `fixed` holds that framing; `zoom` keeps the camera on it until zoomed in, and then
 lets it move off only as far as it has zoomed in (2× reaches half-way to the view's
 edges), since the trapezoid a tilt draws can't be clamped edge by edge.
