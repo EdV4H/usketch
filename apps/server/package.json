@@ -14,6 +14,8 @@
 		"db:migrate:local": "wrangler d1 migrations apply usketch-db --local"
 	},
 	"dependencies": {
+		"@edv4h/usketch-demo-permissions": "workspace:*",
+		"@edv4h/usketch-permissions-casl": "workspace:*",
 		"@edv4h/usketch-plugin-server-ai": "workspace:*",
 		"@edv4h/usketch-plugin-server-auth": "workspace:*",
 		"@edv4h/usketch-plugin-server-boards": "workspace:*",
@@ -21,8 +23,8 @@
 		"@edv4h/usketch-plugin-server-comments": "workspace:*",
 		"@edv4h/usketch-server-core": "workspace:*",
 		"@edv4h/usketch-session-gather": "workspace:*",
-		"@edv4h/usketch-session-respond": "workspace:*",
 		"@edv4h/usketch-session-protocol": "workspace:*",
+		"@edv4h/usketch-session-respond": "workspace:*",
 		"@edv4h/usketch-session-voting": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",

@@ -488,7 +488,13 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.where(eq(communityBoards.boardId, boardId))
 					.limit(1);
 
+				// DO が書き込み・購読のたびに聞く役割（null: メンバーではない公開ボードの閲覧者）
+				let role: string | null = null;
+				let boardPublic = false;
 				if (communityEntry.length > 0) {
+					// コミュニティボードは全認証ユーザーが編集できる
+					role = "editor";
+					boardPublic = true;
 					// コミュニティボードは全認証ユーザーにオープン — 存在しなければ自動作成
 					// DEV_MODE: ユーザーが存在しない場合はFK制約のため自動作成
 					if (c.env.DEV_MODE === "true") {
@@ -534,6 +540,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
 						return c.json({ error: "Board not found" }, 404);
 					}
+					role = result[0].role;
+					boardPublic = !!result[0].isPublic;
 				}
 
 				const id = c.env.BOARD_ROOM.idFromName(boardId);
@@ -543,6 +551,10 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				url.pathname = "/ws";
 				url.searchParams.set("userId", userId);
 				url.searchParams.set("boardId", boardId);
+				// クライアントが付けた値は使わない（必ず付け直す・消す）
+				if (role) url.searchParams.set("role", role);
+				else url.searchParams.delete("role");
+				url.searchParams.set("boardPublic", boardPublic ? "1" : "0");
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			});
 

@@ -31,6 +31,13 @@ import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs } from "./rooms/page-docs.js";
 import { createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
+import {
+	canEditPage,
+	canEditRoot,
+	canViewPage,
+	readAccessParams,
+	setSocketAccess,
+} from "./rooms/room-access.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
 import { createYjsSync } from "./rooms/yjs-sync.js";
@@ -264,6 +271,8 @@ export class BoardRoom extends DurableObject<Env> {
 		const userId = url.searchParams.get("userId") ?? "anonymous";
 		const pair = new WebSocketPair();
 		this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
+		// 書き込み・購読のたびに聞く権限（Worker が確かめた役割）を接続に持たせる
+		setSocketAccess(pair[1], readAccessParams(url, this.boardId));
 
 		if (userId !== "anonymous" && this.boardId) {
 			try {
@@ -292,6 +301,8 @@ export class BoardRoom extends DurableObject<Env> {
 
 		switch (msgType) {
 			case MSG_YJS_UPDATE: {
+				// 編集できない人（viewer・公開ボードを見ている人）の書き込みは捨てる
+				if (!canEditRoot(ws)) break;
 				const applied = await this.yjsSync.applyClientUpdate(payload);
 				if (!applied) {
 					break;
@@ -344,10 +355,16 @@ export class BoardRoom extends DurableObject<Env> {
 				const frame = decodeDocFrame(data);
 				if (!frame) break;
 				if (msgType === MSG_DOC_SUBSCRIBE) {
+					// 見られないページは購読させない（今はどのページもボードと同じ公開範囲なので、
+					// つなげた人は全部見られる。ページごとの公開範囲が入ったら断る返事を足す）
+					if (!canViewPage(ws, frame.docId)) break;
 					await this.pageDocs.handleSubscribe(ws, frame.docId, frame.parts[0]);
 				} else if (msgType === MSG_DOC_UPDATE) {
 					const [update] = frame.parts;
-					if (update) await this.pageDocs.handleUpdate(ws, frame.docId, update);
+					// 編集できないページへの書き込みは捨てる（購読はそのまま）
+					if (update && canEditPage(ws, frame.docId)) {
+						await this.pageDocs.handleUpdate(ws, frame.docId, update);
+					}
 				} else {
 					this.pageDocs.handleUnsubscribe(ws, frame.docId);
 				}

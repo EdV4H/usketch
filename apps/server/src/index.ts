@@ -40,6 +40,7 @@ const app = await createServerApp({
 		createAiPlugin({
 			boards: schema.boards,
 			boardMembers: schema.boardMembers,
+			communityBoards: schema.communityBoards,
 		}),
 	],
 	corsOrigins: ALLOWED_ORIGINS,
