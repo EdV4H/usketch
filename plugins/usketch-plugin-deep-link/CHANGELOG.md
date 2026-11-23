@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-deep-link
 
+## 0.2.26
+
+### Patch Changes
+
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-store@3.14.0
+  - @edv4h/usketch-core@2.8.1
+
 ## 0.2.25
 
 ### Patch Changes

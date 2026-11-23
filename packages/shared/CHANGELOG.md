@@ -1,5 +1,19 @@
 # @edv4h/usketch-shared
 
+## 4.31.0
+
+### Minor Changes
+
+- 5dc7d1b: Rotated shapes are now hit, selected, snapped and dropped into where they are drawn. Snapping compares the bounds of each rotated shape's turned outline (moving and target), never snaps a rotation, and skips the resize of a rotated shape. The marquee tests a rotated shape's drawn outline (contain: all corners; intersect: separating-axis). Auto-attach (frames, attachable stickers) and the drop-target highlight treat a rotated container as its turned box, and the highlight is drawn rotated. The frame, counter, timer, board portal, community region, croupier table/seat, voice notes, open slide, community chat and freedraw shapes now hit-test with `withRotation`, and sticky/text start editing on a double-click anywhere on a rotated note. New in `@edv4h/usketch-shared`: `getShapeCorners`, `getShapeWorldAABB`, `rectIntersectsShape`, `shapeBoxContainsPoint`.
+- 8d13a3a: 回転した Shape を含む複数選択の回転・リサイズとグループの回転を直す
+  
+  - 複数選択の回転で、選んだフレームやグループの中身、`attachable.follow` で貼り付いた付箋も一緒に回るようにした（1 つだけ選んだときの回転でも貼り付いた付箋が付いてくる）。
+  - 複数選択のリサイズで、回転した Shape が歪まないようにした。90° 刻みの Shape は見た目の向きどおりに伸び（90° / 270° では幅と高さが入れ替わる）、それ以外の角度の Shape は縦横比を保って拡大縮小する。反転したときは、90° 刻み以外の Shape の回転も鏡像になる。
+  - `ShapeDefinition.rotatable` と `isShapeRotatable` を追加。省略時は `resizable` に従うので既存の定義の挙動は変わらない。グループは `rotatable: true` になり、単体で選んでも回転できる。
+  - `computeGroupBounds(children, rotation?)` は回転した子を見た目の角で囲み、回転したグループにはそのグループの向きでの外枠を返す。
+- 9aa4ddb: Rotated shapes no longer slide when their size changes. A single-shape resize of a rotated shape keeps the edge or corner opposite the handle where it is on screen, also across a flip (it used to drift, and a flip jumped sideways). Editable text shapes (sticky notes etc.) that grow while typing keep their top-left corner in place when rotated. The rotation zone at a selection's corners now starts only outside the shape, so grabbing a shape just inside a corner moves it instead of rotating it. New in `@edv4h/usketch-shared`: `placeLocalBox(local, pivot, angleDeg)` and `keepRotatedTopLeft(shape, width, height)`.
+- ba2c89c: Turned zones and player views. A zone turned on the board (a hand across the table) now lays out along its own edges, and its children turn with it so they read the right way up for the player sitting there (every arrangement but `free`; an unturned zone still leaves a child's own turn alone). A turned player view turns the camera the other way, so the seat across the table sees its view upright: `fitViewToScreen`, the `fixed` / `zoom` holds and `isAtView` take the view's turn, the hold keeps it (the camera still can't be turned by hand), and the move to the view swings about the screen's centre. **Add player view** on a turned camera makes a view turned the same way. New in tabletop: `ViewRect` (a box plus `rotation`), `viewRectOf(shape)`, `viewCameraRotation(rect)`, `screenViewRect(viewport, size)` and `rotation` on `createViewShape`. New in store / shared: `animateViewportTo(target, { pivot })` keeps the world point under a screen point moving straight, so a move that also turns the camera doesn't sweep the board off screen.
+
 ## 4.30.0
 
 ### Minor Changes

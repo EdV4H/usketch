@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-spotlight
 
+## 2.0.35
+
+### Patch Changes
+
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+
 ## 2.0.34
 
 ### Patch Changes

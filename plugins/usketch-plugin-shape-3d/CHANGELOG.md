@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-shape-3d
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-css3d-renderer@0.1.6
+
 ## 0.4.5
 
 ### Patch Changes
