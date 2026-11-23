@@ -26,7 +26,7 @@ import {
 } from "@edv4h/usketch-sync";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { boardMembers } from "./db/schema.js";
+import { boardMembers, pageAccess } from "./db/schema.js";
 import { loadPageAccess } from "./page-access/queries.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
@@ -34,11 +34,21 @@ import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs, subscribedDocIds } from "./rooms/page-docs.js";
+import {
+	applyPagesGuard,
+	judgePagesChanges,
+	maskPageName,
+	type PagesChange,
+	startRecordingPages,
+	unmaskPageName,
+} from "./rooms/pages-guard.js";
 import { createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import {
+	canCreatePage,
 	canEditPage,
 	canEditRoot,
+	canManagePage,
 	canViewPage,
 	readAccessParams,
 	setSocketAccess,
@@ -248,6 +258,11 @@ export class BoardRoom extends DurableObject<Env> {
 			return this.handleWebSocketUpgrade(request, url);
 		}
 
+		// 非公開にした・やめたページの名前を、ルート doc で伏せる・戻す（REST から呼ぶ）。
+		if (url.pathname === "/pages/mask" && request.method === "POST") {
+			return this.handleMaskPage(request);
+		}
+
 		// ページの公開範囲が変わった（REST から呼ぶ）。見られなくなったページの購読を外し、
 		// つながっている人に権限を読み直してもらう。
 		if (url.pathname === "/permissions-changed" && request.method === "POST") {
@@ -319,7 +334,15 @@ export class BoardRoom extends DurableObject<Env> {
 			case MSG_YJS_UPDATE: {
 				// 編集できない人（viewer・公開ボードを見ている人）の書き込みは捨てる
 				if (!canEditRoot(ws)) break;
-				const applied = await this.yjsSync.applyClientUpdate(payload);
+				// ページ一覧（pages）の変化を記録し、権限の無いものを後で戻す
+				const { doc: root } = await this.yjsSync.getOrCreateDoc();
+				const recorder = startRecordingPages(root);
+				let applied: boolean;
+				try {
+					applied = await this.yjsSync.applyClientUpdate(payload);
+				} finally {
+					recorder.stop();
+				}
 				if (!applied) {
 					break;
 				}
@@ -327,6 +350,8 @@ export class BoardRoom extends DurableObject<Env> {
 				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
 				this.noteBoardEdit();
+				const pagesChanges = recorder.stop();
+				if (pagesChanges.length > 0) await this.guardPages(ws, pagesChanges);
 				// ページを使うボードのルート shapes に書かれたもの（古いクライアントなど）は 1 枚目へ移す
 				try {
 					await this.pagesMigration.moveRootShapes();
@@ -491,6 +516,84 @@ export class BoardRoom extends DurableObject<Env> {
 			console.error("[BoardRoom] Failed to load page access:", e);
 			return null;
 		}
+	}
+
+	/** サーバーとしてルート doc に書き、保存して全員に送る。 */
+	private async writeRoot(write: (root: import("yjs").Doc) => void): Promise<void> {
+		const { doc } = await this.yjsSync.getOrCreateDoc();
+		const updates: Uint8Array[] = [];
+		const onUpdate = (update: Uint8Array) => updates.push(update);
+		doc.on("update", onUpdate);
+		try {
+			doc.transact(() => write(doc), "server");
+		} finally {
+			doc.off("update", onUpdate);
+		}
+		for (const update of updates) {
+			this.yjsSync.pushUpdate(update);
+			this.broadcastRootUpdate(update);
+		}
+	}
+
+	/**
+	 * クライアントが書いたページ一覧の変化を確かめる。権限の無いもの（作れない人の追加、管理
+	 * できないページの変更・削除）は戻し、非公開ページに書かれた名前は D1 へ移して伏せる。
+	 * 公開範囲を読めなければ全部戻す。
+	 */
+	private async guardPages(ws: WebSocket, changes: PagesChange[]): Promise<void> {
+		const boardId = socketBoardId(ws);
+		const access = await this.pageAccessOf(ws);
+		const { doc: root } = await this.yjsSync.getOrCreateDoc();
+		const result = judgePagesChanges(root, changes, {
+			canCreate: () => !!access && canCreatePage(ws),
+			canManage: (pageId) => !!access && canManagePage(ws, pageId, access.get(pageId)),
+			isMasked: (pageId) => access?.get(pageId)?.visibility === "private",
+		});
+		if (result.revert.size === 0 && result.renamed.size === 0) return;
+		await this.writeRoot((doc) => applyPagesGuard(doc, result));
+		if (result.renamed.size === 0 || !boardId) return;
+		try {
+			const db = drizzle(this.env.DB);
+			for (const [pageId, title] of result.renamed) {
+				await db
+					.update(pageAccess)
+					.set({ title, updatedAt: new Date().toISOString() })
+					.where(and(eq(pageAccess.boardId, boardId), eq(pageAccess.pageId, pageId)));
+			}
+			// 見られる人に新しい名前を読み直してもらう
+			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		} catch (e) {
+			console.error("[BoardRoom] Failed to store a masked page name:", e);
+		}
+	}
+
+	/**
+	 * `POST /pages/mask` `{ pageId, masked: true }` は名前を伏せて元の名前を返し、
+	 * `{ pageId, masked: false, name }` は名前を戻す。
+	 */
+	private async handleMaskPage(request: Request): Promise<Response> {
+		let body: { pageId?: unknown; masked?: unknown; name?: unknown };
+		try {
+			body = (await request.json()) as typeof body;
+		} catch {
+			return new Response("Bad request", { status: 400 });
+		}
+		const { pageId, masked, name } = body;
+		if (typeof pageId !== "string" || typeof masked !== "boolean") {
+			return new Response("Bad request", { status: 400 });
+		}
+		let previous: string | null = null;
+		let found = true;
+		await this.writeRoot((root) => {
+			if (masked) {
+				previous = maskPageName(root, pageId);
+				found = previous !== null;
+			} else {
+				found = unmaskPageName(root, pageId, typeof name === "string" ? name : "");
+			}
+		});
+		if (!found) return Response.json({ error: "Page not found" }, { status: 404 });
+		return Response.json({ name: previous });
 	}
 
 	private async handlePermissionsChanged(): Promise<void> {

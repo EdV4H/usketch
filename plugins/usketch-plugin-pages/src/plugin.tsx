@@ -7,7 +7,7 @@ import {
 import type * as Y from "yjs";
 import type { PagePluginsOptions } from "./page-plugins.js";
 import { watchMovedOutShapes } from "./page-transfer.js";
-import { createPagesApi } from "./pages-api.js";
+import { createPagesApi, type PageView } from "./pages-api.js";
 import type { OpenPageDoc } from "./pages-ops.js";
 import { PagesPanel } from "./pages-panel.js";
 import { pagesService } from "./pages-service.js";
@@ -32,6 +32,11 @@ export interface PagesPluginOptions {
 	 * 「このページのプラグイン」を選べる（何があるかはホストが決める）。
 	 */
 	pagePlugins?: PagePluginsOptions;
+	/**
+	 * ページの見え方。権限で見られないページを一覧から隠す、伏せた名前の代わりに本当の名前を
+	 * 出す、名前の変更をホストが引き受ける（非公開ページの名前を別の場所に置くとき）。
+	 */
+	pageView?: PageView;
 }
 
 /**
@@ -50,6 +55,7 @@ export function createPagesPlugin(options: PagesPluginOptions): UsketchPlugin {
 				currentPageId: options.pageId,
 				switchPage: options.switchPage,
 				openPageDoc: options.openPageDoc,
+				view: options.pageView,
 			});
 			const hasNeighbor = (step: 1 | -1) => {
 				const pages = api.list();
@@ -108,6 +114,7 @@ export function createPagesPlugin(options: PagesPluginOptions): UsketchPlugin {
 						id: "pages:duplicate",
 						group: GROUP,
 						label: "今のページを複製",
+						requires: PERMISSIONS.pageCreate,
 						run: async () => {
 							await api.duplicate(api.currentPageId, { open: true });
 						},
