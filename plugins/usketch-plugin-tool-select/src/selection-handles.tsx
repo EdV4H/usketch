@@ -10,6 +10,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import {
 	DEFAULT_SELECTION_HANDLE_HIT_RADIUS,
+	isReadOnly,
 	screenToOverlay,
 	unrotatedViewport,
 	worldToScreen,
@@ -138,6 +139,8 @@ export function collectHandles(
 	viewport: Viewport,
 ): { provider: SelectionHandleProvider; handles: SelectionHandle[] }[] {
 	if (ctx.store.getActiveToolId() !== SELECT_TOOL_ID) return [];
+	// A read-only page can't change shapes, so no handle is offered.
+	if (isReadOnly(ctx.store)) return [];
 	const state = handleState(ctx);
 	const onBuiltIn = builtInHandleTest(ctx, viewport);
 	return registry.getAll().map((provider) => ({

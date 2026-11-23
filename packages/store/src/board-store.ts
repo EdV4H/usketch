@@ -140,6 +140,15 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		return getRotatedAABB(bounds, rotation);
 	}
 
+	// Read-only (a viewer who may only look): the viewer's own shape writes are dropped;
+	// changes from outside (sync, loading) go through inside `applyExternal`.
+	let readOnly = false;
+	let externalDepth = 0;
+	/** Drop this write: the store is read-only and it isn't an external change. */
+	function writeBlocked(): boolean {
+		return readOnly && externalDepth === 0;
+	}
+
 	function notify() {
 		for (const listener of listeners) {
 			listener();
@@ -338,6 +347,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		getShape: (id) => state.shapes.get(id),
 
 		addShape(shape: ShapeData) {
+			if (writeBlocked()) return;
 			const now = Date.now();
 			const needsZIndex = typeof shape.zIndex !== "string";
 			// Fast path: use the tracked max-zIndex to append a tail key in O(1)
@@ -362,6 +372,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		},
 
 		updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>) {
+			if (writeBlocked()) return;
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
@@ -395,6 +406,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		},
 
 		deleteShape(id: string) {
+			if (writeBlocked()) return;
 			const existed = state.shapes.has(id);
 			const wasSelected = state.selection.has(id);
 			if (!existed && !wasSelected) return;
@@ -425,6 +437,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		},
 
 		ensureZIndex() {
+			if (writeBlocked()) return;
 			// Assign zIndex to shapes that are missing one, appending them after the
 			// current maximum existing key. Missing shapes are processed in their Map
 			// iteration order, so their relative order (between themselves) is preserved.
@@ -620,6 +633,24 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			return () => {
 				mutationListeners.delete(listener);
 			};
+		},
+
+		isReadOnly: () => readOnly,
+
+		setReadOnly(next: boolean) {
+			if (readOnly === next) return;
+			readOnly = next;
+			notify();
+			notifyMutation({ type: "read-only:changed", payload: { readOnly } });
+		},
+
+		applyExternal<T>(fn: () => T): T {
+			externalDepth++;
+			try {
+				return fn();
+			} finally {
+				externalDepth--;
+			}
 		},
 
 		getView3d: () => view3d.get(),

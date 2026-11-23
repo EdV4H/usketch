@@ -216,6 +216,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			const TOOL_ID = "spotlight";
 
 			ctx.tools.register(TOOL_ID, {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: SpotlightIcon,
 				cursor: "crosshair",
 				shortcut: "o",

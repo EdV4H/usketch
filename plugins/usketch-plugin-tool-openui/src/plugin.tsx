@@ -4,6 +4,7 @@ import {
 	type BoundingBox,
 	DEFAULT_STYLE,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	screenCenterWorld,
@@ -241,6 +242,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 			if (enableMakeReal && provider.supportsVision) {
 				offMakeRealAction = ctx.actions.register({
 					id: "openui:make-real",
+					requires: PERMISSIONS.pageEdit,
 					label: "✨ Make Real",
 					group: "AI",
 					isEnabled: () => selectionForMakeReal().length > 0,

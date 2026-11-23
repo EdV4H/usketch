@@ -1,5 +1,6 @@
 import { getActiveTimeoutMs } from "@edv4h/croupier-core";
 import {
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	screenCenterWorld,
@@ -178,6 +179,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				...options.games.map((game, i) =>
 					ctx.actions.register({
 						id: `croupier:new-table:${game.id}`,
+						requires: PERMISSIONS.pageEdit,
 						label: `${game.label} のテーブルを置く`,
 						group: "Croupier",
 						order: i,
@@ -189,6 +191,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				),
 				ctx.actions.register({
 					id: "croupier:join",
+					requires: PERMISSIONS.pageEdit,
 					label: "選択中のテーブルに参加",
 					group: "Croupier",
 					order: 100,
@@ -200,6 +203,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				}),
 				ctx.actions.register({
 					id: "croupier:leave",
+					requires: PERMISSIONS.pageEdit,
 					label: "選択中のテーブルから抜ける",
 					group: "Croupier",
 					order: 101,
@@ -214,6 +218,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				}),
 				ctx.actions.register({
 					id: "croupier:start",
+					requires: PERMISSIONS.pageEdit,
 					label: "選択中のテーブルでスタート",
 					group: "Croupier",
 					order: 102,
@@ -225,6 +230,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				}),
 				ctx.actions.register({
 					id: "croupier:reset",
+					requires: PERMISSIONS.pageEdit,
 					label: "選択中のテーブルをロビーに戻す",
 					group: "Croupier",
 					order: 103,

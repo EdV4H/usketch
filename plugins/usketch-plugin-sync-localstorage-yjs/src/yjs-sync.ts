@@ -1,4 +1,4 @@
-import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
+import { applyExternal, type BoardStore, type ShapeData } from "@edv4h/usketch-shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 import { SyncStatusTracker } from "./sync-status-tracker.js";
@@ -132,30 +132,32 @@ export function createYjsSync(
 
 		isSyncing = true;
 		try {
-			for (const [key, change] of events.changes.keys) {
-				switch (change.action) {
-					case "add":
-					case "update": {
-						const value = shapesMap.get(key);
-						if (value) {
-							const shape = value as unknown as ShapeData;
-							const existing = store.getShape(key);
-							if (existing) {
-								store.updateShape(key, toReplacingUpdates(existing, shape));
-							} else {
-								store.addShape(shape);
+			applyExternal(store, () => {
+				for (const [key, change] of events.changes.keys) {
+					switch (change.action) {
+						case "add":
+						case "update": {
+							const value = shapesMap.get(key);
+							if (value) {
+								const shape = value as unknown as ShapeData;
+								const existing = store.getShape(key);
+								if (existing) {
+									store.updateShape(key, toReplacingUpdates(existing, shape));
+								} else {
+									store.addShape(shape);
+								}
 							}
+							break;
 						}
-						break;
-					}
-					case "delete": {
-						if (store.getShape(key)) {
-							store.deleteShape(key);
+						case "delete": {
+							if (store.getShape(key)) {
+								store.deleteShape(key);
+							}
+							break;
 						}
-						break;
 					}
 				}
-			}
+			});
 		} finally {
 			isSyncing = false;
 		}
@@ -167,28 +169,30 @@ export function createYjsSync(
 	function restore() {
 		isSyncing = true;
 		try {
-			const idsNeedingZIndex: string[] = [];
-			for (const [id, value] of shapesMap.entries()) {
-				const shape = value as unknown as ShapeData;
-				if (!store.getShape(id)) {
-					store.addShape(shape);
-				}
-				// Track legacy shapes that were persisted before z-order was introduced.
-				if (typeof shape.zIndex !== "string") {
-					idsNeedingZIndex.push(id);
-				}
-			}
-
-			// Backfill zIndex for legacy shapes: addShape auto-assigned one, so push
-			// the new value back to Y.Map so we don't re-randomize on every load.
-			if (idsNeedingZIndex.length > 0) {
-				doc.transact(() => {
-					for (const id of idsNeedingZIndex) {
-						const current = store.getShape(id);
-						if (current) shapesMap.set(id, toPlainObject(current));
+			applyExternal(store, () => {
+				const idsNeedingZIndex: string[] = [];
+				for (const [id, value] of shapesMap.entries()) {
+					const shape = value as unknown as ShapeData;
+					if (!store.getShape(id)) {
+						store.addShape(shape);
 					}
-				});
-			}
+					// Track legacy shapes that were persisted before z-order was introduced.
+					if (typeof shape.zIndex !== "string") {
+						idsNeedingZIndex.push(id);
+					}
+				}
+
+				// Backfill zIndex for legacy shapes: addShape auto-assigned one, so push
+				// the new value back to Y.Map so we don't re-randomize on every load.
+				if (idsNeedingZIndex.length > 0) {
+					doc.transact(() => {
+						for (const id of idsNeedingZIndex) {
+							const current = store.getShape(id);
+							if (current) shapesMap.set(id, toPlainObject(current));
+						}
+					});
+				}
+			});
 		} finally {
 			isSyncing = false;
 		}
@@ -229,13 +233,15 @@ export function createYjsSync(
 		// Sync existing entries to store
 		isSyncing = true;
 		try {
-			for (const [id, value] of partMap.entries()) {
-				const shape = value as unknown as ShapeData;
-				partShapeIds.add(id);
-				if (!store.getShape(id)) {
-					store.addShape(shape);
+			applyExternal(store, () => {
+				for (const [id, value] of partMap.entries()) {
+					const shape = value as unknown as ShapeData;
+					partShapeIds.add(id);
+					if (!store.getShape(id)) {
+						store.addShape(shape);
+					}
 				}
-			}
+			});
 		} finally {
 			isSyncing = false;
 		}
@@ -245,32 +251,34 @@ export function createYjsSync(
 			if (isSyncing || destroyed) return;
 			isSyncing = true;
 			try {
-				for (const [key, change] of events.changes.keys) {
-					switch (change.action) {
-						case "add":
-						case "update": {
-							const value = partMap.get(key);
-							if (value) {
-								const shape = value as unknown as ShapeData;
-								partShapeIds.add(key);
-								const existing = store.getShape(key);
-								if (existing) {
-									store.updateShape(key, toReplacingUpdates(existing, shape));
-								} else {
-									store.addShape(shape);
+				applyExternal(store, () => {
+					for (const [key, change] of events.changes.keys) {
+						switch (change.action) {
+							case "add":
+							case "update": {
+								const value = partMap.get(key);
+								if (value) {
+									const shape = value as unknown as ShapeData;
+									partShapeIds.add(key);
+									const existing = store.getShape(key);
+									if (existing) {
+										store.updateShape(key, toReplacingUpdates(existing, shape));
+									} else {
+										store.addShape(shape);
+									}
 								}
+								break;
 							}
-							break;
-						}
-						case "delete": {
-							partShapeIds.delete(key);
-							if (store.getShape(key)) {
-								store.deleteShape(key);
+							case "delete": {
+								partShapeIds.delete(key);
+								if (store.getShape(key)) {
+									store.deleteShape(key);
+								}
+								break;
 							}
-							break;
 						}
 					}
-				}
+				});
 			} finally {
 				isSyncing = false;
 			}
@@ -294,11 +302,13 @@ export function createYjsSync(
 		// Remove shapes that belong to this partition from the store
 		isSyncing = true;
 		try {
-			for (const id of entry.shapeIds) {
-				if (store.getShape(id)) {
-					store.deleteShape(id);
+			applyExternal(store, () => {
+				for (const id of entry.shapeIds) {
+					if (store.getShape(id)) {
+						store.deleteShape(id);
+					}
 				}
-			}
+			});
 		} finally {
 			isSyncing = false;
 		}

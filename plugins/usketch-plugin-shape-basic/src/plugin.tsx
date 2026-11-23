@@ -11,6 +11,7 @@ import {
 	type CanvasPointerEvent,
 	type GpuPrimitive,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
@@ -178,6 +179,7 @@ export function createBasicShapePlugin(): UsketchPlugin {
 			// Control HUD 用 Action（Demo の subtype picker 相当）
 			const offSubtypeAction = ctx.actions.register({
 				id: "basic-shape:subtype",
+				requires: PERMISSIONS.pageEdit,
 				label: "Shape subtype",
 				group: "Basic shape",
 				params: [

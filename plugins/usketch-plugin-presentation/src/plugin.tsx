@@ -4,6 +4,7 @@ import type {
 	PluginContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
 import { OpenSlideDeckRegistry } from "./open-slide/deck-registry.js";
 import { OpenSlideEditState } from "./open-slide/edit-state.js";
@@ -206,6 +207,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				unregisters.push(
 					ctx.actions.register({
 						id: "presentation:insert-open-slide",
+						requires: PERMISSIONS.pageEdit,
 						label: "open-slide デッキを置く",
 						group: "Presentation",
 						params: [
@@ -234,6 +236,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				unregisters.push(
 					ctx.actions.register({
 						id: "presentation:edit-open-slide",
+						requires: PERMISSIONS.pageEdit,
 						label: "デッキの中身を編集",
 						group: "Presentation",
 						run: () => {
@@ -246,6 +249,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				unregisters.push(
 					ctx.actions.register({
 						id: "presentation:reset-open-slide",
+						requires: PERMISSIONS.pageEdit,
 						label: "デッキを元の内容に戻す",
 						group: "Presentation",
 						run: () => {

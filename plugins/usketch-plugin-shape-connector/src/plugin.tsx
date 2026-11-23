@@ -13,7 +13,7 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, PERMISSIONS } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { computeAnchorChange } from "./anchor-change.js";
 import { type AnchorHandleMode, createAnchorHandleProvider } from "./anchor-handles.js";
@@ -378,6 +378,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 			const offConnectorActions = [
 				ctx.actions.register({
 					id: "connector:arrow-head",
+					requires: PERMISSIONS.pageEdit,
 					label: "Arrow head",
 					group: "Connector",
 					isEnabled: hasConnector,
@@ -398,6 +399,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				}),
 				ctx.actions.register({
 					id: "connector:path-type",
+					requires: PERMISSIONS.pageEdit,
 					label: "Path type",
 					group: "Connector",
 					isEnabled: hasConnector,
@@ -417,6 +419,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				}),
 				ctx.actions.register({
 					id: "connector:source-anchor",
+					requires: PERMISSIONS.pageEdit,
 					label: "Source anchor",
 					group: "Connector",
 					isEnabled: hasConnector,
@@ -425,6 +428,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				}),
 				ctx.actions.register({
 					id: "connector:target-anchor",
+					requires: PERMISSIONS.pageEdit,
 					label: "Target anchor",
 					group: "Connector",
 					isEnabled: hasConnector,

@@ -1,4 +1,5 @@
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { createHistoryClient, type HistoryClient } from "./history-client.js";
 import { createHistoryController } from "./history-controller.js";
 import { HistoryPanel } from "./history-panel.js";
@@ -52,6 +53,7 @@ export function createHistoryPlugin(options: HistoryPluginOptions): UsketchPlugi
 				}),
 				ctx.actions.register({
 					id: "history:save-version",
+					requires: PERMISSIONS.pageEdit,
 					group: "履歴",
 					label: "今の版を保存",
 					params: [{ name: "message", label: "版の名前", type: "string", default: "" }],
