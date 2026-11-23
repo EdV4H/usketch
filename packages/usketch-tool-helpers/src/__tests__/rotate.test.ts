@@ -162,3 +162,71 @@ describe("startMultiRotateSession", () => {
 		expect(a?.rotation).toBeCloseTo(5);
 	});
 });
+
+describe("rotation carries what follows the shape on a move", () => {
+	it("multi: a selected frame's children turn with it", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "f", type: "frame", x: 0, y: 0, width: 200, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "c", x: 150, y: 40, width: 20, height: 20, parentId: "f" }));
+		ctx.store.addShape(makeShape({ id: "o", x: 300, y: 0, width: 100, height: 100 }));
+		const session = startMultiRotateSession({
+			ctx,
+			ids: ["f", "o"],
+			center: { x: 200, y: 50 },
+			startAngle: 0,
+			snapStep: 0,
+		});
+		// +90° around (200, 50).
+		session.update(makePointerEvent({ x: 200, y: 150 }));
+		const c = ctx.store.getShape("c");
+		// Child center (160, 50) → (200, 10).
+		expect(c?.x).toBeCloseTo(190);
+		expect(c?.y).toBeCloseTo(0);
+		expect(c?.rotation).toBeCloseTo(90);
+		const result = session.commit();
+		if (!result) throw new Error("expected a commit");
+		ctx.commands.execute(result.command);
+		ctx.commands.undo();
+		expect(ctx.store.getShape("c")).toMatchObject({ x: 150, y: 40, rotation: 0 });
+	});
+
+	it("multi: a child selected with its container turns once", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "f", type: "frame", x: 0, y: 0, width: 200, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "c", x: 150, y: 40, width: 20, height: 20, parentId: "f" }));
+		const session = startMultiRotateSession({
+			ctx,
+			ids: ["f", "c"],
+			center: { x: 100, y: 50 },
+			startAngle: 0,
+			snapStep: 0,
+		});
+		session.update(makePointerEvent({ x: 100, y: 150 }));
+		expect(ctx.store.getShape("c")?.rotation).toBeCloseTo(90);
+	});
+
+	it("single: a sticker attached with attachable.follow turns with its parent", () => {
+		const ctx = createTestToolContext();
+		const rect = ctx.shapes.get("rect");
+		if (!rect) throw new Error("rect shape is not registered");
+		ctx.shapes.register("sticker", { ...rect, attachable: { follow: true } });
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(
+			makeShape({ id: "s", type: "sticker", x: 80, y: 40, width: 20, height: 20, parentId: "a" }),
+		);
+		const session = startRotateSession({
+			ctx,
+			shapeId: "a",
+			center: { x: 50, y: 50 },
+			startAngle: 0,
+			startRotation: 0,
+		});
+		session.update(makePointerEvent({ x: 50, y: 100 }));
+		const s = ctx.store.getShape("s");
+		// Sticker center (90, 50) → (50, 90).
+		expect(s?.x).toBeCloseTo(40);
+		expect(s?.y).toBeCloseTo(80);
+		expect(s?.rotation).toBeCloseTo(90);
+		expect(ctx.store.getShape("a")?.rotation).toBeCloseTo(90);
+	});
+});
