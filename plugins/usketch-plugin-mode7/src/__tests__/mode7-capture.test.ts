@@ -4,6 +4,7 @@ import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it, vi } from "vitest";
 import { EDIT_TOOL_ID, mode7CaptureHandlers } from "../mode7-runtime.js";
 import { createMode7Store } from "../mode7-store.js";
+import { shapeDoubleClickExit } from "../plugin.js";
 
 function setup(pick: (p: { x: number; y: number }) => View3dPick | null) {
 	const board = createBoardStore();
@@ -63,5 +64,22 @@ describe("the 3D view's capture layer", () => {
 		expect(exit).not.toHaveBeenCalled();
 		handlers.onShapeDoubleClick?.({ x: 10, y: 10 });
 		expect(exit).toHaveBeenCalledTimes(1);
+	});
+
+	it("stays in 3D on a double click when the host keeps it (exitOnShapeDoubleClick: false)", () => {
+		const disable = vi.fn();
+		expect(shapeDoubleClickExit({}, disable)).toBe(disable);
+		expect(shapeDoubleClickExit({ exitOnShapeDoubleClick: true }, disable)).toBe(disable);
+		const exit = shapeDoubleClickExit({ exitOnShapeDoubleClick: false }, disable);
+		expect(exit).toBeUndefined();
+		const board = createBoardStore();
+		board.setActiveToolId(EDIT_TOOL_ID);
+		const services = createServiceRegistry();
+		view3dPickService.provide(services, { pickAt: onShape });
+		const mode7 = createMode7Store({ active: true });
+		const handlers = mode7CaptureHandlers({ board, services, mode7, exit });
+		handlers.onShapeDoubleClick?.({ x: 10, y: 10 });
+		expect(disable).not.toHaveBeenCalled();
+		expect(mode7.getState().active).toBe(true);
 	});
 });

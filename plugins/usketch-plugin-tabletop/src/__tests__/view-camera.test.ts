@@ -1,4 +1,10 @@
-import { screenToWorld, viewportAnchoredAt } from "@edv4h/usketch-shared";
+import {
+	projectStagePoint,
+	screenToWorld,
+	type Viewport,
+	viewportAnchoredAt,
+	worldToScreen,
+} from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -195,5 +201,157 @@ describe("applyViewCamera", () => {
 		store.setViewportConstraint(other);
 		handle.release();
 		expect(store.getViewportConstraint()).toBe(other);
+	});
+});
+
+describe("tilted view camera", () => {
+	const tilt = { pitch: 35, fov: 1200, horizon: 0.5 };
+	const screen = { width: 1200, height: 800 };
+	const view = { x: 0, y: 0, width: 1600, height: 900 };
+	const pad = 24;
+	const cam = { ...tilt, yaw: 0 };
+	// The view's corners as the tilted camera draws them.
+	const drawn = (vp: Viewport, r = view) =>
+		[
+			[r.x, r.y],
+			[r.x + r.width, r.y],
+			[r.x, r.y + r.height],
+			[r.x + r.width, r.y + r.height],
+		].map(([x, y]) => {
+			const s = worldToScreen(x, y, vp);
+			const p = projectStagePoint(s.x, s.y, cam, screen);
+			if (!p) throw new Error("behind the eye");
+			return p;
+		});
+
+	it("keeps the whole tilted view on screen: far edge on the top padding, near edge tight", () => {
+		const vp = fitViewToScreen(view, screen, pad, tilt);
+		const [tl, tr, bl, br] = drawn(vp);
+		expect(tl.y).toBeCloseTo(pad, 3);
+		expect(tr.y).toBeCloseTo(pad, 3);
+		for (const p of [tl, tr, bl, br]) {
+			expect(p.x).toBeGreaterThanOrEqual(pad - 1e-6);
+			expect(p.x).toBeLessThanOrEqual(screen.width - pad + 1e-6);
+			expect(p.y).toBeLessThanOrEqual(screen.height - pad + 1e-6);
+		}
+		// Centred across, near edge wider than the far edge, and as large as fits.
+		expect((bl.x + br.x) / 2).toBeCloseTo(screen.width / 2, 3);
+		expect(br.x - bl.x).toBeGreaterThan(tr.x - tl.x);
+		const tight = Math.min(screen.width - pad - br.x, screen.height - pad - bl.y);
+		expect(tight).toBeLessThan(0.01);
+	});
+
+	it("a flat tilt (pitch 0) or none fits like before", () => {
+		expect(fitViewToScreen(view, screen, pad, { ...tilt, pitch: 0 })).toEqual(
+			fitViewToScreen(view, screen, pad),
+		);
+		expect(fitViewToScreen(view, screen, pad, null)).toEqual(fitViewToScreen(view, screen, pad));
+	});
+
+	it("frames a turned view for the tilt too", () => {
+		const turned = { ...view, rotation: 180 };
+		const vp = fitViewToScreen(turned, screen, pad, tilt);
+		expect(vp.rotation).toBe(180);
+		const corners = drawn(vp);
+		// Turned 180°: the view's bottom edge (y = 900) is the far one now.
+		const far = corners.slice(2);
+		for (const p of far) expect(p.y).toBeCloseTo(pad, 3);
+		for (const p of corners) {
+			expect(p.x).toBeGreaterThanOrEqual(pad - 1e-6);
+			expect(p.x).toBeLessThanOrEqual(screen.width - pad + 1e-6);
+		}
+	});
+
+	it("starts below the vanishing line when the tilt is steep", () => {
+		const steep = { pitch: 80, fov: 300, horizon: 0.6 };
+		const vp = fitViewToScreen(view, screen, pad, steep);
+		const vanishing = screen.height * steep.horizon - steep.fov / Math.tan((80 * Math.PI) / 180);
+		const s = worldToScreen(0, 0, vp);
+		const far = projectStagePoint(s.x, s.y, { ...steep, yaw: 0 }, screen);
+		expect(far).not.toBeNull();
+		expect(far?.y ?? 0).toBeGreaterThan(Math.max(pad, vanishing));
+		expect(Number.isFinite(vp.zoom) && vp.zoom > 0).toBe(true);
+	});
+
+	it("frames for a raised camera and for an unusual pivot, every corner on screen", () => {
+		for (const t of [
+			{ ...tilt, heightPx: 200 },
+			{ pitch: 30, fov: 500, horizon: 0.9 },
+			{ pitch: 30, fov: 500, horizon: 0.1 },
+		]) {
+			const vp = fitViewToScreen(view, screen, pad, t);
+			const corners = [
+				[0, 0],
+				[1600, 0],
+				[0, 900],
+				[1600, 900],
+			].map(([x, y]) => {
+				const s = worldToScreen(x, y, vp);
+				return projectStagePoint(s.x, s.y, { ...t, yaw: 0 }, screen);
+			});
+			for (const p of corners) {
+				expect(p).not.toBeNull();
+				expect(p?.x ?? -1).toBeGreaterThanOrEqual(pad - 1e-6);
+				expect(p?.x ?? Infinity).toBeLessThanOrEqual(screen.width - pad + 1e-6);
+				expect(p?.y ?? -1).toBeGreaterThanOrEqual(pad - 1e-6);
+				expect(p?.y ?? Infinity).toBeLessThanOrEqual(screen.height - pad + 1e-6);
+			}
+			expect(corners[0]?.y ?? 0).toBeCloseTo(pad, 3);
+		}
+	});
+
+	it("fixed: pinned to the tilted fit", () => {
+		const constrain = pinToViewConstraint({
+			getRect: () => view,
+			getSize: () => screen,
+			padding: pad,
+			getTilt: () => tilt,
+		});
+		expect(constrain({ x: 5, y: 5, zoom: 3 })).toEqual(fitViewToScreen(view, screen, pad, tilt));
+	});
+
+	it("zoom: stays on the fit until zoomed in, then may move as far as it zoomed", () => {
+		const constrain = stayInViewConstraint({
+			getRect: () => view,
+			getSize: () => screen,
+			padding: pad,
+			getTilt: () => tilt,
+		});
+		const fit = fitViewToScreen(view, screen, pad, tilt);
+		// Zoomed out and panned: back on the fit.
+		const out = constrain({ x: 900, y: -400, zoom: fit.zoom / 3 });
+		expect(out.zoom).toBeCloseTo(fit.zoom);
+		expect(out.x).toBeCloseTo(fit.x);
+		expect(out.y).toBeCloseTo(fit.y);
+		// Zoomed in 2× and pushed far right: the point drawn where the fit draws the
+		// view's centre stops a quarter of the view from it (half of the half size).
+		const fx = fit.x + 800 * fit.zoom;
+		const fy = fit.y + 450 * fit.zoom;
+		const zoom = fit.zoom * 2;
+		const pushed = constrain({ x: fx - 5000 * zoom, y: fy - 450 * zoom, zoom });
+		expect(pushed.zoom).toBeCloseTo(zoom);
+		expect((fx - pushed.x) / zoom).toBeCloseTo(800 + 400);
+		expect((fy - pushed.y) / zoom).toBeCloseTo(450);
+		// A move within the reach is left alone.
+		const inside = { x: fx - 1000 * zoom, y: fy - 500 * zoom, zoom };
+		expect(constrain(inside)).toEqual(inside);
+	});
+
+	it("applyViewCamera frames the view for the host's tilt", () => {
+		const store = createBoardStore();
+		let current: typeof tilt | null = tilt;
+		const handle = applyViewCamera(store, () => view, "fixed", {
+			getSize: () => screen,
+			padding: pad,
+			animate: false,
+			getTilt: () => current,
+		});
+		expect(isAtView(store.getViewport(), view, screen, pad, tilt)).toBe(true);
+		expect(isAtView(store.getViewport(), view, screen, pad)).toBe(false);
+		// Read live: the tilt goes away, the next commit is the flat fit.
+		current = null;
+		store.setViewport({ x: 1, y: 1, zoom: 1 });
+		expect(isAtView(store.getViewport(), view, screen, pad)).toBe(true);
+		handle.release();
 	});
 });

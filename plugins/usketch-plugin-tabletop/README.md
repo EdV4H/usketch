@@ -88,7 +88,30 @@ camera.release(); // when play ends
 the store's viewport constraint (`fixed` / `zoom`; a held camera keeps the
 view's turn and can't be turned by hand).
 Applying another view on the same store releases the first, and `release` only
-removes the constraint it installed. Zones never take views. The pieces are exported too: `fitViewToScreen`,
+removes the constraint it installed.
+
+A host that shows the board leaning back in 3D while a view is applied (e.g. with
+Mode 7) passes the tilt it draws with as `getTilt` (`{ pitch, fov, horizon }`, read
+live; `null` = flat). The view is then framed as that camera draws it: its far edge
+on the top margin, as large as fits with its wider near edge inside the screen.
+`fixed` holds that framing; `zoom` keeps the camera on it until zoomed in, and then
+lets it move off only as far as it has zoomed in (2× reaches half-way to the view's
+edges), since the trapezoid a tilt draws can't be clamped edge by edge.
+
+```ts
+const camera = applyViewCamera(app.store, getRect, "zoom", {
+	getSize,
+	getTilt: () => ({ pitch: 35, fov: 1200, horizon: 0.5 }),
+});
+```
+
+The tilt is read on every commit, but changing it doesn't move the camera by
+itself: after turning the tilt on, off or to another pitch, call `returnToView()`
+(or apply the view again). The tilt has no yaw: a view's turn is the camera's
+turn, so keep the 3D view's own yaw at 0 while a view is applied. `heightPx` is
+for a raised 3D camera (Mode 7's `getRenderedCamera().heightPx`).
+
+Zones never take views. The pieces are exported too: `fitViewToScreen`,
 `stayInViewConstraint`, `pinToViewConstraint`, `isAtView`, `viewRectOf`,
 `viewCameraRotation`.
 

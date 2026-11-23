@@ -1,9 +1,12 @@
 import {
 	type BoardStore,
 	type BoundingBox,
+	type ProjectionCamera,
+	projectStagePoint,
 	type ShapeData,
 	safeRotation,
 	screenToWorld,
+	unprojectStagePoint,
 	type Viewport,
 	type ViewportConstraint,
 	worldToScreen,
@@ -18,6 +21,12 @@ import type { ViewCamera } from "./view.js";
 // shows upright on that player's screen. With the camera turned by `r`, screen =
 // t + zoom · R(r)·world, so in "turned" coordinates L = R(r)·world the camera is an
 // unturned one: the same fit / clamp math runs on the view's box in L.
+//
+// A tilted camera (the board shown leaning back in 3D, e.g. by Mode 7) draws the flat
+// stage through a perspective tilt about the horizon line, so the view's box shows as a
+// trapezoid: narrower and smaller far away (top), wider near (bottom). With a `tilt`, the
+// fit / clamp math keeps that trapezoid on screen instead of the flat box (see
+// `fitViewToScreen`). The tilt is the host's; this only frames the view for it.
 
 /** A view's box and how far it is turned (degrees, clockwise, like a shape's `rotation`). */
 export interface ViewRect extends BoundingBox {
@@ -60,6 +69,41 @@ function turnedBox(rect: ViewRect, rotation: number): BoundingBox {
 function withTurn({ rotation: _r, ...vp }: Viewport, rotation: number): Viewport {
 	return rotation === 0 ? vp : { ...vp, rotation };
 }
+
+/**
+ * A 3D view the camera looks through: the flat stage tilted back by `pitch` about the
+ * horizon line (`perspective(fov) rotateX(pitch)`, like `tiltCss` in
+ * `@edv4h/usketch-shared`). The host draws it (e.g. Mode 7's camera); the view camera
+ * only frames the view for it. A pitch of 0 (or less) is the flat camera. There is no
+ * yaw: a view's turn is the camera's turn (the viewport's rotation), so a host keeps
+ * its 3D view's own yaw at 0 while a view is applied.
+ */
+export interface ViewTilt {
+	/** How far the ground leans back, degrees (0 = straight down). */
+	pitch: number;
+	/** CSS `perspective()` distance in px. */
+	fov: number;
+	/** The pivot line as a fraction of the screen height. */
+	horizon: number;
+	/** Px the 3D camera is raised (everything is drawn this much lower). Default 0. */
+	heightPx?: number;
+}
+
+const isTilted = (tilt: ViewTilt | null | undefined): tilt is ViewTilt =>
+	!!tilt &&
+	Number.isFinite(tilt.pitch) &&
+	tilt.pitch > 1e-3 &&
+	Number.isFinite(tilt.fov) &&
+	tilt.fov > 0 &&
+	Number.isFinite(tilt.horizon);
+
+const projectionOf = (tilt: ViewTilt): ProjectionCamera => ({
+	pitch: tilt.pitch,
+	yaw: 0,
+	fov: tilt.fov,
+	horizon: tilt.horizon,
+	heightPx: Number.isFinite(tilt.heightPx) ? tilt.heightPx : 0,
+});
 
 export interface ViewportSize {
 	width: number;
@@ -126,15 +170,22 @@ export function viewFitZoom(
 
 /**
  * The viewport that shows all of `rect`, centred, whatever the screen's shape. A
- * turned view turns the camera too, so it shows upright.
+ * turned view turns the camera too, so it shows upright. With a `tilt` the view is
+ * framed as the tilted camera draws it: its far edge on the top padding, as large as
+ * fits with its near (wider) edge inside the sides and the bottom.
  */
 export function fitViewToScreen(
 	rect: ViewRect,
 	size: ViewportSize,
 	padding: number = VIEW_FIT_PADDING,
+	tilt?: ViewTilt | null,
 ): Viewport {
 	const rotation = viewCameraRotation(rect);
 	const box = turnedBox(rect, rotation);
+	if (isTilted(tilt)) {
+		const fit = tiltedFit(box, size, padding, tilt);
+		if (fit) return withTurn(fit, rotation);
+	}
 	const zoom = viewFitZoom(box, size, padding);
 	const cx = box.x + box.width / 2;
 	const cy = box.y + box.height / 2;
@@ -142,6 +193,99 @@ export function fitViewToScreen(
 		{ x: size.width / 2 - cx * zoom + 0, y: size.height / 2 - cy * zoom + 0, zoom },
 		rotation,
 	);
+}
+
+/**
+ * The tilted fit of an unturned `box` (see {@link fitViewToScreen}), or `null` when the
+ * screen shows no ground to put it on. The box is centred across the screen (the tilt
+ * pivots about the middle, so it stays symmetric); its far edge is drawn on the top
+ * padding (or just below the vanishing line, when that is lower), and the zoom is the
+ * largest at which its near edge is still inside the sides and above the bottom padding.
+ */
+function tiltedFit(
+	box: BoundingBox,
+	size: ViewportSize,
+	padding: number,
+	tilt: ViewTilt,
+): Fit | null {
+	const cam = projectionOf(tilt);
+	const cx = size.width / 2;
+	const bottom = size.height - padding;
+	const halfWidth = Math.max(1, size.width / 2 - padding);
+	// Where the far edge is drawn: the top padding, or a little below the vanishing line.
+	const rad = (tilt.pitch * Math.PI) / 180;
+	const vanishing = size.height * tilt.horizon - tilt.fov / Math.tan(rad);
+	const top = Math.max(padding, vanishing + Math.max(1, size.height * 0.01));
+	if (top >= bottom) return null;
+	const far = unprojectStagePoint(cx, top, cam, size);
+	if (!far) return null;
+	const width = Math.max(1, box.width);
+	const height = Math.max(1, box.height);
+	// Every corner on screen (the near ones are the widest and lowest on a usual tilt,
+	// but a raised camera or a low horizon can make it otherwise).
+	const fits = (zoom: number): boolean => {
+		const half = (width * zoom) / 2;
+		for (const y of [far.y, far.y + height * zoom]) {
+			const p = projectStagePoint(cx + half, y, cam, size);
+			if (!p || p.y > bottom + 1e-6 || p.y < top - 1e-6 || p.x - cx > halfWidth) return false;
+		}
+		return true;
+	};
+	let lo = 0;
+	let hi = viewFitZoom(box, size, padding);
+	// The far part shrinks, so the tilted fit can be closer than the flat one: grow first.
+	for (let i = 0; i < 40 && fits(hi); i++) {
+		lo = hi;
+		hi *= 2;
+	}
+	for (let i = 0; i < 50; i++) {
+		const mid = (lo + hi) / 2;
+		if (fits(mid)) lo = mid;
+		else hi = mid;
+	}
+	if (lo <= 0) return null;
+	const zoom = lo;
+	return {
+		x: cx - (box.x + width / 2) * zoom + 0,
+		y: far.y - box.y * zoom + 0,
+		zoom,
+	};
+}
+
+type Fit = { x: number; y: number; zoom: number };
+
+/**
+ * {@link tiltedFit} remembering its last answer: a constraint runs on every commit
+ * (every animation frame), and the fit only changes with the view, screen or tilt.
+ */
+function memoTiltedFit(): (
+	box: BoundingBox,
+	size: ViewportSize,
+	padding: number,
+	tilt: ViewTilt,
+) => Fit | null {
+	let lastKey = "";
+	let last: Fit | null = null;
+	return (box, size, padding, tilt) => {
+		const key = [
+			box.x,
+			box.y,
+			box.width,
+			box.height,
+			size.width,
+			size.height,
+			padding,
+			tilt.pitch,
+			tilt.fov,
+			tilt.horizon,
+			tilt.heightPx ?? 0,
+		].join(",");
+		if (key !== lastKey) {
+			lastKey = key;
+			last = tiltedFit(box, size, padding, tilt);
+		}
+		return last;
+	};
 }
 
 /** One axis: centre what is smaller than the screen, else stop at its edges. */
@@ -164,13 +308,16 @@ interface RectConstraintOptions {
 	getRect: () => ViewRect | null;
 	getSize: () => ViewportSize | null;
 	padding?: number;
+	/** The 3D tilt the camera is drawn with, read live (null / absent = flat). */
+	getTilt?: () => ViewTilt | null;
 }
 
 const readRect = (opts: RectConstraintOptions) => {
 	const rect = opts.getRect();
 	const size = opts.getSize();
 	if (!rect || !size || size.width <= 0 || size.height <= 0) return null;
-	return { rect, size };
+	const tilt = opts.getTilt?.() ?? null;
+	return { rect, size, tilt: isTilted(tilt) ? tilt : null };
 };
 
 /**
@@ -178,21 +325,26 @@ const readRect = (opts: RectConstraintOptions) => {
  * in is free), no panning outside; an axis where the view is smaller than the screen
  * stays centred. The camera can't be turned (turning it would show what is outside
  * the view): it keeps the view's own turn. Read live on every commit, so a resized
- * screen is followed.
+ * screen is followed. With a tilt (`getTilt`), the fit is the tilted one and the
+ * camera may move off it only as far as it has zoomed in: at the fit it stays put,
+ * zoomed in 2× it can reach half-way to the view's edges (the trapezoid a tilt draws
+ * can't be clamped edge by edge like the flat box).
  */
 export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
+	const fitTilted = memoTiltedFit();
 	return (proposed) => {
 		const read = readRect(opts);
 		if (!read) return proposed;
-		const { size } = read;
+		const { size, tilt } = read;
 		const rotation = viewCameraRotation(read.rect);
 		const rect = turnedBox(read.rect, rotation);
 		const vp = withTurn(proposed, rotation);
-		const minZoom = viewFitZoom(rect, size, padding);
+		const fit = tilt ? fitTilted(rect, size, padding, tilt) : null;
+		const minZoom = fit ? fit.zoom : viewFitZoom(rect, size, padding);
 		let { x, y, zoom } = vp;
 		if (!Number.isFinite(zoom) || zoom <= 0) {
-			({ x, y, zoom } = fitViewToScreen(rect, size, padding));
+			({ x, y, zoom } = fit ?? fitViewToScreen(rect, size, padding));
 		} else if (zoom < minZoom) {
 			// Zoom back about the screen centre so the pivot doesn't jump.
 			const scale = minZoom / zoom;
@@ -200,6 +352,7 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
 			y = size.height / 2 - (size.height / 2 - y) * scale;
 			zoom = minZoom;
 		}
+		if (fit) return { ...vp, ...clampTilted(rect, fit, { x, y, zoom }), zoom };
 		return {
 			...vp,
 			x: clampAxis(x, rect.x, rect.width, zoom, size.width, padding),
@@ -210,15 +363,40 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
 }
 
 /**
+ * Keep a tilted camera near its fit (see {@link stayInViewConstraint}): the point of the
+ * view drawn where the fit draws the view's centre may move from that centre by the
+ * share of the view the zoom has gained (`1 − fit.zoom / zoom` of the half size).
+ */
+function clampTilted(box: BoundingBox, fit: Fit, vp: Fit): { x: number; y: number } {
+	const cx = box.x + box.width / 2;
+	const cy = box.y + box.height / 2;
+	// The stage point (px) where the fit draws the view's centre.
+	const fx = fit.x + cx * fit.zoom;
+	const fy = fit.y + cy * fit.zoom;
+	const reach = Math.max(0, 1 - fit.zoom / vp.zoom);
+	const clamp = (v: number, c: number, half: number) => Math.min(c + half, Math.max(c - half, v));
+	const px = clamp((fx - vp.x) / vp.zoom, cx, (box.width / 2) * reach);
+	const py = clamp((fy - vp.y) / vp.zoom, cy, (box.height / 2) * reach);
+	return { x: fx - px * vp.zoom + 0, y: fy - py * vp.zoom + 0 };
+}
+
+/**
  * `fixed`: the camera always shows `getRect()` fitted, whatever is asked (upright: a
- * turned view turns the camera).
+ * turned view turns the camera; tilted: framed for the tilt).
  */
 export function pinToViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
+	const fitTilted = memoTiltedFit();
 	return (vp) => {
 		const read = readRect(opts);
 		if (!read) return vp;
-		return fitViewToScreen(read.rect, read.size, padding);
+		const { rect, size, tilt } = read;
+		if (tilt) {
+			const rotation = viewCameraRotation(rect);
+			const fit = fitTilted(turnedBox(rect, rotation), size, padding, tilt);
+			if (fit) return withTurn(fit, rotation);
+		}
+		return fitViewToScreen(rect, size, padding);
 	};
 }
 
@@ -228,8 +406,9 @@ export function isAtView(
 	rect: ViewRect,
 	size: ViewportSize,
 	padding: number = VIEW_FIT_PADDING,
+	tilt?: ViewTilt | null,
 ): boolean {
-	const fit = fitViewToScreen(rect, size, padding);
+	const fit = fitViewToScreen(rect, size, padding, tilt);
 	return (
 		Math.abs(vp.x - fit.x) < 0.5 &&
 		Math.abs(vp.y - fit.y) < 0.5 &&
@@ -246,6 +425,11 @@ export interface ApplyViewCameraOptions {
 	animate?: boolean;
 	/** Length of the move. Default 350 ms. */
 	durationMs?: number;
+	/**
+	 * The 3D tilt the host draws the board with while the view is applied (e.g. Mode 7's
+	 * camera), read live; null / absent = flat. The view is framed for it.
+	 */
+	getTilt?: () => ViewTilt | null;
 }
 
 export interface ViewCameraHandle {
@@ -274,7 +458,7 @@ export function applyViewCamera(
 	applied.get(store)?.release();
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
 	const durationMs = opts.durationMs ?? 350;
-	const constraintOpts = { getRect, getSize: opts.getSize, padding };
+	const constraintOpts = { getRect, getSize: opts.getSize, padding, getTilt: opts.getTilt };
 	const constraint =
 		camera === "fixed"
 			? pinToViewConstraint(constraintOpts)
@@ -297,7 +481,7 @@ export function applyViewCamera(
 		const rect = getRect();
 		const size = opts.getSize();
 		if (!rect || !size || size.width <= 0 || size.height <= 0) return false;
-		const target = fitViewToScreen(rect, size, padding);
+		const target = fitViewToScreen(rect, size, padding, opts.getTilt?.());
 		// Swing about the screen's centre, so a move that also turns the camera (to a
 		// seat across the table) doesn't sweep the board off screen on the way.
 		const pivot = { x: size.width / 2, y: size.height / 2 };
