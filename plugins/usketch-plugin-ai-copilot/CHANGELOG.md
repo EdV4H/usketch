@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-ai-copilot
 
+## 3.1.26
+
+### Patch Changes
+
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-plugin-ai-agent@3.1.7
+
 ## 3.1.25
 
 ### Patch Changes

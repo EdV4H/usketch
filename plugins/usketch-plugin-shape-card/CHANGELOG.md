@@ -1,5 +1,20 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.9.3
+
+### Patch Changes
+
+- ea0f14f: Find the screen centre with the shared `screenCenterWorld` helper instead of hand-rolled `window.innerWidth / 2` maths, so it is right when the viewport is rotated: the avatar's shared `viewportCenter` (also re-sent when only the rotation changes), the board portal added from the board info panel, and a card played from the hand.
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-store@3.14.0
+  - @edv4h/usketch-shape-utils@2.4.12
+  - @edv4h/usketch-canvas-engine@1.8.5
+  - @edv4h/usketch-core@2.8.1
+
 ## 1.9.2
 
 ### Patch Changes

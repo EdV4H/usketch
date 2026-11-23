@@ -1,5 +1,18 @@
 # @edv4h/usketch-plugin-board-info-panel
 
+## 3.0.35
+
+### Patch Changes
+
+- ea0f14f: Find the screen centre with the shared `screenCenterWorld` helper instead of hand-rolled `window.innerWidth / 2` maths, so it is right when the viewport is rotated: the avatar's shared `viewportCenter` (also re-sent when only the rotation changes), the board portal added from the board info panel, and a card played from the hand.
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-canvas-engine@1.8.5
+  - @edv4h/usketch-plugin-side-panel@2.0.32
+
 ## 3.0.34
 
 ### Patch Changes

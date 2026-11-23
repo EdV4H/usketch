@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-bg-dots
 
+## 2.1.16
+
+### Patch Changes
+
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-core@2.8.1
+
 ## 2.1.15
 
 ### Patch Changes

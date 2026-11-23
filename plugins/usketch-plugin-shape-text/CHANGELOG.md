@@ -1,5 +1,19 @@
 # @edv4h/usketch-plugin-shape-text
 
+## 3.2.4
+
+### Patch Changes
+
+- 5dc7d1b: Rotated shapes are now hit, selected, snapped and dropped into where they are drawn. Snapping compares the bounds of each rotated shape's turned outline (moving and target), never snaps a rotation, and skips the resize of a rotated shape. The marquee tests a rotated shape's drawn outline (contain: all corners; intersect: separating-axis). Auto-attach (frames, attachable stickers) and the drop-target highlight treat a rotated container as its turned box, and the highlight is drawn rotated. The frame, counter, timer, board portal, community region, croupier table/seat, voice notes, open slide, community chat and freedraw shapes now hit-test with `withRotation`, and sticky/text start editing on a double-click anywhere on a rotated note. New in `@edv4h/usketch-shared`: `getShapeCorners`, `getShapeWorldAABB`, `rectIntersectsShape`, `shapeBoxContainsPoint`.
+- 9aa4ddb: Rotated shapes no longer slide when their size changes. A single-shape resize of a rotated shape keeps the edge or corner opposite the handle where it is on screen, also across a flip (it used to drift, and a flip jumped sideways). Editable text shapes (sticky notes etc.) that grow while typing keep their top-left corner in place when rotated. The rotation zone at a selection's corners now starts only outside the shape, so grabbing a shape just inside a corner moves it instead of rotating it. New in `@edv4h/usketch-shared`: `placeLocalBox(local, pivot, angleDeg)` and `keepRotatedTopLeft(shape, width, height)`.
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-store@3.14.0
+  - @edv4h/usketch-shape-utils@2.4.12
+
 ## 3.2.3
 
 ### Patch Changes
