@@ -6,6 +6,7 @@ import {
 	isPermitted,
 	PERMISSIONS,
 	permissionsOf,
+	scopePermissions,
 } from "../permissions.js";
 
 describe("permissions", () => {
@@ -54,5 +55,37 @@ describe("permissions", () => {
 		expect(permissionsOf({}).can(PERMISSIONS.boardAdmin)).toBe(true);
 		const deny = denyAllPermissions();
 		expect(permissionsOf({ permissions: deny })).toBe(deny);
+	});
+});
+
+describe("scopePermissions", () => {
+	it("asks about the scope when no resource is given, and layers a given one on it", () => {
+		const seen: unknown[] = [];
+		const base = createStaticPermissionProvider((_p, resource) => {
+			seen.push(resource);
+			return resource?.pageId === "a";
+		});
+		const scoped = scopePermissions(base, { boardId: "b", pageId: "a" });
+		expect(scoped.can(PERMISSIONS.pageEdit)).toBe(true);
+		expect(scoped.can(PERMISSIONS.pageEdit, { pageId: "other" })).toBe(false);
+		expect(seen).toEqual([
+			{ boardId: "b", pageId: "a" },
+			{ boardId: "b", pageId: "other" },
+		]);
+	});
+
+	it("reads a function scope each time and passes subscriptions through", () => {
+		let pageId = "a";
+		const base = createStaticPermissionProvider((_p, r) => r?.pageId === "a");
+		const scoped = scopePermissions(base, () => ({ pageId }));
+		expect(scoped.can(PERMISSIONS.pageView)).toBe(true);
+		pageId = "b";
+		expect(scoped.can(PERMISSIONS.pageView)).toBe(false);
+		let calls = 0;
+		const off = scoped.subscribe(() => calls++);
+		base.set(() => true);
+		off();
+		base.set(() => false);
+		expect(calls).toBe(1);
 	});
 });

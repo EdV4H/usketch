@@ -1,0 +1,39 @@
+{
+	"name": "@edv4h/usketch-demo-permissions",
+	"version": "0.0.0",
+	"description": "The demo app's permission rules (shared by apps/web and apps/server).",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"source": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-permissions-casl": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "7.0.2",
+		"vitest": "5.1.1"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	}
+}

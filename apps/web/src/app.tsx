@@ -10,6 +10,7 @@ import {
 	devHeaders,
 	readRenderer3d,
 	useBoardHost,
+	useBoardPermissions,
 } from "./board-host/index.js";
 import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
@@ -104,6 +105,13 @@ export function App() {
 		[boardId, isCloudBoard],
 	);
 
+	// クラウドのボードはボードの役割でできることを決める（デモのルール）。手元のボードは何でもできる。
+	const permissions = useBoardPermissions({
+		boardId: boardId ?? null,
+		cloud: isCloudBoard,
+		userId: authUser?.id ?? null,
+	});
+
 	const {
 		app,
 		error,
@@ -113,6 +121,7 @@ export function App() {
 		lastOpen,
 	} = useBoardHost({
 		source,
+		permissions,
 		// 開くページ: URL の ?page= → 前回開いたページ → 先頭ページ。ページ無しのボードは null。
 		pickPage: (state) =>
 			state.paged && boardId

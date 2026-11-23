@@ -203,6 +203,8 @@ interface PluginContext {
 
 - ホストは `createApp({ permissions })` に `PermissionProvider`（同期の `can` + 答えが変わったときの `subscribe`）を渡す。省略すると全部可（`allowAllPermissions()`）なので、権限を使わないホストは何も変わらない。
 - 素朴なアダプターは shared にある: `allowAllPermissions()` / `denyAllPermissions()` / `createStaticPermissionProvider(一覧 | 関数)`（`set()` で差し替えて知らせる）。CASL や利用先の API につなぐものは別パッケージのアダプターにする。
+- CASL のアダプターは `@edv4h/usketch-permissions-casl`（`createCaslPermissionProvider` / `createCaslServerResolver`）。`"page.edit"` は対象 `page` への `edit` として聞き、resource が対象の中身になる。ルールは JSON なのでサーバーで作ってブラウザへ送れる。デモのルールは `packages/usketch-demo-permissions`（非公開）。
+- ホストはボード全体の provider を 1 つ持ち、ページごとの App には `scopePermissions(provider, () => ({ boardId, pageId, … }))` を渡す（resource を省いた `can()` が「このページ」になる）。
 - コアの権限名は `PERMISSIONS`（`page.view` / `page.edit` / `page.manage` / `page.create` / `board.admin`）。プラグイン独自の権限は `"<plugin id>:<操作>"` の形で名付ける。
 - HUD に出すもの（`PluginAction` / `HudSettingsDescriptor` / `HudPanel`）は **`requires` に要る権限を書くだけ**でよい。HUD が `can(requires)` が false のものを隠し、権限が変われば出し直す。プラグインが自分で出し分けを書かない。
 - プラグインの中で読むときは `permissionsOf(ctx)`（古いコアの文脈には `permissions` が無いので、そのときは全部可）。
