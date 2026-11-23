@@ -10,6 +10,7 @@ import {
 	bidiffShape,
 	deltaToLocal,
 	diffShape,
+	normalizeAngle,
 	placeLocalBox,
 	safeRotation,
 	unrotatePoint,
@@ -20,9 +21,11 @@ import {
 	computeMultiResizeUpdates,
 	computeRawBounds,
 	computeRelativeProps,
+	computeRotatedRelativeProps,
 	fixAnchorDrift,
 	getAnchorEdges,
 	type MultiResizeShapeEntry,
+	rotatedResizeFit,
 } from "./internal/resize-handles.js";
 import type { SessionCommit, ShapeUpdateMap, ToolSession } from "./types.js";
 
@@ -238,6 +241,18 @@ export function toLocalFlipAxes(
 
 // ── Multi-selection resize ───────────────────────────────────────────
 
+/**
+ * Rotation after mirroring a shape along the world axes: each mirrored axis
+ * negates it (a mirror turns a rotation the other way). 90° multiples keep
+ * theirs — their content flip along the swapped local axis already matches
+ * the mirror (see {@link toLocalFlipAxes}).
+ */
+function mirroredRotation(rotation: number, axes: { x: boolean; y: boolean }): number {
+	if (rotatedResizeFit(rotation) !== "uniform") return rotation;
+	const flips = (axes.x ? 1 : 0) + (axes.y ? 1 : 0);
+	return flips === 1 ? normalizeAngle(-rotation) : rotation;
+}
+
 interface MultiState {
 	handle: ResizeHandle;
 	startPoint: Point;
@@ -263,18 +278,19 @@ function createMultiResizeSession(opts: {
 		originalFullShapes.set(id, { ...shape });
 		const def = ctx.shapes.get(shape.type);
 		const minSize = def?.minSize ?? { width: 1, height: 1 };
-		const rel = computeRelativeProps(
-			{ x: shape.x, y: shape.y, width: shape.width, height: shape.height },
-			opts.groupBounds,
-		);
+		const box = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		const rotation = safeRotation(shape.rotation);
+		// A rotated shape is placed by its drawn outline and resized without being
+		// distorted (see `MultiResizeShapeEntry.rotation`).
+		const rel = rotation
+			? computeRotatedRelativeProps(box, rotation, opts.groupBounds)
+			: computeRelativeProps(box, opts.groupBounds);
 		startShapeData.set(id, {
-			x: shape.x,
-			y: shape.y,
-			width: shape.width,
-			height: shape.height,
+			...box,
 			minWidth: minSize.width,
 			minHeight: minSize.height,
 			...rel,
+			...(rotation ? { rotation } : {}),
 		});
 	}
 
@@ -308,37 +324,61 @@ function createMultiResizeSession(opts: {
 					flippedGroupBounds.y = anchor.y;
 					flippedGroupBounds.height = 0;
 				}
+				const axes = { x: flip.flippedX, y: flip.flippedY };
 				const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
 				for (const [id, data] of state.startShapeData) {
 					const newRel = { ...data };
-					if (flip.flippedX) {
-						newRel.relX = 1 - data.relX - data.relWidth;
-						newRel.x = flippedGroupBounds.x;
-						newRel.width = 0;
-					}
-					if (flip.flippedY) {
-						newRel.relY = 1 - data.relY - data.relHeight;
-						newRel.y = flippedGroupBounds.y;
-						newRel.height = 0;
+					if (flip.flippedX) newRel.relX = 1 - data.relX - data.relWidth;
+					if (flip.flippedY) newRel.relY = 1 - data.relY - data.relHeight;
+					if (data.rotation) {
+						// A rotated shape keeps its own size (it is re-placed below); mirroring
+						// it at an angle that isn't a 90° multiple also mirrors its rotation.
+						newRel.rotation = mirroredRotation(data.rotation, axes);
+					} else {
+						if (flip.flippedX) {
+							newRel.x = flippedGroupBounds.x;
+							newRel.width = 0;
+						}
+						if (flip.flippedY) {
+							newRel.y = flippedGroupBounds.y;
+							newRel.height = 0;
+						}
 					}
 					flippedShapeData.set(id, newRel);
 				}
+				const rotatedPlacement = computeMultiResizeUpdates(
+					flip.handle,
+					flippedGroupBounds,
+					{ x: 0, y: 0 },
+					new Map([...flippedShapeData].filter(([, data]) => data.rotation)),
+				);
 				// Temporarily disable snap during flip-reset (matches tool-select).
 				ctx.events.emit("snap:configure", { enabled: false });
 				const flipUpdates: ShapeUpdateMap = new Map();
 				for (const [id, data] of flippedShapeData) {
 					const shape = ctx.store.getShape(id);
 					const flipFn = shape ? ctx.shapes.get(shape.type)?.flip : undefined;
-					const axes = { x: flip.flippedX, y: flip.flippedY };
-					const update: Partial<ShapeData> =
-						shape && flipFn ? { ...flipFn(shape, toLocalFlipAxes(axes, shape.rotation)) } : {};
-					if (flip.flippedX) {
-						update.x = data.x;
-						update.width = 0;
+					const update: Partial<ShapeData> = {};
+					if (data.rotation && rotatedResizeFit(data.rotation) === "uniform") {
+						// World mirror at an arbitrary angle = mirror the rotation and flip the
+						// content along the same local axes.
+						if (shape && flipFn) Object.assign(update, flipFn(shape, axes));
+						update.rotation = data.rotation;
+					} else if (shape && flipFn) {
+						Object.assign(update, flipFn(shape, toLocalFlipAxes(axes, shape.rotation)));
 					}
-					if (flip.flippedY) {
-						update.y = data.y;
-						update.height = 0;
+					const placed = rotatedPlacement.get(id);
+					if (placed) {
+						Object.assign(update, placed);
+					} else {
+						if (flip.flippedX) {
+							update.x = data.x;
+							update.width = 0;
+						}
+						if (flip.flippedY) {
+							update.y = data.y;
+							update.height = 0;
+						}
 					}
 					ctx.store.updateShape(id, update);
 					flipUpdates.set(id, update);

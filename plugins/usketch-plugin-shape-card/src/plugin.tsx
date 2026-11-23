@@ -7,6 +7,7 @@ import {
 	type Point,
 	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
+	screenCenterWorld,
 	type ToolContext,
 	type UsketchPlugin,
 	withRotation,
@@ -479,13 +480,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 			}
 			broadcastHandCount();
 
-			function viewportCenterWorld(): Point {
-				const vp = ctx.store.getViewport();
-				const w = typeof window !== "undefined" ? window.innerWidth : 1200;
-				const h = typeof window !== "undefined" ? window.innerHeight : 800;
-				return { x: (w / 2 - vp.x) / vp.zoom, y: (h / 2 - vp.y) / vp.zoom };
-			}
-
 			// カードを手札に入れる: shape を共有ストアから削除し内容をローカル手札へ（undo 可能）。
 			function moveCardToHand(id: string) {
 				const shape = ctx.store.getShape(id);
@@ -520,7 +514,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				if (!entry) return;
 				const def = registry.get(entry.cardType);
 				if (!def) return;
-				const center = viewportCenterWorld();
+				const center = screenCenterWorld(ctx.store);
 				const allZ = ctx.store.getShapesSorted().map((s) => s.zIndex);
 				const card = createCardShape(def, {
 					id: entry.id,

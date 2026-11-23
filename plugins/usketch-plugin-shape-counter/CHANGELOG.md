@@ -1,5 +1,18 @@
 # @edv4h/usketch-plugin-shape-counter
 
+## 3.0.35
+
+### Patch Changes
+
+- 5dc7d1b: Rotated shapes are now hit, selected, snapped and dropped into where they are drawn. Snapping compares the bounds of each rotated shape's turned outline (moving and target), never snaps a rotation, and skips the resize of a rotated shape. The marquee tests a rotated shape's drawn outline (contain: all corners; intersect: separating-axis). Auto-attach (frames, attachable stickers) and the drop-target highlight treat a rotated container as its turned box, and the highlight is drawn rotated. The frame, counter, timer, board portal, community region, croupier table/seat, voice notes, open slide, community chat and freedraw shapes now hit-test with `withRotation`, and sticky/text start editing on a double-click anywhere on a rotated note. New in `@edv4h/usketch-shared`: `getShapeCorners`, `getShapeWorldAABB`, `rectIntersectsShape`, `shapeBoxContainsPoint`.
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+  - @edv4h/usketch-store@3.14.0
+  - @edv4h/usketch-core@2.8.1
+
 ## 3.0.34
 
 ### Patch Changes

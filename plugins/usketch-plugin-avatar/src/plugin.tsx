@@ -1,4 +1,10 @@
-import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	type PluginContext,
+	screenCenterWorld,
+	type TransientObject,
+	type UsketchPlugin,
+	viewportRotation,
+} from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { AvatarCircle } from "./avatar-circle.js";
 
@@ -99,27 +105,22 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 
 			function syncLocalViewportCenter() {
 				lastViewportSync = Date.now();
-				const viewport = ctx.store.getViewport();
-				// ビューポートの中央をワールド座標で計算
-				// viewport: { x, y, zoom } where x,y is the top-left offset
-				// 画面中央 = (screenWidth/2, screenHeight/2)
-				// ワールド座標 = (screenX - viewport.x) / viewport.zoom
-				const screenCenterX = window.innerWidth / 2;
-				const screenCenterY = window.innerHeight / 2;
-				const worldCenterX = (screenCenterX - viewport.x) / viewport.zoom;
-				const worldCenterY = (screenCenterY - viewport.y) / viewport.zoom;
-
-				awareness.setLocalStateField("viewportCenter", {
-					x: worldCenterX,
-					y: worldCenterY,
-				});
+				// 画面中央のワールド座標（ビューポートの回転も考慮する）
+				const { x, y } = screenCenterWorld(ctx.store);
+				awareness.setLocalStateField("viewportCenter", { x, y });
 			}
 
 			// ビューポート変更時のみ自分の位置を同期（他のstore変更は無視）
 			let lastVp = ctx.store.getViewport();
 			const unsubStore = ctx.store.subscribe(() => {
 				const vp = ctx.store.getViewport();
-				if (vp.x === lastVp.x && vp.y === lastVp.y && vp.zoom === lastVp.zoom) return;
+				if (
+					vp.x === lastVp.x &&
+					vp.y === lastVp.y &&
+					vp.zoom === lastVp.zoom &&
+					viewportRotation(vp) === viewportRotation(lastVp)
+				)
+					return;
 				const zoomChanged = vp.zoom !== lastVp.zoom;
 				lastVp = vp;
 				scheduleViewportCenterSync();

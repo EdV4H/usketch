@@ -6,6 +6,7 @@ import {
 	type Point,
 	type ShapeData,
 	type ToolContext,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { DEFAULT_APPEARANCE, type ResolvedAppearance } from "./appearance.js";
 import { buildSummaryChildren, markdownShape, summaryMarkdownSource } from "./diagram.js";
@@ -234,7 +235,7 @@ export function registerVoicePin(
 			/>
 		),
 		getBounds,
-		hitTest,
+		hitTest: withRotation(hitTest),
 		resize: (data) => data, // pins are fixed-size markers
 		createDefault: (p: { id: string; x: number; y: number }) =>
 			({

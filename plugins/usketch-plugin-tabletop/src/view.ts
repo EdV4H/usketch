@@ -48,6 +48,8 @@ export interface CreateViewShapeParams extends Partial<TabletopViewMeta> {
 	y: number;
 	width?: number;
 	height?: number;
+	/** How far the view is turned (degrees, clockwise), e.g. 180 for the seat across. */
+	rotation?: number;
 	zIndex?: string;
 }
 
@@ -61,6 +63,7 @@ export function createViewShape(params: CreateViewShapeParams): ShapeData {
 		y: params.y,
 		width: params.width ?? DEFAULT_VIEW_SIZE.width,
 		height: params.height ?? DEFAULT_VIEW_SIZE.height,
+		...(params.rotation ? { rotation: params.rotation } : {}),
 		...(params.zIndex ? { zIndex: params.zIndex } : {}),
 		style: { ...DEFAULT_STYLE },
 		meta: meta as unknown as ShapeData["meta"],

@@ -101,6 +101,7 @@ interface PluginContext {
   plugins: PluginInfoRegistry;   // 有効なプラグインの一覧（id + name、読み取り専用）
   services: ServiceRegistry;
   height?: BoardHeightApi;       // ボードの高さ（地面 + 固体）。古いコアでは無い
+  permissions?: PermissionProvider; // 閲覧者が何をしてよいか。permissionsOf(ctx) で読む（古いコアでは無い）
 }
 ```
 

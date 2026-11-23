@@ -35,9 +35,8 @@ function registryDeclaresAttachableFollow(ctx: ToolContext): boolean {
 /**
  * Collect the user-selected shapes plus all descendants of any shape whose
  * children should follow (containers by default). Used by the drag/move
- * helper (`startDragSession`) so a parent moves with its children atomically.
- * Rotation uses {@link collectChildrenOnly} instead, since it tracks the root
- * rotation separately from its children.
+ * helper (`startDragSession`) so a parent moves with its children atomically,
+ * and by the rotate sessions so the same shapes turn with it.
  *
  * Returns a Map of `shapeId -> snapshot at session start`. Snapshots are
  * shallow clones so callers can compare against later store state without
@@ -96,30 +95,5 @@ export function collectSelectionWithDescendants(
 		}
 	}
 
-	return result;
-}
-
-/**
- * Like {@link collectSelectionWithDescendants}, but only the *children* of
- * the given container (one level down through `getChildShapes`, recursive
- * via container detection). Intentionally doesn't include the root itself —
- * used by {@link startRotateSession} where the root rotation is tracked
- * separately from its rotated children.
- */
-export function collectChildrenOnly(ctx: ToolContext, rootId: string): Map<string, ShapeData> {
-	const result = new Map<string, ShapeData>();
-	const root = ctx.store.getShape(rootId);
-	if (!root || !isShapeContainer(ctx.shapes.get(root.type), root)) return result;
-
-	const queue: string[] = [rootId];
-	while (queue.length > 0) {
-		const parentId = queue.pop();
-		if (!parentId) break;
-		for (const child of getChildShapes(ctx.store, parentId)) {
-			if (result.has(child.id)) continue;
-			result.set(child.id, { ...child });
-			if (isShapeContainer(ctx.shapes.get(child.type), child)) queue.push(child.id);
-		}
-	}
 	return result;
 }

@@ -1,4 +1,4 @@
-import { type BoardStore, DEFAULT_STYLE } from "@edv4h/usketch-shared";
+import { type BoardStore, DEFAULT_STYLE, screenCenterWorld } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState } from "react";
 import type { BoardInfoClient } from "./board-info-client.js";
 import type { BoardInfo, BoardListItem, BoardMember, BoardPortalShapeData } from "./types.js";
@@ -182,15 +182,12 @@ function BoardListView({
 
 	/** ビューポート中央にboard-portalシェイプを追加 */
 	function addPortalToCanvas(board: BoardListItem) {
-		const vp = store.getViewport();
 		const w = 64;
 		const h = 80;
-		// ビューポートの世界座標系での左上位置
-		const worldLeft = -vp.x / vp.zoom;
-		const worldTop = -vp.y / vp.zoom;
-		// ビューポート中央の世界座標にポータルを配置
-		const cx = worldLeft + window.innerWidth / 2 / vp.zoom - w / 2;
-		const cy = worldTop + window.innerHeight / 2 / vp.zoom - h / 2;
+		// 画面中央のワールド座標にポータルの中心を合わせる
+		const center = screenCenterWorld(store);
+		const cx = center.x - w / 2;
+		const cy = center.y - h / 2;
 
 		const portalShape: BoardPortalShapeData = {
 			id: crypto.randomUUID(),

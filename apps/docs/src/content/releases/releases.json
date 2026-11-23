@@ -1,5 +1,18 @@
 [
 	{
+		"id": "2026-11-23",
+		"version": "2026-11-23",
+		"date": "2026-11-23",
+		"level": "minor",
+		"highlights": [
+			"✨ Live sessions: two new session types — Gather brings everyone to one place (with a prompt, a backdrop, a view-only mark and an audience) and Respond collects answers that stay hidden until the host reveals them; sessions can also run over the shared Yjs doc, and anyone can claim host while the host is away (#1517, #1518, #1525, #1527, #1528, #1532).",
+			"✨ Tabletop: a new plugin with zones that hold and lay out cards or pieces (pile, spread, grid or free, aligned left, center or right) and player views that hold each player's camera on their part of the table; container auto-attach gains attachHit and accepts (#1555, #1556, #1563, #1566).",
+			"✨ Permissions: hosts connect their permission system through createApp({ permissions }), plugins ask ctx.permissions, and HUD actions, settings and panels declare requires to hide themselves; the HUD also gains side panels and a status line (#1560, #1562).",
+			"✨ Demo app: try a board without signing in at /try instead of the board list, and the world map Playground is now an elevation map (#1535, #1559).",
+			"✨ Text: the cornerResize option scales the text itself from the corner handles (#1515)."
+		]
+	},
+	{
 		"id": "2026-11-16",
 		"version": "2026-11-16",
 		"date": "2026-11-16",

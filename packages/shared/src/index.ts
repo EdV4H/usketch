@@ -334,16 +334,20 @@ export type {
 } from "./utils/minimap.js";
 export { computeMinimap, minimapToSvg } from "./utils/minimap.js";
 // Resizable resolution
-export { isShapeResizable } from "./utils/resizable.js";
+export { isShapeResizable, isShapeRotatable } from "./utils/resizable.js";
 // Rotation
 export {
 	deltaToLocal,
 	getRotatedAABB,
+	getShapeCorners,
+	getShapeWorldAABB,
 	keepRotatedTopLeft,
 	normalizeAngle,
 	placeLocalBox,
+	rectIntersectsShape,
 	rotatePoint,
 	safeRotation,
+	shapeBoxContainsPoint,
 	shortestAngleDelta,
 	snapAngle,
 	unrotatePoint,

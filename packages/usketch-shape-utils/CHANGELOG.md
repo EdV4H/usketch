@@ -1,5 +1,16 @@
 # @edv4h/usketch-shape-utils
 
+## 2.4.12
+
+### Patch Changes
+
+- 9aa4ddb: Rotated shapes no longer slide when their size changes. A single-shape resize of a rotated shape keeps the edge or corner opposite the handle where it is on screen, also across a flip (it used to drift, and a flip jumped sideways). Editable text shapes (sticky notes etc.) that grow while typing keep their top-left corner in place when rotated. The rotation zone at a selection's corners now starts only outside the shape, so grabbing a shape just inside a corner moves it instead of rotating it. New in `@edv4h/usketch-shared`: `placeLocalBox(local, pivot, angleDeg)` and `keepRotatedTopLeft(shape, width, height)`.
+- Updated dependencies [5dc7d1b]
+- Updated dependencies [8d13a3a]
+- Updated dependencies [9aa4ddb]
+- Updated dependencies [ba2c89c]
+  - @edv4h/usketch-shared@4.31.0
+
 ## 2.4.11
 
 ### Patch Changes

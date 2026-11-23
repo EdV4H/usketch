@@ -189,3 +189,34 @@ describe("rotation zone", () => {
 		expect(findMultiRotationHandleAtScreenPoint({ x: 188, y: 12 }, bounds, VIEWPORT)).toBeNull();
 	});
 });
+
+describe("rotatable", () => {
+	function zoneFor(def: ShapeDefinition) {
+		const ctx = createTestToolContext();
+		ctx.shapes.register(def.type, def);
+		ctx.store.addShape(makeShape({ id: "a", type: def.type, x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.setSelection(["a"]);
+		return findRotationHandleAtScreenPoint({ x: -12, y: -12 }, ctx.shapes, ctx.store, VIEWPORT);
+	}
+
+	it("follows resizable when omitted", () => {
+		expect(zoneFor(rectLikeDef("fixed", false))).toBeNull();
+		expect(zoneFor(rectLikeDef("free"))).not.toBeNull();
+	});
+
+	it("lets a shape that is not resizable rotate (a group)", () => {
+		const def = { ...rectLikeDef("grouplike", false), rotatable: true } as ShapeDefinition;
+		expect(zoneFor(def)).toEqual({ shapeId: "a", corner: "nw" });
+		// Nor resize handles for it.
+		const ctx = createTestToolContext();
+		ctx.shapes.register(def.type, def);
+		ctx.store.addShape(makeShape({ id: "g", type: def.type, x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.setSelection(["g"]);
+		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toBeNull();
+	});
+
+	it("can turn rotation off for a resizable shape", () => {
+		const def = { ...rectLikeDef("norotate"), rotatable: () => false } as ShapeDefinition;
+		expect(zoneFor(def)).toBeNull();
+	});
+});

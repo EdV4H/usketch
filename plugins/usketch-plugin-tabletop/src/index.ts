@@ -39,12 +39,16 @@ export {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenViewRect,
 	screenWorldBounds,
 	stayInViewConstraint,
 	VIEW_FIT_PADDING,
 	type ViewCameraHandle,
 	type ViewportSize,
+	type ViewRect,
+	viewCameraRotation,
 	viewFitZoom,
+	viewRectOf,
 	visibleWorldRect,
 } from "./view-camera.js";
 export {
