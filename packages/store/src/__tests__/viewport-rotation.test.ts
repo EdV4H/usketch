@@ -1,4 +1,4 @@
-import { screenToWorld } from "@edv4h/usketch-shared";
+import { screenToWorld, viewportAnchoredAt } from "@edv4h/usketch-shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createBoardStore } from "../board-store.js";
 import { clampViewportToBounds } from "../viewport-constraints.js";
@@ -119,6 +119,31 @@ describe("viewport rotation", () => {
 			expect(Math.abs(r)).toBeLessThanOrEqual(10 + 1e-9);
 		}
 		expect(store.getViewport().rotation).toBe(-10);
+	});
+
+	it("animateViewportTo with a pivot swings about it, the world point under it going straight", () => {
+		const frames: FrameRequestCallback[] = [];
+		let now = 0;
+		vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
+		vi.stubGlobal("cancelAnimationFrame", () => {});
+		vi.stubGlobal("performance", { now: () => now });
+
+		const store = createBoardStore({ viewportAnimation: { durationMs: 100 } });
+		// Upright on world (500, 250), then turned round on the same spot.
+		store.setViewport(viewportAnchoredAt({ x: 500, y: 250 }, center, 0.5, 0));
+		const target = viewportAnchoredAt({ x: 500, y: 250 }, center, 0.5, 180);
+		store.animateViewportTo(target, { pivot: center });
+		let frameCount = 0;
+		while (frames.length > 0) {
+			now += 20;
+			(frames.shift() as FrameRequestCallback)(now);
+			frameCount++;
+			const p = screenToWorld(center.x, center.y, store.getViewport());
+			expect(p.x).toBeCloseTo(500, 6);
+			expect(p.y).toBeCloseTo(250, 6);
+		}
+		expect(frameCount).toBeGreaterThan(1);
+		expect(store.getViewport().rotation).toBe(180);
 	});
 
 	it("clampViewportToBounds leaves a rotated viewport untouched", () => {

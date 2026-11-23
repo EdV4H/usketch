@@ -1,3 +1,4 @@
+import { screenToWorld, viewportAnchoredAt } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -5,8 +6,10 @@ import {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenViewRect,
 	screenWorldBounds,
 	stayInViewConstraint,
+	viewRectOf,
 	visibleWorldRect,
 } from "../view-camera.js";
 
@@ -48,6 +51,72 @@ describe("view camera math", () => {
 		const vp = { x: 1, y: 2, zoom: 3, rotation: 30 };
 		expect(pinToViewConstraint(opts)(vp).rotation ?? 0).toBe(0);
 		expect(stayInViewConstraint(opts)(vp).rotation ?? 0).toBe(0);
+	});
+
+	it("a view turned to face a seat across the table turns the camera the other way", () => {
+		const across = { ...rect, rotation: 180 };
+		const vp = fitViewToScreen(across, size);
+		expect(vp.rotation).toBe(180);
+		expect(vp.zoom).toBeCloseTo(0.5);
+		// The view's centre is in the screen's centre, and the screen's top-left of it
+		// shows the view's bottom-right corner (the board turned round).
+		const centre = screenToWorld(size.width / 2, size.height / 2, vp);
+		expect(centre.x).toBeCloseTo(500);
+		expect(centre.y).toBeCloseTo(250);
+		const corner = screenToWorld(24, 49, vp);
+		expect(corner.x).toBeCloseTo(1000);
+		expect(corner.y).toBeCloseTo(500);
+		expect(isAtView(vp, across, size)).toBe(true);
+		expect(isAtView(fitViewToScreen(rect, size), across, size)).toBe(false);
+	});
+
+	it("a view turned a quarter fits its own width across the screen", () => {
+		const side = { x: 0, y: 0, width: 1000, height: 500, rotation: 90 };
+		const vp = fitViewToScreen(side, size);
+		expect(vp.rotation).toBe(-90);
+		expect(vp.zoom).toBeCloseTo(0.5);
+		const centre = screenToWorld(size.width / 2, size.height / 2, vp);
+		expect(centre.x).toBeCloseTo(500);
+		expect(centre.y).toBeCloseTo(250);
+	});
+
+	it("held cameras keep a turned view's turn and stay inside it", () => {
+		const across = { ...rect, rotation: 180 };
+		const o = { getRect: () => across, getSize: () => size };
+		expect(pinToViewConstraint(o)({ x: 1, y: 2, zoom: 3 })).toEqual(fitViewToScreen(across, size));
+		const held = stayInViewConstraint(o)({ x: 9999, y: 0, zoom: 2, rotation: 30 });
+		expect(held.rotation).toBe(180);
+		expect(held.zoom).toBe(2);
+		// Panned far off: what the screen shows is still inside the view (+ margin).
+		const shown = screenWorldBounds(held, size);
+		expect(shown.x).toBeGreaterThanOrEqual(-12 - 1e-6);
+		expect(shown.x + shown.width).toBeLessThanOrEqual(1012 + 1e-6);
+		expect(stayInViewConstraint(o)({ x: 0, y: 0, zoom: 0.1 }).zoom).toBeCloseTo(0.5);
+	});
+
+	it("screenViewRect makes what is on screen a view that brings the same picture back", () => {
+		const upright = { x: -100, y: -50, zoom: 2 };
+		expect(screenViewRect(upright, size)).toEqual(visibleWorldRect(upright, size));
+		const across = viewportAnchoredAt({ x: 500, y: 250 }, { x: 274, y: 174 }, 0.5, 180);
+		const view = screenViewRect(across, size);
+		expect(view.rotation).toBe(180);
+		expect(view.width).toBeCloseTo(1096);
+		expect(view.height).toBeCloseTo(696);
+		const back = fitViewToScreen(view, size, 0);
+		expect(back.rotation).toBe(180);
+		expect(back.zoom).toBeCloseTo(0.5);
+		expect(back.x).toBeCloseTo(across.x);
+		expect(back.y).toBeCloseTo(across.y);
+	});
+
+	it("viewRectOf carries a shape's turn, and none when it isn't turned", () => {
+		expect(viewRectOf({ x: 1, y: 2, width: 3, height: 4 })).toEqual({
+			x: 1,
+			y: 2,
+			width: 3,
+			height: 4,
+		});
+		expect(viewRectOf({ x: 1, y: 2, width: 3, height: 4, rotation: 180 }).rotation).toBe(180);
 	});
 
 	it("zoom: a zero or broken zoom falls back to the fit", () => {

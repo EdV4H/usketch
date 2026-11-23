@@ -1299,6 +1299,13 @@ export interface ViewportAnimationOptions {
 	easing?: (t: number) => number;
 	/** Force instant (`false`) or animated (`true`); omit to use the config default. */
 	animate?: boolean;
+	/**
+	 * Screen point the move swings about (e.g. the screen's centre). Each frame keeps
+	 * the world point under it moving straight from where it starts to where it ends,
+	 * so a move that also turns the camera doesn't sweep the board off screen. Omit
+	 * for a plain straight tween of the viewport's numbers.
+	 */
+	pivot?: Point;
 }
 
 /**
