@@ -163,6 +163,11 @@ export function App() {
 			if (desktopTemplateRef.current) getWindowSystemApi(created.services)?.enable();
 		},
 	});
+	// サーバーから「権限が変わった」と届いたら、ページの公開範囲を読み直す。
+	useEffect(() => {
+		if (!permissions) return;
+		return board?.wsProvider?.onPermissionsChanged?.(() => permissions.refresh());
+	}, [board, permissions]);
 	const appRef = useRef(app);
 	appRef.current = app;
 	const activePageIdRef = useRef(activePageId);

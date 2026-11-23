@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import { createPageDocManager, type PageDocPersistence } from "../page-doc-manager.js";
+import {
+	createPageDocManager,
+	PageAccessDeniedError,
+	type PageDocPersistence,
+} from "../page-doc-manager.js";
 import type { DocSubscription } from "../ws-provider.js";
 
 /** subscribeDoc だけを持つ provider の代わり。同期は手で起こす。 */
 function fakeProvider() {
-	const subs = new Map<string, { doc: Y.Doc; synced: () => void; unsubscribed: boolean }>();
+	const subs = new Map<
+		string,
+		{ doc: Y.Doc; synced: () => void; deny: () => void; unsubscribed: boolean }
+	>();
 	return {
 		subs,
 		subscribeDoc(docId: string, doc: Y.Doc): DocSubscription {
@@ -14,11 +21,23 @@ function fakeProvider() {
 			const whenSynced = new Promise<void>((resolve) => {
 				synced = resolve;
 			});
-			const entry = { doc, synced, unsubscribed: false };
+			const deniedListeners = new Set<() => void>();
+			const entry = {
+				doc,
+				synced,
+				deny: () => {
+					for (const listener of deniedListeners) listener();
+				},
+				unsubscribed: false,
+			};
 			subs.set(docId, entry);
 			return {
 				docId,
 				whenSynced,
+				onDenied(handler) {
+					deniedListeners.add(handler);
+					return () => deniedListeners.delete(handler);
+				},
 				unsubscribe() {
 					entry.unsubscribed = true;
 				},
@@ -162,5 +181,36 @@ describe("createPageDocManager", () => {
 		expect(p1.doc.isDestroyed).toBe(true);
 		expect(provider.subs.get("p2")?.unsubscribed).toBe(true);
 		expect(() => manager.open("p3")).toThrow(/destroyed/);
+	});
+
+	it("サーバーに断られたページは whenLoaded が失敗し、次に開くと購読し直す", async () => {
+		const provider = fakeProvider();
+		const manager = createPageDocManager({ provider });
+		const handle = manager.open("p1");
+		const denied = vi.fn();
+		handle.onDenied(denied);
+		provider.subs.get("p1")?.deny();
+		await expect(handle.whenLoaded).rejects.toBeInstanceOf(PageAccessDeniedError);
+		expect(denied).toHaveBeenCalledTimes(1);
+		expect(manager.loadedPageIds()).toEqual([]);
+		handle.release();
+		expect(handle.doc.isDestroyed).toBe(true);
+		const again = manager.open("p1");
+		expect(again.doc).not.toBe(handle.doc);
+		expect(provider.subs.get("p1")?.doc).toBe(again.doc);
+	});
+
+	it("開いた後に断られても知らせる（読み込み済みの whenLoaded はそのまま）", async () => {
+		const provider = fakeProvider();
+		const manager = createPageDocManager({ provider });
+		const handle = manager.open("p1");
+		provider.subs.get("p1")?.doc.getMap("shapes").set("s", { id: "s" });
+		provider.subs.get("p1")?.synced();
+		await handle.whenLoaded;
+		const denied = vi.fn();
+		handle.onDenied(denied);
+		provider.subs.get("p1")?.deny();
+		expect(denied).toHaveBeenCalledTimes(1);
+		await expect(handle.whenLoaded).resolves.toBeUndefined();
 	});
 });

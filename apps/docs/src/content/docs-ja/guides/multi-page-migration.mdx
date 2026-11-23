@@ -50,6 +50,8 @@ uSketch 本体（`apps/server` の BoardRoom と `apps/web`）はこの手順を
 | `MSG_DOC_SYNC`（9） | サーバー → クライアント | `[クライアントに足りない差分, サーバーの state vector]` | — |
 | `MSG_DOC_UPDATE`（10） | 双方向 | `[update]` | 購読中の接続からなら適用・保存し、同じ doc の他の購読者にだけ送る |
 | `MSG_DOC_UNSUBSCRIBE`（11） | クライアント → サーバー | `[]` | 購読者から外す。誰も見ていなければメモリから外してよい |
+| `MSG_DOC_DENIED`（12） | サーバー → クライアント | `[]` | 任意。その doc を見る権限が無いときに購読の代わりに返す（権限が変わって外したときも）。クライアントは購読をやめ、`PageDocHandle.whenLoaded` が `PageAccessDeniedError` で失敗する |
+| `MSG_PERMISSIONS_CHANGED`（13） | サーバー → クライアント | なし（doc id も無い 1 バイト） | 任意。ボードの権限が変わったことを知らせる（`onPermissionsChanged`） |
 
 doc id にはページ id がそのまま入る（`isValidDocId` で英数字と `_` `-` だけか確かめる）。保存はページごとに分ける（uSketch 本体はキー `yjs_page:<pageId>`）。接続が切れたら、その接続の購読をすべて外す。再接続したクライアントは自分で購読し直し、切断中の編集を送り返す。
 
@@ -247,5 +249,5 @@ if (!check.ok) console.error("migration mismatch", check.missing, check.changed,
 | ボードの形式 | `isPagedBoard` / `getPagesVersion` / `getLegacyPageId` / `initPagedBoard` |
 | ページの一覧と操作 | `listPages` / `getPage` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages` / `resolvePageId` / `newPageId` |
 | ページ doc | `createPageDocManager` / `pageDocGuid` / `createPageScopedProvider` |
-| 通信（A の場合） | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
+| 通信（A の場合） | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `MSG_DOC_DENIED` / `MSG_PERMISSIONS_CHANGED` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
 | 移行 | `needsPagesMigration` / `copyRootShapesToPage` / `finishPagesMigration` / `moveRootShapesToPage` / `countRootShapes` / `checkPagesMigration` / `DEFAULT_FIRST_PAGE_NAME` |

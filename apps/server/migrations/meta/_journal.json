@@ -43,6 +43,13 @@
 			"when": 1794541058203,
 			"tag": "0005_comment_page_id",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "6",
+			"when": 1795439445210,
+			"tag": "0006_page_access",
+			"breakpoints": true
 		}
 	]
 }

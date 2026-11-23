@@ -9,6 +9,7 @@ import { createAuth } from "./auth.js";
 import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { createPageAccessPlugin } from "./page-access/routes.js";
 import type { Env } from "./types.js";
 
 const app = await createServerApp({
@@ -42,6 +43,8 @@ const app = await createServerApp({
 			boardMembers: schema.boardMembers,
 			communityBoards: schema.communityBoards,
 		}),
+		// デモの権限: ページの公開範囲（page_access）
+		createPageAccessPlugin(),
 	],
 	corsOrigins: ALLOWED_ORIGINS,
 	authMiddleware,

@@ -1,3 +1,4 @@
+import type { DemoBoardRole, DemoPageAccess } from "@edv4h/usketch-demo-permissions";
 import { getDevUser, isDevMode } from "./dev-auth.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
@@ -38,6 +39,15 @@ export interface Board {
 	updatedAt: string;
 	isPublic: boolean;
 	role: string | null;
+}
+
+/** `GET /api/boards/:id/page-access`: 見ている人の役割と、見られるページの公開範囲。 */
+export interface BoardPageAccess {
+	viewer: { userId: string; boardRole: DemoBoardRole | null; boardPublic: boolean };
+	/** 公開範囲を決めたページ（見られるものだけ）。無いページは既定の扱い。 */
+	pages: Record<string, DemoPageAccess>;
+	/** 公開範囲があって、この人が見られないページ。 */
+	hidden: string[];
 }
 
 export interface DiscoverBoard {
@@ -82,6 +92,16 @@ export const api = {
 		removeMember: (boardId: string, userId: string) =>
 			fetchApi<{ ok: boolean }>(`/api/boards/${boardId}/members/${userId}`, {
 				method: "DELETE",
+			}),
+		pageAccess: (id: string) => fetchApi<BoardPageAccess>(`/api/boards/${id}/page-access`),
+		setPageAccess: (
+			boardId: string,
+			pageId: string,
+			access: Pick<DemoPageAccess, "visibility" | "edit">,
+		) =>
+			fetchApi<DemoPageAccess>(`/api/boards/${boardId}/pages/${pageId}/access`, {
+				method: "PUT",
+				body: JSON.stringify(access),
 			}),
 		toggleShare: (id: string) =>
 			fetchApi<{ isPublic: boolean }>(`/api/boards/${id}/share`, {

@@ -102,6 +102,47 @@ export const boardMembers = sqliteTable(
 	],
 );
 
+// ── ページの公開範囲（デモの権限、R4b） ──
+
+/**
+ * ページの公開範囲と編集範囲。行の無いページは「ボードのメンバーが見て editor 以上が編集する
+ * （公開ボードは誰でも見る）」として扱う（`@edv4h/usketch-demo-permissions` の `defaultPageAccess`）。
+ */
+export const pageAccess = sqliteTable(
+	"page_access",
+	{
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
+		pageId: text("page_id").notNull(),
+		/** ページを作った人。分からないページは null（ボードの editor 以上が管理する）。 */
+		ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
+		visibility: text("visibility", { enum: ["public", "members", "private"] }).notNull(),
+		edit: text("edit", { enum: ["owner-only", "invited", "members"] }).notNull(),
+		updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [primaryKey({ columns: [table.boardId, table.pageId] })],
+);
+
+/** ページに個別に招いた人。 */
+export const pageMembers = sqliteTable(
+	"page_members",
+	{
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
+		pageId: text("page_id").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		role: text("role", { enum: ["editor", "viewer"] }).notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.boardId, table.pageId, table.userId] }),
+		index("idx_page_members_user_id").on(table.userId),
+	],
+);
+
 // ── Phase 2: Not Whiteboard テーブル ──
 
 export const activityLog = sqliteTable(
