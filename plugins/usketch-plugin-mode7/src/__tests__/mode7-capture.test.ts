@@ -64,4 +64,15 @@ describe("the 3D view's capture layer", () => {
 		handlers.onShapeDoubleClick?.({ x: 10, y: 10 });
 		expect(exit).toHaveBeenCalledTimes(1);
 	});
+
+	it("stays in 3D on a double click when the host keeps it (no exit)", () => {
+		const board = createBoardStore();
+		board.setActiveToolId(EDIT_TOOL_ID);
+		const services = createServiceRegistry();
+		view3dPickService.provide(services, { pickAt: onShape });
+		const mode7 = createMode7Store({ active: true });
+		const handlers = mode7CaptureHandlers({ board, services, mode7 });
+		expect(() => handlers.onShapeDoubleClick?.({ x: 10, y: 10 })).not.toThrow();
+		expect(mode7.getState().active).toBe(true);
+	});
 });

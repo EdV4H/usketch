@@ -83,6 +83,12 @@ export interface Mode7PluginOptions {
 	 * passes `{ animate: false }`. Honors `prefers-reduced-motion`.
 	 */
 	transition?: Mode7TransitionOptions;
+	/**
+	 * Leave the 3D view for flat when a shape is double-clicked, so it can be edited
+	 * there (default `true`). `false` keeps the 3D view on (e.g. a host that holds it
+	 * while a game is played, where shapes are only moved).
+	 */
+	exitOnShapeDoubleClick?: boolean;
 }
 
 export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlugin {
@@ -153,7 +159,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				yaw,
 				adoptDeclared: options.tiltLayerIds === undefined,
 				excludedLayerIds,
-				exit: () => api.disable(),
+				exit: options.exitOnShapeDoubleClick === false ? undefined : () => api.disable(),
 			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.
