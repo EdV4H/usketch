@@ -1,7 +1,7 @@
 import type { ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
 import { rotatePoint } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { computeRawBounds } from "../internal/resize-handles.js";
+import { computeRawBounds, getMultiSelectionBounds } from "../internal/resize-handles.js";
 import { startResizeSession, toLocalFlipAxes } from "../resize.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
 
@@ -345,5 +345,137 @@ describe("startResizeSession (single, rotated)", () => {
 		expect(ctx.store.getShape("a")).toMatchObject({ x: moved.x, y: moved.y, width: moved.width });
 		ctx.commands.undo();
 		expect(ctx.store.getShape("a")).toMatchObject({ x: 0, y: 0, width: 100, height: 100 });
+	});
+});
+
+describe("startResizeSession (multi, rotated shapes)", () => {
+	function setup(rotated: Partial<ShapeData>) {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 50, ...rotated }));
+		ctx.store.addShape(makeShape({ id: "b", x: 200, y: 0, width: 100, height: 100 }));
+		const selection = new Set(["a", "b"]);
+		const groupBounds = getMultiSelectionBounds(ctx.store, ctx.shapes, selection);
+		if (!groupBounds) throw new Error("no bounds");
+		return { ctx, selection, groupBounds };
+	}
+	const a = (ctx: ReturnType<typeof setup>["ctx"]) => {
+		const shape = ctx.store.getShape("a");
+		if (!shape) throw new Error("a is missing");
+		return shape;
+	};
+
+	it("stretches a 90° shape along the world axis (its width and height swap)", () => {
+		// 100x50 at 90°: drawn 50 wide, 100 tall, centered on (50, 25).
+		const { ctx, selection, groupBounds } = setup({ rotation: 90 });
+		expect(groupBounds).toEqual({ x: 25, y: -25, width: 275, height: 125 });
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection,
+			handle: "s",
+			startPoint: { x: 150, y: 100 },
+			groupBounds,
+		});
+		// Double the group's height.
+		session.update(makePointerEvent({ x: 150, y: 225 }));
+		const shape = a(ctx);
+		// Drawn 50 x 200 now: its own (rotated) width doubled, height kept.
+		expect(shape.width).toBeCloseTo(200);
+		expect(shape.height).toBeCloseTo(50);
+		expect(shape.rotation).toBe(90);
+		// Drawn top edge stays on the group's top; center x unchanged.
+		expect(shape.x + shape.width / 2).toBeCloseTo(50);
+		expect(shape.y + shape.height / 2).toBeCloseTo(75);
+	});
+
+	it("scales a shape at another angle keeping its aspect ratio", () => {
+		const { ctx, selection, groupBounds } = setup({ rotation: 30 });
+		const right = groupBounds.x + groupBounds.width;
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection,
+			handle: "e",
+			startPoint: { x: right, y: 50 },
+			groupBounds,
+		});
+		// Double the group's width.
+		session.update(makePointerEvent({ x: groupBounds.x + groupBounds.width * 2, y: 50 }));
+		const shape = a(ctx);
+		expect(shape.width).toBeCloseTo(200);
+		expect(shape.height).toBeCloseTo(100);
+		expect(shape.rotation).toBe(30);
+		// Center keeps its relative spot horizontally, and its height vertically.
+		const startCenterX = 50;
+		expect(shape.x + shape.width / 2).toBeCloseTo(
+			groupBounds.x + (startCenterX - groupBounds.x) * 2,
+		);
+		expect(shape.y + shape.height / 2).toBeCloseTo(25);
+		// The unrotated neighbour still stretches as before.
+		expect(ctx.store.getShape("b")?.width).toBeCloseTo(200);
+	});
+
+	it("uses the mean scale of both axes for a corner handle", () => {
+		const { ctx, selection, groupBounds } = setup({ rotation: 30 });
+		const se = { x: groupBounds.x + groupBounds.width, y: groupBounds.y + groupBounds.height };
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection,
+			handle: "se",
+			startPoint: se,
+			groupBounds,
+		});
+		// x2 horizontally, x0.5 vertically → scale 1.
+		session.update(
+			makePointerEvent({
+				x: groupBounds.x + groupBounds.width * 2,
+				y: groupBounds.y + groupBounds.height * 0.5,
+			}),
+		);
+		expect(a(ctx).width).toBeCloseTo(100);
+		expect(a(ctx).height).toBeCloseTo(50);
+	});
+
+	it("mirrors the rotation of a shape at another angle on flip, and undo restores it", () => {
+		const { ctx, selection, groupBounds } = setup({ rotation: 30 });
+		const bottom = groupBounds.y + groupBounds.height;
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection,
+			handle: "s",
+			startPoint: { x: 150, y: bottom },
+			groupBounds,
+		});
+		session.update(makePointerEvent({ x: 150, y: groupBounds.y - 40 }));
+		expect(a(ctx).rotation).toBe(330);
+		session.update(makePointerEvent({ x: 150, y: groupBounds.y - groupBounds.height }));
+		// Back to full size, upside down: same aspect ratio as before.
+		expect(a(ctx).width / a(ctx).height).toBeCloseTo(2);
+		const result = session.commit();
+		if (!result) throw new Error("expected a commit");
+		ctx.commands.execute(result.command);
+		ctx.commands.undo();
+		expect(a(ctx)).toMatchObject({ x: 0, y: 0, width: 100, height: 50, rotation: 30 });
+	});
+
+	it("keeps a 90° shape's rotation on flip", () => {
+		const { ctx, selection, groupBounds } = setup({ rotation: 90 });
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection,
+			handle: "s",
+			startPoint: { x: 150, y: 100 },
+			groupBounds,
+		});
+		// Cross the top edge (the flip restarts the group from there), then pull it
+		// back to its full height upside down.
+		session.update(makePointerEvent({ x: 150, y: -125 }));
+		session.update(makePointerEvent({ x: 150, y: -250 }));
+		expect(a(ctx).rotation).toBe(90);
+		expect(a(ctx).width).toBeCloseTo(100);
+		expect(a(ctx).height).toBeCloseTo(50);
 	});
 });

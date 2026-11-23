@@ -1,5 +1,5 @@
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, safeRotation } from "@edv4h/usketch-shared";
 import {
 	computeGroupBounds,
 	createDeleteWithChildrenCommand,
@@ -30,6 +30,9 @@ export function createGroupPlugin(): UsketchPlugin {
 				createDefault: createDefaultGroup,
 				minSize: { width: 1, height: 1 },
 				resizable: false,
+				// Its size comes from its children, but it turns as a whole: rotating it
+				// rotates the children around its center (they follow as descendants).
+				rotatable: true,
 				// A group is a container, but clicking a child selects the whole
 				// group (selectableChildren omitted → group selection behavior).
 				container: {},
@@ -135,7 +138,8 @@ export function createGroupPlugin(): UsketchPlugin {
 				// Recalculate group bounds
 				const children = getChildShapes(ctx.store, parent.id);
 				if (children.length === 0) return;
-				const bounds = computeGroupBounds(children);
+				// In the group's own frame, so a rotated group keeps hugging its children.
+				const bounds = computeGroupBounds(children, safeRotation(parent.rotation));
 
 				// Skip update if bounds are unchanged
 				if (

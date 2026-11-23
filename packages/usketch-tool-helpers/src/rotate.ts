@@ -1,6 +1,6 @@
 import type { CanvasPointerEvent, Point, ShapeData, ToolContext } from "@edv4h/usketch-shared";
 import { normalizeAngle, safeRotation, snapAngle } from "@edv4h/usketch-shared";
-import { collectChildrenOnly } from "./internal/descendants.js";
+import { collectSelectionWithDescendants } from "./internal/descendants.js";
 import type { SessionCommit, ShapeUpdateMap, ToolSession } from "./types.js";
 
 export interface RotateUpdate {
@@ -100,7 +100,8 @@ function rigidRotatePatch(
 /**
  * Rotate session — extracted from `plugin-tool-select`'s `mode: "rotate"`.
  * Tracks angle delta from session start, applies snap on shift, normalizes
- * to [0, 360), and rotates container children rigidly around `center`.
+ * to [0, 360), and rotates container descendants (and `attachable.follow`
+ * stickers) rigidly around `center`.
  *
  * `commit()` returns a single command that batch-applies the rotation to
  * the root and all rotated children. The session's revert-then-replay
@@ -120,9 +121,12 @@ export function startRotateSession(
 		snapStep = 15,
 	} = opts;
 
+	// Everything that follows the root when it moves (a container's descendants and
+	// stickers attached with `attachable.follow`) turns with it too.
 	const childSnapshots = rotateChildren
-		? collectChildrenOnly(ctx, shapeId)
+		? collectSelectionWithDescendants(ctx, [shapeId])
 		: new Map<string, ShapeData>();
+	childSnapshots.delete(shapeId);
 
 	const rootSnapshot = ctx.store.getShape(shapeId);
 	let lastUpdate: RotateUpdate = {
@@ -249,11 +253,9 @@ export function startMultiRotateSession(
 ): ToolSession<RotateUpdate, SessionCommit> {
 	const { ctx, ids, center, startAngle, snapStep = 15 } = opts;
 
-	const snapshots = new Map<string, ShapeData>();
-	for (const id of ids) {
-		const s = ctx.store.getShape(id);
-		if (s) snapshots.set(id, s);
-	}
+	// The selection plus what follows it on a move (container descendants, attached
+	// stickers), so a selected frame or group turns with its contents.
+	const snapshots = collectSelectionWithDescendants(ctx, ids);
 
 	let lastUpdate: RotateUpdate = { rotation: 0, updates: new Map() };
 	let cancelled = false;

@@ -17,3 +17,15 @@ export function isShapeResizable(def: ShapeDefinition | undefined, shape: ShapeD
 	if (typeof r === "function") return r(shape);
 	return r !== false;
 }
+
+/**
+ * Resolve whether a shape can be rotated by the user, honoring both forms of
+ * {@link ShapeDefinition.rotatable}. When `rotatable` is omitted it follows
+ * {@link isShapeResizable}, matching the behavior before the flag existed.
+ */
+export function isShapeRotatable(def: ShapeDefinition | undefined, shape: ShapeData): boolean {
+	const r = def?.rotatable;
+	if (r === undefined) return isShapeResizable(def, shape);
+	if (typeof r === "function") return r(shape);
+	return r;
+}

@@ -486,6 +486,15 @@ export interface ShapeDefinition {
 	 */
 	resizable?: boolean | ((data: ShapeData) => boolean);
 	/**
+	 * Whether the shape can be rotated by the user (the rotation zone outside
+	 * its corners when it is selected alone). Omitted → follows
+	 * {@link resizable}, so existing definitions keep their behavior; set it to
+	 * rotate a shape that is not resizable (e.g. a group, whose size comes from
+	 * its children). Accepts a predicate like `resizable`. Use
+	 * {@link isShapeRotatable} to evaluate it.
+	 */
+	rotatable?: boolean | ((data: ShapeData) => boolean);
+	/**
 	 * Container behavior for shapes with children (shapes referencing this shape
 	 * via `parentId`).
 	 *

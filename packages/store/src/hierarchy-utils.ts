@@ -1,10 +1,14 @@
 import {
 	type BoardStore,
 	type BoundingBox,
+	getShapeCorners,
 	isShapeHidden,
 	isShapeLockCascading,
 	isShapeLocked,
+	rotatePoint,
 	type ShapeData,
+	safeRotation,
+	unrotatePoint,
 } from "@edv4h/usketch-shared";
 
 /** Get all direct children of a parent shape */
@@ -61,23 +65,44 @@ export function getTopLevelShapes(store: BoardStore): ShapeData[] {
 	return result;
 }
 
-/** Compute the bounding box that encloses all given shapes */
-export function computeGroupBounds(children: ShapeData[]): BoundingBox {
+/**
+ * Compute the box that encloses all given shapes as they are drawn (a rotated
+ * child counts with its rotated corners).
+ *
+ * With `rotation` (degrees), the box is for a container drawn at that
+ * rotation, like a rotated group: it is the tightest box in the container's
+ * own (rotated) frame, returned as the `x` / `y` / `width` / `height` to store
+ * alongside that `rotation` (a shape rotates about its center).
+ */
+export function computeGroupBounds(children: ShapeData[], rotation = 0): BoundingBox {
 	if (children.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
 
+	const angle = safeRotation(rotation);
+	const rad = (angle * Math.PI) / 180;
+	const origin = { x: 0, y: 0 };
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxY = Number.NEGATIVE_INFINITY;
 
 	for (const child of children) {
-		minX = Math.min(minX, child.x);
-		minY = Math.min(minY, child.y);
-		maxX = Math.max(maxX, child.x + child.width);
-		maxY = Math.max(maxY, child.y + child.height);
+		for (const corner of getShapeCorners(child)) {
+			// Into the container's frame (turned back about the origin).
+			const p = angle ? unrotatePoint(corner, origin, rad) : corner;
+			minX = Math.min(minX, p.x);
+			minY = Math.min(minY, p.y);
+			maxX = Math.max(maxX, p.x);
+			maxY = Math.max(maxY, p.y);
+		}
 	}
 
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+	const width = maxX - minX;
+	const height = maxY - minY;
+	if (!angle) return { x: minX, y: minY, width, height };
+	// Back to world space: the box's center turns with the frame; the shape is
+	// stored unrotated around that center.
+	const center = rotatePoint({ x: minX + width / 2, y: minY + height / 2 }, origin, rad);
+	return { x: center.x - width / 2, y: center.y - height / 2, width, height };
 }
 
 /**
