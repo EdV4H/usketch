@@ -224,11 +224,12 @@ describe("tilted view camera", () => {
 			return p;
 		});
 
-	it("keeps the whole tilted view on screen: far edge on the top padding, near edge tight", () => {
+	it("keeps the whole tilted view on screen, centred, as large as fits", () => {
 		const vp = fitViewToScreen(view, screen, pad, tilt);
 		const [tl, tr, bl, br] = drawn(vp);
-		expect(tl.y).toBeCloseTo(pad, 3);
-		expect(tr.y).toBeCloseTo(pad, 3);
+		expect(tl.y).toBeCloseTo(tr.y, 6);
+		expect((tl.y + bl.y) / 2).toBeCloseTo(screen.height / 2, 3);
+		expect(tl.y).toBeGreaterThanOrEqual(pad - 1e-6);
 		for (const p of [tl, tr, bl, br]) {
 			expect(p.x).toBeGreaterThanOrEqual(pad - 1e-6);
 			expect(p.x).toBeLessThanOrEqual(screen.width - pad + 1e-6);
@@ -237,8 +238,14 @@ describe("tilted view camera", () => {
 		// Centred across, near edge wider than the far edge, and as large as fits.
 		expect((bl.x + br.x) / 2).toBeCloseTo(screen.width / 2, 3);
 		expect(br.x - bl.x).toBeGreaterThan(tr.x - tl.x);
-		const tight = Math.min(screen.width - pad - br.x, screen.height - pad - bl.y);
-		expect(tight).toBeLessThan(0.01);
+		// Wide view: its near edge touches the sides.
+		expect(screen.width - pad - br.x).toBeLessThan(0.01);
+		// A tall view is held by the top and bottom instead.
+		const tall = { x: 0, y: 0, width: 400, height: 1600 };
+		const [ttl, , tbl, tbr] = drawn(fitViewToScreen(tall, screen, pad, tilt), tall);
+		expect(ttl.y).toBeCloseTo(pad, 2);
+		expect(tbl.y).toBeCloseTo(screen.height - pad, 2);
+		expect(tbr.x).toBeLessThan(screen.width - pad);
 	});
 
 	it("a flat tilt (pitch 0) or none fits like before", () => {
@@ -253,9 +260,11 @@ describe("tilted view camera", () => {
 		const vp = fitViewToScreen(turned, screen, pad, tilt);
 		expect(vp.rotation).toBe(180);
 		const corners = drawn(vp);
-		// Turned 180°: the view's bottom edge (y = 900) is the far one now.
-		const far = corners.slice(2);
-		for (const p of far) expect(p.y).toBeCloseTo(pad, 3);
+		// Turned 180°: the view's bottom edge (y = 900) is the far one now (drawn higher).
+		const [nearA, nearB, farA, farB] = corners;
+		expect(farA.y).toBeCloseTo(farB.y, 6);
+		expect(farA.y).toBeLessThan(nearA.y);
+		expect(Math.abs(farA.x - farB.x)).toBeLessThan(Math.abs(nearA.x - nearB.x));
 		for (const p of corners) {
 			expect(p.x).toBeGreaterThanOrEqual(pad - 1e-6);
 			expect(p.x).toBeLessThanOrEqual(screen.width - pad + 1e-6);
@@ -296,7 +305,6 @@ describe("tilted view camera", () => {
 				expect(p?.y ?? -1).toBeGreaterThanOrEqual(pad - 1e-6);
 				expect(p?.y ?? Infinity).toBeLessThanOrEqual(screen.height - pad + 1e-6);
 			}
-			expect(corners[0]?.y ?? 0).toBeCloseTo(pad, 3);
 		}
 	});
 

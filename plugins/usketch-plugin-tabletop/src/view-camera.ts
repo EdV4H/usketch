@@ -171,8 +171,8 @@ export function viewFitZoom(
 /**
  * The viewport that shows all of `rect`, centred, whatever the screen's shape. A
  * turned view turns the camera too, so it shows upright. With a `tilt` the view is
- * framed as the tilted camera draws it: its far edge on the top padding, as large as
- * fits with its near (wider) edge inside the sides and the bottom.
+ * framed as the tilted camera draws it: centred, as large as fits with every corner
+ * (the near, wider edge too) inside the padding.
  */
 export function fitViewToScreen(
 	rect: ViewRect,
@@ -198,9 +198,9 @@ export function fitViewToScreen(
 /**
  * The tilted fit of an unturned `box` (see {@link fitViewToScreen}), or `null` when the
  * screen shows no ground to put it on. The box is centred across the screen (the tilt
- * pivots about the middle, so it stays symmetric); its far edge is drawn on the top
- * padding (or just below the vanishing line, when that is lower), and the zoom is the
- * largest at which its near edge is still inside the sides and above the bottom padding.
+ * pivots about the middle, so it stays symmetric) and, as drawn, between the top and
+ * bottom padding (never above the vanishing line); the zoom is the largest at which
+ * every corner is drawn inside the padding.
  */
 function tiltedFit(
 	box: BoundingBox,
@@ -212,7 +212,7 @@ function tiltedFit(
 	const cx = size.width / 2;
 	const bottom = size.height - padding;
 	const halfWidth = Math.max(1, size.width / 2 - padding);
-	// Where the far edge is drawn: the top padding, or a little below the vanishing line.
+	// The highest a point can be drawn: the top padding, or a little below the vanishing line.
 	const rad = (tilt.pitch * Math.PI) / 180;
 	const vanishing = size.height * tilt.horizon - tilt.fov / Math.tan(rad);
 	const top = Math.max(padding, vanishing + Math.max(1, size.height * 0.01));
@@ -221,13 +221,44 @@ function tiltedFit(
 	if (!far) return null;
 	const width = Math.max(1, box.width);
 	const height = Math.max(1, box.height);
+	// Where the far edge goes on the flat stage (px) at a zoom: so the view is drawn
+	// centred between `top` and `bottom`. Higher on the stage = farther = drawn higher,
+	// so the drawn middle grows with it and bisection finds it. Starts no higher than
+	// the far edge on `top` (higher is drawn above it).
+	const middle = (top + bottom) / 2;
+	const drawnMiddle = (y: number, zoom: number): number | null => {
+		const a = projectStagePoint(cx, y, cam, size);
+		const b = projectStagePoint(cx, y + height * zoom, cam, size);
+		return a && b ? (a.y + b.y) / 2 : null;
+	};
+	const placeAt = (zoom: number): number => {
+		let lo = far.y;
+		const atTop = drawnMiddle(lo, zoom);
+		if (atTop === null || atTop >= middle) return lo;
+		let hi = lo + Math.max(size.height, height * zoom);
+		for (let i = 0; i < 40; i++) {
+			const m = drawnMiddle(hi, zoom);
+			if (m === null || m >= middle) break;
+			lo = hi;
+			hi += Math.max(size.height, height * zoom);
+		}
+		for (let i = 0; i < 40; i++) {
+			const mid = (lo + hi) / 2;
+			const m = drawnMiddle(mid, zoom);
+			if (m !== null && m < middle) lo = mid;
+			else hi = mid;
+		}
+		return lo;
+	};
 	// Every corner on screen (the near ones are the widest and lowest on a usual tilt,
 	// but a raised camera or a low horizon can make it otherwise).
 	const fits = (zoom: number): boolean => {
+		const y0 = placeAt(zoom);
 		const half = (width * zoom) / 2;
-		for (const y of [far.y, far.y + height * zoom]) {
+		for (const y of [y0, y0 + height * zoom]) {
 			const p = projectStagePoint(cx + half, y, cam, size);
-			if (!p || p.y > bottom + 1e-6 || p.y < top - 1e-6 || p.x - cx > halfWidth) return false;
+			if (!p || p.y > bottom + 1e-6 || p.y < top - 1e-6 || p.x - cx > halfWidth + 1e-6)
+				return false;
 		}
 		return true;
 	};
@@ -238,7 +269,7 @@ function tiltedFit(
 		lo = hi;
 		hi *= 2;
 	}
-	for (let i = 0; i < 50; i++) {
+	for (let i = 0; i < 40; i++) {
 		const mid = (lo + hi) / 2;
 		if (fits(mid)) lo = mid;
 		else hi = mid;
@@ -247,7 +278,7 @@ function tiltedFit(
 	const zoom = lo;
 	return {
 		x: cx - (box.x + width / 2) * zoom + 0,
-		y: far.y - box.y * zoom + 0,
+		y: placeAt(zoom) - box.y * zoom + 0,
 		zoom,
 	};
 }
