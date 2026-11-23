@@ -3,12 +3,13 @@
  * 確かめて DO への URL に付け（クライアントが付けた値は上書きする）、DO はそれを接続の attachment に
  * 持つ（休眠しても消えない）。書き込み・購読のたびに、デモのルール（CASL）で聞く。
  *
- * ページごとの公開範囲（`page_access`）はまだ無いので、どのページも {@link defaultPageAccess}
+ * ページの公開範囲（`page_access` の行）は呼ぶ側が渡す。行の無いページは {@link defaultPageAccess}
  * （メンバーが見る・editor 以上が編集する・公開ボードは誰でも見る）で聞く。
  */
 
 import {
 	type DemoBoardRole,
+	type DemoPageAccess,
 	defaultPageAccess,
 	defineDemoRules,
 	pageResource,
@@ -104,20 +105,31 @@ function snapshotOf(ws: AccessSocket): AccessSnapshot | null {
 	return snapshot;
 }
 
-function pageOf(access: SocketAccess, pageId: string | null) {
-	return pageResource({ boardId: access.boardId, pageId }, defaultPageAccess(access.boardPublic));
+/** ページの公開範囲（`page_access` の行。無ければ null）。 */
+export type PageAccessLookup = DemoPageAccess | null | undefined;
+
+function pageOf(access: SocketAccess, pageId: string | null, page?: PageAccessLookup) {
+	return pageResource(
+		{ boardId: access.boardId, pageId },
+		page ?? defaultPageAccess(access.boardPublic),
+	);
 }
 
-/** ページ doc を購読できるか（見る権限）。 */
-export function canViewPage(ws: AccessSocket, pageId: string): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageView, pageOf(s.access, pageId));
+/** 接続がつながっているボード（記録が無ければ null）。 */
+export function socketBoardId(ws: AccessSocket): string | null {
+	return snapshotOf(ws)?.access.boardId ?? null;
 }
 
-/** ページ doc に書けるか（編集の権限）。 */
-export function canEditPage(ws: AccessSocket, pageId: string): boolean {
+/** ページ doc を購読できるか（見る権限）。`page` はそのページの公開範囲。 */
+export function canViewPage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
 	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageEdit, pageOf(s.access, pageId));
+	return !!s && s.can(PERMISSIONS.pageView, pageOf(s.access, pageId, page));
+}
+
+/** ページ doc に書けるか（編集の権限）。`page` はそのページの公開範囲。 */
+export function canEditPage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
+	const s = snapshotOf(ws);
+	return !!s && s.can(PERMISSIONS.pageEdit, pageOf(s.access, pageId, page));
 }
 
 /**

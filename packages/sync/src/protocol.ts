@@ -40,6 +40,16 @@ export const MSG_DOC_SYNC = 9;
 export const MSG_DOC_UPDATE = 10;
 /** DOC_UNSUBSCRIBE: クライアント→サーバー。doc の購読をやめる。parts = []。 */
 export const MSG_DOC_UNSUBSCRIBE = 11;
+/**
+ * DOC_DENIED: サーバー→クライアント。その doc を見る権限が無い（購読を断った・権限が変わって
+ * 購読を外した）。parts = []。クライアントは購読をやめ、再接続しても購読し直さない。
+ */
+export const MSG_DOC_DENIED = 12;
+/**
+ * PERMISSIONS_CHANGED: サーバー→クライアント。このボードの権限（ページの公開範囲など）が
+ * 変わった。中身は無い。クライアントは権限を読み直す。
+ */
+export const MSG_PERMISSIONS_CHANGED = 13;
 
 /** doc id に使える文字（区切りやストレージキーと衝突しないよう英数字と `_` `-` だけ）。 */
 const DOC_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;

@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import type { DemoPageAccess } from "@edv4h/usketch-demo-permissions";
 import { gatherServerType } from "@edv4h/usketch-session-gather/server";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { respondServerType } from "@edv4h/usketch-session-respond/server";
@@ -6,15 +7,18 @@ import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
 	decodeDocFrame,
+	encodeDocFrame,
 	getLegacyPageId,
 	isPagedBoard,
 	listPages,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_DENIED,
 	MSG_DOC_SUBSCRIBE,
 	MSG_DOC_UNSUBSCRIBE,
 	MSG_DOC_UPDATE,
 	MSG_PARTITION_REQUEST,
+	MSG_PERMISSIONS_CHANGED,
 	MSG_SESSION,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
@@ -23,12 +27,13 @@ import {
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
+import { loadPageAccess } from "./page-access/queries.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
-import { createPageDocs } from "./rooms/page-docs.js";
+import { createPageDocs, subscribedDocIds } from "./rooms/page-docs.js";
 import { createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import {
@@ -37,6 +42,7 @@ import {
 	canViewPage,
 	readAccessParams,
 	setSocketAccess,
+	socketBoardId,
 } from "./rooms/room-access.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
@@ -52,6 +58,9 @@ const SESSION_GRACE_MS = 45_000;
  */
 export class BoardRoom extends DurableObject<Env> {
 	private boardId = "";
+	/** ページの公開範囲（D1 の `page_access`）。権限が変わったと知らされたら読み直す。 */
+	private pageAccessCache: { boardId: string; map: Promise<Map<string, DemoPageAccess>> } | null =
+		null;
 
 	private readonly yjsSync = createYjsSync({ storage: this.ctx.storage });
 	private readonly partitions = createPartitionManager({ storage: this.ctx.storage });
@@ -239,6 +248,13 @@ export class BoardRoom extends DurableObject<Env> {
 			return this.handleWebSocketUpgrade(request, url);
 		}
 
+		// ページの公開範囲が変わった（REST から呼ぶ）。見られなくなったページの購読を外し、
+		// つながっている人に権限を読み直してもらう。
+		if (url.pathname === "/permissions-changed" && request.method === "POST") {
+			await this.handlePermissionsChanged();
+			return new Response(null, { status: 204 });
+		}
+
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
 			return handleAiPlaceShapes(request, {
 				openShapes: (pageId) => this.boardShapes.open(pageId),
@@ -355,14 +371,21 @@ export class BoardRoom extends DurableObject<Env> {
 				const frame = decodeDocFrame(data);
 				if (!frame) break;
 				if (msgType === MSG_DOC_SUBSCRIBE) {
-					// 見られないページは購読させない（今はどのページもボードと同じ公開範囲なので、
-					// つなげた人は全部見られる。ページごとの公開範囲が入ったら断る返事を足す）
-					if (!canViewPage(ws, frame.docId)) break;
+					// 公開範囲を読めなければ何もしない（見せてよいか分からないので）
+					const access = await this.pageAccessOf(ws);
+					if (!access) break;
+					// 見られないページは購読させず、断ったことを返す
+					if (!canViewPage(ws, frame.docId, access.get(frame.docId))) {
+						trySend(ws, encodeDocFrame(MSG_DOC_DENIED, frame.docId));
+						break;
+					}
 					await this.pageDocs.handleSubscribe(ws, frame.docId, frame.parts[0]);
 				} else if (msgType === MSG_DOC_UPDATE) {
 					const [update] = frame.parts;
+					if (!update) break;
 					// 編集できないページへの書き込みは捨てる（購読はそのまま）
-					if (update && canEditPage(ws, frame.docId)) {
+					const access = await this.pageAccessOf(ws);
+					if (access && canEditPage(ws, frame.docId, access.get(frame.docId))) {
 						await this.pageDocs.handleUpdate(ws, frame.docId, update);
 					}
 				} else {
@@ -446,6 +469,47 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 	}
 
+	/**
+	 * 接続しているボードのページの公開範囲。読めなかったら null（呼ぶ側は見せない・書かせない）。
+	 * 休眠から戻ると空なので、最初に要るときに D1 から読む。
+	 */
+	private async pageAccessOf(ws: WebSocket): Promise<Map<string, DemoPageAccess> | null> {
+		const boardId = socketBoardId(ws);
+		if (!boardId) return null;
+		if (this.pageAccessCache?.boardId !== boardId) {
+			const map = loadPageAccess(drizzle(this.env.DB), boardId);
+			const cache = { boardId, map };
+			this.pageAccessCache = cache;
+			// 失敗したら次に要るときに読み直す
+			map.catch(() => {
+				if (this.pageAccessCache === cache) this.pageAccessCache = null;
+			});
+		}
+		try {
+			return await this.pageAccessCache.map;
+		} catch (e) {
+			console.error("[BoardRoom] Failed to load page access:", e);
+			return null;
+		}
+	}
+
+	private async handlePermissionsChanged(): Promise<void> {
+		this.pageAccessCache = null;
+		for (const ws of this.ctx.getWebSockets()) {
+			const docIds = subscribedDocIds(ws);
+			if (docIds.length === 0) continue;
+			// 読めなければ今の購読のまま（断ると、つなぎ直すまで戻せないので）
+			const access = await this.pageAccessOf(ws);
+			if (!access) continue;
+			for (const docId of docIds) {
+				if (canViewPage(ws, docId, access.get(docId))) continue;
+				this.pageDocs.handleUnsubscribe(ws, docId);
+				trySend(ws, encodeDocFrame(MSG_DOC_DENIED, docId));
+			}
+		}
+		this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+	}
+
 	/** 送信元以外の全接続にメッセージを中継 */
 	private broadcast(sender: WebSocket, data: Uint8Array): void {
 		for (const ws of this.ctx.getWebSockets()) {
@@ -468,5 +532,13 @@ export class BoardRoom extends DurableObject<Env> {
 				// 切断済みソケットは無視
 			}
 		}
+	}
+}
+
+function trySend(ws: WebSocket, data: Uint8Array): void {
+	try {
+		ws.send(data);
+	} catch {
+		// 閉じたソケットは無視
 	}
 }

@@ -10,12 +10,14 @@ import {
 	encodeDocFrame,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_DENIED,
 	MSG_DOC_SUBSCRIBE,
 	MSG_DOC_SYNC,
 	MSG_DOC_UNSUBSCRIBE,
 	MSG_DOC_UPDATE,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
+	MSG_PERMISSIONS_CHANGED,
 	MSG_SESSION,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
@@ -46,6 +48,11 @@ export interface DocSubscription {
 	readonly whenSynced: Promise<void>;
 	/** 購読をやめる（サーバーにも伝える）。doc 自体は破棄しない。 */
 	unsubscribe(): void;
+	/**
+	 * サーバーが「見る権限が無い」と断ったとき（購読の時点か、権限が変わって外されたとき）に
+	 * 呼ぶ。断られた購読は終わり、再接続しても購読し直さない。`whenSynced` は解決しない。
+	 */
+	onDenied?(handler: () => void): () => void;
 }
 
 export interface WsProviderHandle {
@@ -77,6 +84,8 @@ export interface WsProviderHandle {
 	requestPartition(names: string[]): void;
 	/** サーバーからのパーティションメタデータを購読 */
 	onPartitionMeta(handler: (meta: PartitionMeta) => void): () => void;
+	/** サーバーから「このボードの権限が変わった」と届いたとき（権限を読み直す）。 */
+	onPermissionsChanged?(handler: () => void): () => void;
 
 	destroy(): void;
 }
@@ -99,12 +108,18 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	const sessionListeners = new Set<(msg: Record<string, unknown>) => void>();
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const partitionMetaListeners = new Set<(meta: PartitionMeta) => void>();
+	const permissionsListeners = new Set<() => void>();
 	let consecutiveFailures = 0;
 
 	/** 購読中の個別 doc。key は doc id。 */
 	const subscribedDocs = new Map<
 		string,
-		{ doc: Y.Doc; onUpdate: (update: Uint8Array, origin: unknown) => void; synced: () => void }
+		{
+			doc: Y.Doc;
+			onUpdate: (update: Uint8Array, origin: unknown) => void;
+			synced: () => void;
+			denied: () => void;
+		}
 	>();
 
 	function sendRaw(data: Uint8Array<ArrayBuffer>): boolean {
@@ -209,12 +224,33 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 				if (origin === "remote") return;
 				sendRaw(encodeDocFrame(MSG_DOC_UPDATE, docId, [update]));
 			};
+			const deniedListeners = new Set<() => void>();
+			let denied = false;
 			subDoc.on("update", onUpdate);
-			subscribedDocs.set(docId, { doc: subDoc, onUpdate, synced: resolveSynced });
+			subscribedDocs.set(docId, {
+				doc: subDoc,
+				onUpdate,
+				synced: resolveSynced,
+				denied() {
+					denied = true;
+					for (const listener of [...deniedListeners]) listener();
+					deniedListeners.clear();
+				},
+			});
 			sendRaw(subscribeFrame);
 			return {
 				docId,
 				whenSynced,
+				onDenied(handler) {
+					if (denied) {
+						handler();
+						return () => {};
+					}
+					deniedListeners.add(handler);
+					return () => {
+						deniedListeners.delete(handler);
+					};
+				},
 				unsubscribe() {
 					const entry = subscribedDocs.get(docId);
 					if (!entry || entry.doc !== subDoc) return;
@@ -236,6 +272,10 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			partitionMetaListeners.add(handler);
 			return () => partitionMetaListeners.delete(handler);
 		},
+		onPermissionsChanged(handler: () => void): () => void {
+			permissionsListeners.add(handler);
+			return () => permissionsListeners.delete(handler);
+		},
 		destroy() {
 			destroyed = true;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -252,6 +292,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			sessionListeners.clear();
 			statusListeners.clear();
 			partitionMetaListeners.clear();
+			permissionsListeners.clear();
 		},
 	};
 
@@ -342,6 +383,20 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 						}
 						entry.synced();
 					}
+					break;
+				}
+				case MSG_DOC_DENIED: {
+					const frame = decodeDocFrame(data);
+					const entry = frame && subscribedDocs.get(frame.docId);
+					if (!frame || !entry) break;
+					// 断られた購読は終わり（再接続しても購読し直さない）
+					entry.doc.off("update", entry.onUpdate);
+					subscribedDocs.delete(frame.docId);
+					entry.denied();
+					break;
+				}
+				case MSG_PERMISSIONS_CHANGED: {
+					for (const listener of [...permissionsListeners]) listener();
 					break;
 				}
 				case MSG_PARTITION_META: {

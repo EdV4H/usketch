@@ -75,6 +75,34 @@ describe("room-access", () => {
 		expect(canEditRoot(ws)).toBe(false);
 	});
 
+	it("uses the page's own access when it has one", () => {
+		const privatePage = {
+			ownerId: "u1",
+			visibility: "private" as const,
+			edit: "owner-only" as const,
+			members: { u3: "editor" as const, u4: "viewer" as const },
+		};
+		const owner = socketFor("userId=u1&role=editor");
+		expect(canViewPage(owner, "p1", privatePage)).toBe(true);
+		expect(canEditPage(owner, "p1", privatePage)).toBe(true);
+		// ボードの editor でも、招かれていない非公開ページは見られない
+		const editor = socketFor("userId=u2&role=editor&boardPublic=1");
+		expect(canViewPage(editor, "p1", privatePage)).toBe(false);
+		expect(canEditPage(editor, "p1", privatePage)).toBe(false);
+		// 招かれた人は見られる。owner-only なので招かれた editor も書けない
+		const invited = socketFor("userId=u3&role=viewer");
+		expect(canViewPage(invited, "p1", privatePage)).toBe(true);
+		expect(canEditPage(invited, "p1", privatePage)).toBe(false);
+		expect(canEditPage(invited, "p1", { ...privatePage, edit: "invited" })).toBe(true);
+		// ボードの owner は何でもできる
+		const boardOwner = socketFor("userId=u9&role=owner");
+		expect(canEditPage(boardOwner, "p1", privatePage)).toBe(true);
+		// 公開ページはメンバーでない人も見られる
+		const outsider = socketFor("userId=u5&boardPublic=0");
+		expect(canViewPage(outsider, "p1", { visibility: "public", edit: "members" })).toBe(true);
+		expect(canEditPage(outsider, "p1", { visibility: "public", edit: "members" })).toBe(false);
+	});
+
 	it("keeps the access when page subscriptions are written to the same attachment", async () => {
 		const ws = Object.assign(socketFor("userId=u1&role=editor"), { send() {} });
 		const storage = new Map<string, unknown>();

@@ -35,7 +35,21 @@ export interface PageDocHandle {
 	 * （`serverSyncTimeoutMs` まで）待つ。
 	 */
 	readonly whenLoaded: Promise<void>;
+	/**
+	 * サーバーが「このページを見る権限が無い」と断ったときに呼ぶ（開いている途中でも、開いた後に
+	 * 権限が変わったときでも）。断られる前に読み込みが終わっていなければ、`whenLoaded` は
+	 * {@link PageAccessDeniedError} で失敗する。
+	 */
+	onDenied(handler: () => void): () => void;
 	release(): void;
+}
+
+/** サーバーがページを見る権限が無いと断った。 */
+export class PageAccessDeniedError extends Error {
+	constructor(readonly pageId: string) {
+		super(`Access to page ${pageId} was denied`);
+		this.name = "PageAccessDeniedError";
+	}
 }
 
 export interface PageDocManager {
@@ -51,6 +65,9 @@ interface Entry {
 	subscription: DocSubscription | null;
 	whenLoaded: Promise<void>;
 	refs: number;
+	/** サーバーに断られた（もう同期しない。次に開くときは購読し直す）。 */
+	denied: boolean;
+	deniedListeners: Set<() => void>;
 }
 
 function hasState(doc: Y.Doc): boolean {
@@ -89,18 +106,43 @@ export function createPageDocManager(options: PageDocManagerOptions = {}): PageD
 		const persistence = persist?.(pageId, doc) ?? null;
 		const subscription = provider ? provider.subscribeDoc(pageId, doc) : null;
 		const local = persistence ? persistence.whenSynced : Promise.resolve();
-		const whenLoaded = local.then(() => {
+		const loaded = local.then(() => {
 			if (!subscription || hasState(doc)) return;
 			return waitServer(subscription);
 		});
-		return { doc, persistence, subscription, whenLoaded, refs: 0 };
+		let rejectDenied: (error: Error) => void = () => {};
+		const denied = new Promise<never>((_, reject) => {
+			rejectDenied = reject;
+		});
+		const entry: Entry = {
+			doc,
+			persistence,
+			subscription,
+			whenLoaded: Promise.race([loaded, denied]),
+			refs: 0,
+			denied: false,
+			deniedListeners: new Set(),
+		};
+		subscription?.onDenied?.(() => {
+			entry.denied = true;
+			rejectDenied(new PageAccessDeniedError(pageId));
+			// 手元に残さない（次に開くときは購読し直す）。開いている人が離したら片付ける。
+			if (entries.get(pageId) === entry) entries.delete(pageId);
+			if (entry.refs === 0) dispose(entry);
+			for (const listener of [...entry.deniedListeners]) listener();
+		});
+		return entry;
+	}
+
+	function dispose(entry: Entry): void {
+		entry.subscription?.unsubscribe();
+		entry.persistence?.destroy();
+		entry.doc.destroy();
 	}
 
 	function unload(pageId: string, entry: Entry): void {
 		entries.delete(pageId);
-		entry.subscription?.unsubscribe();
-		entry.persistence?.destroy();
-		entry.doc.destroy();
+		dispose(entry);
 	}
 
 	function evict(): void {
@@ -129,11 +171,26 @@ export function createPageDocManager(options: PageDocManagerOptions = {}): PageD
 				pageId,
 				doc: opened.doc,
 				whenLoaded: opened.whenLoaded,
+				onDenied(handler) {
+					if (opened.denied) {
+						handler();
+						return () => {};
+					}
+					opened.deniedListeners.add(handler);
+					return () => {
+						opened.deniedListeners.delete(handler);
+					};
+				},
 				release() {
 					if (released) return;
 					released = true;
-					if (entries.get(pageId) !== opened) return;
 					opened.refs--;
+					// 断られたページは一覧から外してあるので、最後の人が離したら片付ける
+					if (opened.denied) {
+						if (opened.refs === 0) dispose(opened);
+						return;
+					}
+					if (entries.get(pageId) !== opened) return;
 					evict();
 				},
 			};

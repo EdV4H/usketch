@@ -50,6 +50,8 @@ If you use `createWsProvider`, accept the `DOC_*` messages on the same WebSocket
 | `MSG_DOC_SYNC` (9) | server → client | `[diff the client lacks, server state vector]` | — |
 | `MSG_DOC_UPDATE` (10) | both | `[update]` | If the sender is subscribed, apply and store it, then relay it only to the doc's other subscribers |
 | `MSG_DOC_UNSUBSCRIBE` (11) | client → server | `[]` | Remove the subscriber; unload the doc once nobody is watching |
+| `MSG_DOC_DENIED` (12) | server → client | `[]` | Optional. Send instead of subscribing when the connection may not see the doc (also when permissions change). The client drops the subscription and `PageDocHandle.whenLoaded` fails with `PageAccessDeniedError` |
+| `MSG_PERMISSIONS_CHANGED` (13) | server → client | none (a single byte, no doc id) | Optional. Tells clients the board's permissions changed (`onPermissionsChanged`) |
 
 The doc id is the page id (check it with `isValidDocId`: letters, digits, `_` and `-` only). Store each page separately (uSketch uses the key `yjs_page:<pageId>`). When a connection closes, drop all of its subscriptions. A reconnecting client re-subscribes on its own and sends back edits made while offline.
 
@@ -247,5 +249,5 @@ All of these come from `@edv4h/usketch-sync`.
 | Board format | `isPagedBoard` / `getPagesVersion` / `getLegacyPageId` / `initPagedBoard` |
 | Page list and edits | `listPages` / `getPage` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages` / `resolvePageId` / `newPageId` |
 | Page docs | `createPageDocManager` / `pageDocGuid` / `createPageScopedProvider` |
-| Transport (option A) | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
+| Transport (option A) | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `MSG_DOC_DENIED` / `MSG_PERMISSIONS_CHANGED` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
 | Migration | `needsPagesMigration` / `copyRootShapesToPage` / `finishPagesMigration` / `moveRootShapesToPage` / `countRootShapes` / `checkPagesMigration` / `DEFAULT_FIRST_PAGE_NAME` |
