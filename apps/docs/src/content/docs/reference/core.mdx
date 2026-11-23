@@ -30,6 +30,7 @@ interface CreateAppOptions {
   selectionForeground?: Pick<SelectionForeground, "render"> &
     Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
   keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
+  permissions?: PermissionProvider;
 }
 ```
 
@@ -40,6 +41,7 @@ interface CreateAppOptions {
 | `lod?` | Optional. LOD (level-of-detail) configuration. If omitted, a zoom + shape-count composite policy starting in `interactive` mode is used. |
 | `selectionForeground?` | Optional. Replace the default selection UI (handles, bounding box, marquee) with a host-provided implementation. Registered internally at priority 100, so it wins over plugin defaults. |
 | `keymap?` | Optional. Key bindings for the whole app: host defaults by binding id (`keys`), the viewer's saved rebindings (`overrides`), who gets a key several plugins share (`conflictPolicy`, default `"first"`; changeable later with `app.keymap.setConflictPolicy`), and `warnConflicts` to `console.warn` the overlapping keys once the plugins are set up (default `false`). |
+| `permissions?` | Optional. What the viewer may do: a `PermissionProvider` (a synchronous `can(permission, resource?)` plus `subscribe` for when the answers change) from `@edv4h/usketch-shared` — an adapter such as `createStaticPermissionProvider`, or one that calls the host's own permission system. Plugins read it as `ctx.permissions` (through `permissionsOf(ctx)`), and the HUD hides actions, settings and panels whose `requires` it denies. Default: everything is allowed (`allowAllPermissions()`). The browser check only shapes the UI; the server still has to refuse writes. |
 
 ### AppInstance
 
@@ -65,6 +67,7 @@ interface AppInstance {
   hud: HudRegistry;
   services: ServiceRegistry;
   height: BoardHeightApi;
+  permissions: PermissionProvider;
   plugins: readonly UsketchPlugin[];
   destroy(): void;
 }

@@ -5,6 +5,7 @@ import type {
 	EventBus,
 	ShapeData,
 } from "@edv4h/usketch-shared";
+import { getShapeCorners, safeRotation, shapeBoxContainsPoint } from "@edv4h/usketch-shared";
 import { containsAABB } from "./collision-utils.js";
 import { createReparentCommand } from "./commands.js";
 import { wouldCreateCycle } from "./hierarchy-utils.js";
@@ -48,20 +49,22 @@ const boundsOf = (s: ShapeData) => ({ x: s.x, y: s.y, width: s.width, height: s.
 
 /**
  * Whether `shape` is inside `container` enough to be its child: wholly
- * (`"contain"`) or by its center (`"center"`).
+ * (`"contain"`) or by its center (`"center"`). Both are compared where they are
+ * drawn, so a rotated container (or shape) holds what lies inside its turned box.
  */
 export function isInsideForAttach(
 	container: ShapeData,
 	shape: ShapeData,
 	hit: ContainerAttachHit = "contain",
 ): boolean {
-	const c = boundsOf(container);
 	if (hit === "center") {
-		const cx = shape.x + shape.width / 2;
-		const cy = shape.y + shape.height / 2;
-		return cx >= c.x && cx <= c.x + c.width && cy >= c.y && cy <= c.y + c.height;
+		const center = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+		return shapeBoxContainsPoint(container, center);
 	}
-	return containsAABB(c, boundsOf(shape));
+	if (safeRotation(container.rotation) === 0 && safeRotation(shape.rotation) === 0) {
+		return containsAABB(boundsOf(container), boundsOf(shape));
+	}
+	return getShapeCorners(shape).every((corner) => shapeBoxContainsPoint(container, corner));
 }
 
 /**

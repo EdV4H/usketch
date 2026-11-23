@@ -10,6 +10,8 @@ import {
 	bidiffShape,
 	deltaToLocal,
 	diffShape,
+	normalizeAngle,
+	placeLocalBox,
 	safeRotation,
 	unrotatePoint,
 } from "@edv4h/usketch-shared";
@@ -19,9 +21,11 @@ import {
 	computeMultiResizeUpdates,
 	computeRawBounds,
 	computeRelativeProps,
+	computeRotatedRelativeProps,
 	fixAnchorDrift,
 	getAnchorEdges,
 	type MultiResizeShapeEntry,
+	rotatedResizeFit,
 } from "./internal/resize-handles.js";
 import type { SessionCommit, ShapeUpdateMap, ToolSession } from "./types.js";
 
@@ -80,6 +84,7 @@ export function startResizeSession(
 interface SingleState {
 	handle: ResizeHandle;
 	startPoint: Point;
+	/** The shape as of the last (re)start, its x/y/width/height in the local frame. */
 	startData: ShapeData;
 }
 
@@ -94,10 +99,33 @@ function createSingleResizeSession(opts: {
 	const initialShape = ctx.store.getShape(shapeId);
 	if (!initialShape) throw new Error(`startResizeSession: shape ${shapeId} not found`);
 
+	// A rotated shape is resized in its local (un-rotated) frame: the frame of the
+	// shape as the drag began, turned by its rotation about its center then. All
+	// box math (handles, flips, min-size anchoring) runs there exactly as for an
+	// unrotated shape, and each result is placed back on the board with
+	// `placeLocalBox`, so the edge or corner opposite the handle stays where it
+	// is on screen. Unrotated, the local frame is the board itself.
+	const rotation = safeRotation(initialShape.rotation);
+	const pivot: Point = {
+		x: initialShape.x + initialShape.width / 2,
+		y: initialShape.y + initialShape.height / 2,
+	};
+	const toLocal = (p: Point): Point =>
+		rotation ? unrotatePoint(p, pivot, (rotation * Math.PI) / 180) : p;
+	/** The board x/y that draws a local-frame box where it lies in that frame. */
+	const place = (box: BoundingBox): Point => placeLocalBox(box, pivot, rotation);
+
 	let state: SingleState = {
 		handle: opts.handle,
 		startPoint: opts.startPoint,
 		startData: { ...initialShape },
+	};
+	/** The shape's current box in the local frame (its store x/y differ when rotated). */
+	let localBox: BoundingBox = {
+		x: initialShape.x,
+		y: initialShape.y,
+		width: initialShape.width,
+		height: initialShape.height,
 	};
 	const initialSnapshot = { ...initialShape };
 	let cancelled = false;
@@ -108,7 +136,6 @@ function createSingleResizeSession(opts: {
 			const def = ctx.shapes.get(state.startData.type);
 			if (!def) return { updates: new Map() };
 
-			const rotation = safeRotation(state.startData.rotation);
 			const worldDelta: Point = {
 				x: event.worldPoint.x - state.startPoint.x,
 				y: event.worldPoint.y - state.startPoint.y,
@@ -116,18 +143,12 @@ function createSingleResizeSession(opts: {
 			const delta = rotation ? deltaToLocal(worldDelta, rotation) : worldDelta;
 
 			const rawBounds = computeRawBounds(state.startData, state.handle, delta);
-			let worldPointForFlip = event.worldPoint;
-			if (rotation) {
-				const center = {
-					x: rawBounds.x + rawBounds.width / 2,
-					y: rawBounds.y + rawBounds.height / 2,
-				};
-				worldPointForFlip = unrotatePoint(event.worldPoint, center, (rotation * Math.PI) / 180);
-			}
-			const flip = applyFlip(state.handle, rawBounds, worldPointForFlip);
+			const flip = applyFlip(state.handle, rawBounds, toLocal(event.worldPoint));
 			if (flip.flipped) {
-				const current = ctx.store.getShape(shapeId);
-				if (current) {
+				const stored = ctx.store.getShape(shapeId);
+				if (stored) {
+					// Rotated, the store holds placed x/y: flip from the local box instead.
+					const current = rotation ? { ...stored, ...localBox } : stored;
 					const anchor = getAnchorEdges(state.handle, rawBounds);
 					const flipPatch = def.flip?.(current, { x: flip.flippedX, y: flip.flippedY }) ?? {};
 					const flippedData = { ...current, ...flipPatch };
@@ -144,7 +165,10 @@ function createSingleResizeSession(opts: {
 						startData: flippedData,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 					};
-					const patch = { ...flipPatch, x: flippedData.x, y: flippedData.y };
+					// Only x/y move now (the size follows on the next update), so place
+					// the box with the size the shape still has.
+					localBox = { ...localBox, x: flippedData.x, y: flippedData.y };
+					const patch = { ...flipPatch, ...place(localBox) };
 					ctx.store.updateShape(shapeId, patch);
 					const updates: ShapeUpdateMap = new Map([[shapeId, patch]]);
 					return { updates, flippedHandle: flip.handle };
@@ -155,7 +179,21 @@ function createSingleResizeSession(opts: {
 			const fixed = fixAnchorDrift(state.handle, state.startData, resized);
 			resized.x = fixed.x;
 			resized.y = fixed.y;
-			const patch = diffShape(state.startData, resized);
+			localBox = { x: resized.x, y: resized.y, width: resized.width, height: resized.height };
+			let patch: Partial<ShapeData>;
+			if (rotation) {
+				// The store holds the placed x/y, not the local ones `startData` has, so
+				// always send the whole box rather than a diff against `startData`.
+				const { x: _x, y: _y, ...rest } = diffShape(state.startData, resized);
+				patch = {
+					...rest,
+					...place(localBox),
+					width: resized.width,
+					height: resized.height,
+				};
+			} else {
+				patch = diffShape(state.startData, resized);
+			}
 			const updates: ShapeUpdateMap = new Map();
 			if (Object.keys(patch).length > 0) {
 				ctx.store.updateShape(shapeId, patch);
@@ -203,6 +241,18 @@ export function toLocalFlipAxes(
 
 // ── Multi-selection resize ───────────────────────────────────────────
 
+/**
+ * Rotation after mirroring a shape along the world axes: each mirrored axis
+ * negates it (a mirror turns a rotation the other way). 90° multiples keep
+ * theirs — their content flip along the swapped local axis already matches
+ * the mirror (see {@link toLocalFlipAxes}).
+ */
+function mirroredRotation(rotation: number, axes: { x: boolean; y: boolean }): number {
+	if (rotatedResizeFit(rotation) !== "uniform") return rotation;
+	const flips = (axes.x ? 1 : 0) + (axes.y ? 1 : 0);
+	return flips === 1 ? normalizeAngle(-rotation) : rotation;
+}
+
 interface MultiState {
 	handle: ResizeHandle;
 	startPoint: Point;
@@ -228,18 +278,19 @@ function createMultiResizeSession(opts: {
 		originalFullShapes.set(id, { ...shape });
 		const def = ctx.shapes.get(shape.type);
 		const minSize = def?.minSize ?? { width: 1, height: 1 };
-		const rel = computeRelativeProps(
-			{ x: shape.x, y: shape.y, width: shape.width, height: shape.height },
-			opts.groupBounds,
-		);
+		const box = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		const rotation = safeRotation(shape.rotation);
+		// A rotated shape is placed by its drawn outline and resized without being
+		// distorted (see `MultiResizeShapeEntry.rotation`).
+		const rel = rotation
+			? computeRotatedRelativeProps(box, rotation, opts.groupBounds)
+			: computeRelativeProps(box, opts.groupBounds);
 		startShapeData.set(id, {
-			x: shape.x,
-			y: shape.y,
-			width: shape.width,
-			height: shape.height,
+			...box,
 			minWidth: minSize.width,
 			minHeight: minSize.height,
 			...rel,
+			...(rotation ? { rotation } : {}),
 		});
 	}
 
@@ -273,37 +324,61 @@ function createMultiResizeSession(opts: {
 					flippedGroupBounds.y = anchor.y;
 					flippedGroupBounds.height = 0;
 				}
+				const axes = { x: flip.flippedX, y: flip.flippedY };
 				const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
 				for (const [id, data] of state.startShapeData) {
 					const newRel = { ...data };
-					if (flip.flippedX) {
-						newRel.relX = 1 - data.relX - data.relWidth;
-						newRel.x = flippedGroupBounds.x;
-						newRel.width = 0;
-					}
-					if (flip.flippedY) {
-						newRel.relY = 1 - data.relY - data.relHeight;
-						newRel.y = flippedGroupBounds.y;
-						newRel.height = 0;
+					if (flip.flippedX) newRel.relX = 1 - data.relX - data.relWidth;
+					if (flip.flippedY) newRel.relY = 1 - data.relY - data.relHeight;
+					if (data.rotation) {
+						// A rotated shape keeps its own size (it is re-placed below); mirroring
+						// it at an angle that isn't a 90° multiple also mirrors its rotation.
+						newRel.rotation = mirroredRotation(data.rotation, axes);
+					} else {
+						if (flip.flippedX) {
+							newRel.x = flippedGroupBounds.x;
+							newRel.width = 0;
+						}
+						if (flip.flippedY) {
+							newRel.y = flippedGroupBounds.y;
+							newRel.height = 0;
+						}
 					}
 					flippedShapeData.set(id, newRel);
 				}
+				const rotatedPlacement = computeMultiResizeUpdates(
+					flip.handle,
+					flippedGroupBounds,
+					{ x: 0, y: 0 },
+					new Map([...flippedShapeData].filter(([, data]) => data.rotation)),
+				);
 				// Temporarily disable snap during flip-reset (matches tool-select).
 				ctx.events.emit("snap:configure", { enabled: false });
 				const flipUpdates: ShapeUpdateMap = new Map();
 				for (const [id, data] of flippedShapeData) {
 					const shape = ctx.store.getShape(id);
 					const flipFn = shape ? ctx.shapes.get(shape.type)?.flip : undefined;
-					const axes = { x: flip.flippedX, y: flip.flippedY };
-					const update: Partial<ShapeData> =
-						shape && flipFn ? { ...flipFn(shape, toLocalFlipAxes(axes, shape.rotation)) } : {};
-					if (flip.flippedX) {
-						update.x = data.x;
-						update.width = 0;
+					const update: Partial<ShapeData> = {};
+					if (data.rotation && rotatedResizeFit(data.rotation) === "uniform") {
+						// World mirror at an arbitrary angle = mirror the rotation and flip the
+						// content along the same local axes.
+						if (shape && flipFn) Object.assign(update, flipFn(shape, axes));
+						update.rotation = data.rotation;
+					} else if (shape && flipFn) {
+						Object.assign(update, flipFn(shape, toLocalFlipAxes(axes, shape.rotation)));
 					}
-					if (flip.flippedY) {
-						update.y = data.y;
-						update.height = 0;
+					const placed = rotatedPlacement.get(id);
+					if (placed) {
+						Object.assign(update, placed);
+					} else {
+						if (flip.flippedX) {
+							update.x = data.x;
+							update.width = 0;
+						}
+						if (flip.flippedY) {
+							update.y = data.y;
+							update.height = 0;
+						}
 					}
 					ctx.store.updateShape(id, update);
 					flipUpdates.set(id, update);

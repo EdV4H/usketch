@@ -1,6 +1,6 @@
 import type { BoardStore, CommandRegistry, EventBus, ShapeData } from "@edv4h/usketch-shared";
-import { containsAABB } from "./collision-utils.js";
 import { createReparentCommand } from "./commands.js";
+import { isInsideForAttach } from "./containment-attacher.js";
 import { wouldCreateCycle } from "./hierarchy-utils.js";
 
 /**
@@ -26,11 +26,6 @@ export interface AttachableAttacherOptions {
 	resolve: (shape: ShapeData) => AttachableResolution | null;
 }
 
-const boundsOf = (s: ShapeData) => ({ x: s.x, y: s.y, width: s.width, height: s.height });
-const centerOf = (s: ShapeData) => ({ x: s.x + s.width / 2, y: s.y + s.height / 2 });
-const pointInBounds = (p: { x: number; y: number }, s: ShapeData) =>
-	p.x >= s.x && p.x <= s.x + s.width && p.y >= s.y && p.y <= s.y + s.height;
-
 /**
  * Wire up child-driven attachment: when an attachable shape finishes a move,
  * find the front-most shape it accepts (by center-point or full-containment hit
@@ -54,8 +49,6 @@ export function createAttachableAttacher(opts: AttachableAttacherOptions): () =>
 
 		// Front-most accepted target under the child wins (mirrors picking the
 		// topmost shape on a drop). `sorted` is back→front, so iterate in reverse.
-		const shapeBounds = boundsOf(shape);
-		const center = centerOf(shape);
 		let target: ShapeData | undefined;
 		for (let i = sorted.length - 1; i >= 0; i--) {
 			const candidate = sorted[i];
@@ -63,10 +56,8 @@ export function createAttachableAttacher(opts: AttachableAttacherOptions): () =>
 			if (!resolution.accepts(candidate)) continue;
 			// Never nest a shape into one of its own descendants.
 			if (wouldCreateCycle(store, shapeId, candidate.id)) continue;
-			const hit =
-				resolution.hitTest === "center"
-					? pointInBounds(center, candidate)
-					: containsAABB(boundsOf(candidate), shapeBounds);
+			// Rotation-aware (a sticker on a rotated shape lands where the shape is drawn).
+			const hit = isInsideForAttach(candidate, shape, resolution.hitTest);
 			if (hit) {
 				target = candidate;
 				break;

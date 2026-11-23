@@ -30,6 +30,7 @@ interface CreateAppOptions {
   selectionForeground?: Pick<SelectionForeground, "render"> &
     Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
   keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
+  permissions?: PermissionProvider;
 }
 ```
 
@@ -40,6 +41,7 @@ interface CreateAppOptions {
 | `lod?` | 任意。LOD（詳細度）設定。省略時は zoom + シェイプ数の複合ポリシー、`interactive` モード開始のデフォルトが使われる。 |
 | `selectionForeground?` | 任意。デフォルトの選択 UI（ハンドル・バウンディングボックス・マーキー）をホスト実装で置き換える。内部で priority 100 として登録され、プラグインのデフォルトより優先される。 |
 | `keymap?` | 任意。アプリ全体のキー割り当て。binding id ごとのホストの既定（`keys`）、閲覧者が保存した付け替え（`overrides`）、複数のプラグインが同じキーを持つときにどれが受け取るか（`conflictPolicy`、既定 `"first"`。後から `app.keymap.setConflictPolicy` で変えられる）、プラグインの setup 後に重なっているキーを `console.warn` するか（`warnConflicts`、既定 `false`）。 |
+| `permissions?` | 任意。閲覧者が何をしてよいか。`@edv4h/usketch-shared` の `PermissionProvider`（同期の `can(permission, resource?)` と、答えが変わったときの `subscribe`）を渡す。`createStaticPermissionProvider` などのアダプターや、ホスト自身の権限の仕組みにつなぐものを使う。プラグインは `ctx.permissions`（`permissionsOf(ctx)` 経由）で読み、HUD は `requires` の権限が無い操作・設定・パネルを隠す。既定は全部可（`allowAllPermissions()`）。ブラウザでの出し分けは見た目のためで、書き込みを止めるのはサーバー。 |
 
 ### AppInstance
 
@@ -65,6 +67,7 @@ interface AppInstance {
   hud: HudRegistry;
   services: ServiceRegistry;
   height: BoardHeightApi;
+  permissions: PermissionProvider;
   plugins: readonly UsketchPlugin[];
   destroy(): void;
 }

@@ -250,6 +250,25 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			Math.abs(from.y - target.y) < 0.01 &&
 			Math.abs(from.zoom - target.zoom) < 1e-4 &&
 			Math.abs(dRot) < 1e-3;
+		const pivot = opts?.pivot;
+		if (pivot) {
+			// Swing about `pivot`: the world point under it goes straight across.
+			const a = screenToWorld(pivot.x, pivot.y, from);
+			const b = screenToWorld(pivot.x, pivot.y, target);
+			runViewportTween(
+				target,
+				(k) =>
+					viewportAnchoredAt(
+						{ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k },
+						pivot,
+						from.zoom + (target.zoom - from.zoom) * k,
+						wrapDeg(fromRot + dRot * k),
+					),
+				near,
+				opts,
+			);
+			return;
+		}
 		runViewportTween(
 			target,
 			(k) => ({

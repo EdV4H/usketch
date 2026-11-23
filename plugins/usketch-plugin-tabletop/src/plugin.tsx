@@ -30,7 +30,7 @@ import {
 	viewEdgeHit,
 	viewLabelWidth,
 } from "./view.js";
-import { screenWorldBounds } from "./view-camera.js";
+import { screenViewRect } from "./view-camera.js";
 import {
 	createZoneShape,
 	DEFAULT_ZONE_SIZE,
@@ -278,8 +278,8 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 								label: "Add player view",
 								group: "Tabletop",
 								run: () => {
-									// What is on screen now becomes the view.
-									const area = screenWorldBounds(ctx.store.getViewport(), getScreenSize());
+									// What is on screen now becomes the view (turned like the camera).
+									const area = screenViewRect(ctx.store.getViewport(), getScreenSize());
 									const view = createViewShape({
 										...area,
 										label: nextViewLabel(listViews(ctx.store), "View"),

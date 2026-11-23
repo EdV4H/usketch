@@ -128,5 +128,53 @@ describe("arrangeZone", () => {
 
 	it("free leaves children where they are", () => {
 		expect(arrangeZone(zone("free"), [card("a", "a1", { x: 3 })])).toEqual([]);
+		expect(arrangeZone(zone("free", { rotation: 180 }), [card("a", "a1", { x: 3 })])).toEqual([]);
+	});
+});
+
+describe("arrangeZone in a turned zone", () => {
+	it("turns the children with the zone and lays them out along its edges", () => {
+		// Across the table: the first card is on the zone's (turned) left, the board's right.
+		expect(
+			arrangeZone(zone("spread", { rotation: 180 }), [card("a", "a1"), card("b", "a2")]),
+		).toEqual([
+			{ id: "a", patch: { x: 117.5, y: 30, rotation: 180 } },
+			{ id: "b", patch: { x: 82.5, y: 30, rotation: 180 } },
+		]);
+	});
+
+	it("a quarter turn runs the spread down the board", () => {
+		expect(
+			arrangeZone(zone("spread", { rotation: 90 }), [card("a", "a1"), card("b", "a2")]),
+		).toEqual([
+			{ id: "a", patch: { x: 100, y: 12.5, rotation: 90 } },
+			{ id: "b", patch: { x: 100, y: 47.5, rotation: 90 } },
+		]);
+	});
+
+	it("children already in place and facing the zone's way get no patch", () => {
+		expect(
+			arrangeZone(zone("pile", { rotation: 180 }), [
+				card("a", "a1", { x: 100, y: 30, rotation: 180 }),
+				card("b", "a2", { x: 100, y: 30 }),
+			]),
+		).toEqual([{ id: "b", patch: { rotation: 180 } }]);
+	});
+
+	it("an unturned zone leaves a child's own turn alone (a tapped card stays tapped)", () => {
+		expect(arrangeZone(zone("pile"), [card("a", "a1", { x: 100, y: 30, rotation: 90 })])).toEqual(
+			[],
+		);
+	});
+
+	it("reads turns the short way (-180 and 180 face the same way, 360 is upright)", () => {
+		expect(
+			arrangeZone(zone("pile", { rotation: -180 }), [
+				card("a", "a1", { x: 100, y: 30, rotation: 180 }),
+			]),
+		).toEqual([]);
+		expect(arrangeZone(zone("pile", { rotation: 360 }), [card("a", "a1")])).toEqual([
+			{ id: "a", patch: { x: 100, y: 30 } },
+		]);
 	});
 });

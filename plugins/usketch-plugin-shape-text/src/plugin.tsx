@@ -207,7 +207,9 @@ export function createTextPlugin(options: TextPluginOptions = {}): UsketchPlugin
 			// Shared editable-text controller (machine + DOM/canvas wiring).
 			const editor = createEditableTextController(ctx, {
 				isEditableType: (type) => type === "text",
-				hitTest,
+				// Same rotation-aware test the shape registers, so a double-click on any
+				// visible part of a rotated note starts editing.
+				hitTest: withRotation(hitTest),
 				growHeight: true,
 				minHeight: 28,
 				deleteWhenEmpty: true,

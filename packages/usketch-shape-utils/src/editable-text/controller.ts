@@ -1,4 +1,5 @@
 import type { CanvasPointerEvent, PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import { keepRotatedTopLeft } from "@edv4h/usketch-shared";
 import { createMachine, type MachineSchema } from "@zag-js/core";
 import { VanillaMachine } from "@zag-js/vanilla";
 
@@ -336,6 +337,23 @@ function fitGeometry(
 			if (!(key in snapshot)) snapshot[key] = before[key];
 		}
 		Object.assign(patch, fit);
+	}
+	// A rotated shape turns about its center, so growing it would also slide its
+	// visible top-left corner: keep that corner in place unless `fitOnInput`
+	// already placed the shape. x/y join the edit's undo step via the snapshot.
+	if (!("x" in patch) && !("y" in patch)) {
+		const width = patch.width ?? shape.width;
+		const height = patch.height ?? shape.height;
+		const position =
+			width !== shape.width || height !== shape.height
+				? keepRotatedTopLeft(shape, width, height)
+				: null;
+		if (position) {
+			const snapshot = refs.get("fitSnapshot");
+			if (!("x" in snapshot)) snapshot.x = shape.x;
+			if (!("y" in snapshot)) snapshot.y = shape.y;
+			Object.assign(patch, position);
+		}
 	}
 	return patch;
 }

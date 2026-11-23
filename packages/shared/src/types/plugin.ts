@@ -486,6 +486,15 @@ export interface ShapeDefinition {
 	 */
 	resizable?: boolean | ((data: ShapeData) => boolean);
 	/**
+	 * Whether the shape can be rotated by the user (the rotation zone outside
+	 * its corners when it is selected alone). Omitted → follows
+	 * {@link resizable}, so existing definitions keep their behavior; set it to
+	 * rotate a shape that is not resizable (e.g. a group, whose size comes from
+	 * its children). Accepts a predicate like `resizable`. Use
+	 * {@link isShapeRotatable} to evaluate it.
+	 */
+	rotatable?: boolean | ((data: ShapeData) => boolean);
+	/**
 	 * Container behavior for shapes with children (shapes referencing this shape
 	 * via `parentId`).
 	 *
@@ -1299,6 +1308,13 @@ export interface ViewportAnimationOptions {
 	easing?: (t: number) => number;
 	/** Force instant (`false`) or animated (`true`); omit to use the config default. */
 	animate?: boolean;
+	/**
+	 * Screen point the move swings about (e.g. the screen's centre). Each frame keeps
+	 * the world point under it moving straight from where it starts to where it ends,
+	 * so a move that also turns the camera doesn't sweep the board off screen. Omit
+	 * for a plain straight tween of the viewport's numbers.
+	 */
+	pivot?: Point;
 }
 
 /**

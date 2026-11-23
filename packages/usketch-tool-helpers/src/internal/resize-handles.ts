@@ -10,6 +10,7 @@ import {
 	getRotatedAABB,
 	getSelectionBounds,
 	isShapeResizable,
+	isShapeRotatable,
 	normalizeAngle,
 	safeRotation,
 	screenToOverlay,
@@ -77,8 +78,8 @@ export function findHandleAtScreenPoint(
 	if (!shape) return null;
 
 	const def = shapes.get(shape.type);
-	// Respect `resizable: false` — same guard as findRotationHandleAtScreenPoint.
-	// Without this, the resize cursor and a resize session would still start even
+	// Respect `resizable: false` (findRotationHandleAtScreenPoint checks
+	// `rotatable`, which follows `resizable` unless set). Without this, the resize cursor and a resize session would still start even
 	// though selection-overlay hides the handles, leaving operation alive while
 	// the affordance is gone. Locked/hidden shapes likewise expose no handles
 	// (both are excluded from transforms).
@@ -123,6 +124,23 @@ export function findHandleAtScreenPoint(
 	return null;
 }
 
+/**
+ * Whether a point (in the frame the handles were laid out in) lies inside the box
+ * spanned by the NW and SE handle positions — i.e. on the shape itself rather
+ * than in the rotation zone just outside a corner.
+ */
+function isInsideHandleBox(point: Point, positions: Map<ResizeHandle, Point>): boolean {
+	const nw = positions.get("nw");
+	const se = positions.get("se");
+	if (!nw || !se) return false;
+	return (
+		point.x >= Math.min(nw.x, se.x) &&
+		point.x <= Math.max(nw.x, se.x) &&
+		point.y >= Math.min(nw.y, se.y) &&
+		point.y <= Math.max(nw.y, se.y)
+	);
+}
+
 /** Figma 方式: 角のリサイズハンドルの外側エリアで回転を検出する */
 const ROTATION_OUTER_MARGIN = 12;
 
@@ -143,7 +161,7 @@ export function findRotationHandleAtScreenPoint(
 
 	const def = shapes.get(shape.type);
 	if (
-		!isShapeResizable(def, shape) ||
+		!isShapeRotatable(def, shape) ||
 		isEffectivelyLocked(store, shape) ||
 		isEffectivelyHidden(store, shape)
 	)
@@ -172,6 +190,8 @@ export function findRotationHandleAtScreenPoint(
 	const halfHit = HIT_AREA / 2;
 	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
 
+	// Only outside the box: inside it, near a corner, the pointer grabs the shape to move it.
+	if (isInsideHandleBox(testPoint, positions)) return null;
 	for (const handle of cornerHandles) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
@@ -557,6 +577,7 @@ export function findMultiRotationHandleAtScreenPoint(
 	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 	const halfHit = HIT_AREA / 2;
 	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+	if (isInsideHandleBox(screenPoint, positions)) return null;
 	for (const handle of cornerHandles) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
@@ -580,6 +601,16 @@ export interface MultiResizeShapeEntry {
 	relY: number;
 	relWidth: number;
 	relHeight: number;
+	/**
+	 * Rotation (degrees) of a rotated shape. When set (and not 0), `x`/`y`/
+	 * `width`/`height`/`minWidth`/`minHeight` are the shape's own (un-rotated)
+	 * box, and the `rel*` ratios describe its drawn, axis-aligned outline in the
+	 * group (see {@link computeRotatedRelativeProps}). Such a shape is resized by
+	 * {@link computeMultiResizeUpdates} without distorting it: at 90° multiples
+	 * the box stretches along the world axes (width and height swap at 90° /
+	 * 270°); at other angles it scales keeping its aspect ratio.
+	 */
+	rotation?: number;
 }
 
 export function computeRelativeProps(
@@ -591,6 +622,63 @@ export function computeRelativeProps(
 	const relWidth = groupBounds.width > 0 ? shapeData.width / groupBounds.width : 1;
 	const relHeight = groupBounds.height > 0 ? shapeData.height / groupBounds.height : 1;
 	return { relX, relY, relWidth, relHeight };
+}
+
+/**
+ * {@link computeRelativeProps} for a rotated shape: the ratios of its drawn,
+ * axis-aligned outline (the box rotated about its center) within the group.
+ */
+export function computeRotatedRelativeProps(
+	shapeData: { x: number; y: number; width: number; height: number },
+	rotation: number,
+	groupBounds: BoundingBox,
+): { relX: number; relY: number; relWidth: number; relHeight: number } {
+	return computeRelativeProps(getRotatedAABB(shapeData, rotation), groupBounds);
+}
+
+/**
+ * How a rotated shape follows a multi-selection resize: `axis` at 0° / 180°
+ * (its sides lie along the world axes), `swap` at 90° / 270° (the same, with
+ * width and height swapped), `uniform` at any other angle (scaled keeping its
+ * aspect ratio, since stretching one world axis would shear it).
+ */
+export function rotatedResizeFit(rotation: number | undefined): "axis" | "swap" | "uniform" {
+	const rad = (safeRotation(rotation) * Math.PI) / 180;
+	if (Math.abs(Math.sin(rad)) < 1e-9) return "axis";
+	if (Math.abs(Math.cos(rad)) < 1e-9) return "swap";
+	return "uniform";
+}
+
+/** Size of the axis-aligned outline of a `width` × `height` box rotated by `rotation`. */
+function outlineSize(width: number, height: number, rotation: number) {
+	const rad = (rotation * Math.PI) / 180;
+	const c = Math.abs(Math.cos(rad));
+	const s = Math.abs(Math.sin(rad));
+	return { width: width * c + height * s, height: width * s + height * c };
+}
+
+/** Smallest uniform scale that keeps a `uniform`-fit shape at least its min size. */
+function minUniformScale(data: MultiResizeShapeEntry): number {
+	return Math.max(
+		data.width > 0 ? data.minWidth / data.width : 0,
+		data.height > 0 ? data.minHeight / data.height : 0,
+	);
+}
+
+/** Min size of a shape's drawn outline along the world axes (for the group clamp). */
+function outlineMinSize(data: MultiResizeShapeEntry): { width: number; height: number } {
+	const rotation = safeRotation(data.rotation);
+	if (!rotation) return { width: data.minWidth, height: data.minHeight };
+	switch (rotatedResizeFit(rotation)) {
+		case "axis":
+			return { width: data.minWidth, height: data.minHeight };
+		case "swap":
+			return { width: data.minHeight, height: data.minWidth };
+		default: {
+			const k = minUniformScale(data);
+			return outlineSize(data.width * k, data.height * k, rotation);
+		}
+	}
 }
 
 export function computeMultiResizeUpdates(
@@ -609,14 +697,13 @@ export function computeMultiResizeUpdates(
 	let minGroupW = MIN_GROUP_SIZE;
 	let minGroupH = MIN_GROUP_SIZE;
 	for (const data of startShapeData.values()) {
+		const min = outlineMinSize(data);
 		if (data.relWidth > 0) {
-			const requiredGroupW = data.minWidth / data.relWidth;
+			const requiredGroupW = min.width / data.relWidth;
 			if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
 		}
-	}
-	for (const data of startShapeData.values()) {
 		if (data.relHeight > 0) {
-			const requiredGroupH = data.minHeight / data.relHeight;
+			const requiredGroupH = min.height / data.relHeight;
 			if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
 		}
 	}
@@ -640,9 +727,36 @@ export function computeMultiResizeUpdates(
 	for (const [id, data] of startShapeData) {
 		const newX = raw.x + data.relX * raw.width;
 		const newY = raw.y + data.relY * raw.height;
-		const newWidth = Math.max(data.minWidth, data.relWidth * raw.width);
-		const newHeight = Math.max(data.minHeight, data.relHeight * raw.height);
-		result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
+		const rotation = safeRotation(data.rotation);
+		if (!rotation) {
+			const newWidth = Math.max(data.minWidth, data.relWidth * raw.width);
+			const newHeight = Math.max(data.minHeight, data.relHeight * raw.height);
+			result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
+			continue;
+		}
+		// A rotated shape: place its drawn outline, then size its own box so that
+		// it is drawn without distortion, centered where the outline lands.
+		const outlineW = data.relWidth * raw.width;
+		const outlineH = data.relHeight * raw.height;
+		const cx = newX + outlineW / 2;
+		const cy = newY + outlineH / 2;
+		let width: number;
+		let height: number;
+		const fit = rotatedResizeFit(rotation);
+		if (fit === "axis" || fit === "swap") {
+			const along = fit === "axis" ? { w: outlineW, h: outlineH } : { w: outlineH, h: outlineW };
+			width = Math.max(data.minWidth, along.w);
+			height = Math.max(data.minHeight, along.h);
+		} else {
+			const start = outlineSize(data.width, data.height, rotation);
+			const scaleX = start.width > 0 ? outlineW / start.width : 1;
+			const scaleY = start.height > 0 ? outlineH / start.height : 1;
+			let scale = axes.x && axes.y ? Math.sqrt(scaleX * scaleY) : axes.x ? scaleX : scaleY;
+			scale = Math.max(minUniformScale(data), scale);
+			width = data.width * scale;
+			height = data.height * scale;
+		}
+		result.set(id, { x: cx - width / 2, y: cy - height / 2, width, height });
 	}
 
 	return result;

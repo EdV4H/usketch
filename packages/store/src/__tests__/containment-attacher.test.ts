@@ -293,3 +293,38 @@ describe("createContainmentAttacher", () => {
 		});
 	});
 });
+
+describe("isInsideForAttach with rotation", () => {
+	// A 300x100 frame turned 90° about (150, 50): drawn over x 100..200, y -100..200.
+	const frame = {
+		id: "f",
+		type: "frame",
+		x: 0,
+		y: 0,
+		width: 300,
+		height: 100,
+		rotation: 90,
+	} as ShapeData;
+	const box = (x: number, y: number) =>
+		({ id: "s", type: "rect", x, y, width: 40, height: 40 }) as ShapeData;
+
+	it("holds a shape inside the turned frame, even outside its un-rotated box", () => {
+		expect(isInsideForAttach(frame, box(130, -80))).toBe(true);
+		expect(isInsideForAttach(frame, box(130, -80), "center")).toBe(true);
+	});
+
+	it("does not hold a shape over the un-rotated box but outside the drawn frame", () => {
+		expect(isInsideForAttach(frame, box(10, 30))).toBe(false);
+		expect(isInsideForAttach(frame, box(10, 30), "center")).toBe(false);
+	});
+
+	it("tests a rotated child by its drawn corners", () => {
+		const plain = { id: "c", type: "frame", x: 0, y: 0, width: 100, height: 100 } as ShapeData;
+		// 60x60 at 45° centered at (50, 50): corners reach 50 ± 42.4 → inside.
+		const turned = { ...box(20, 20), width: 60, height: 60, rotation: 45 } as ShapeData;
+		expect(isInsideForAttach(plain, turned)).toBe(true);
+		// 90x90 at 45°: corners reach 50 ± 63.6 → poke out.
+		const big = { ...box(5, 5), width: 90, height: 90, rotation: 45 } as ShapeData;
+		expect(isInsideForAttach(plain, big)).toBe(false);
+	});
+});

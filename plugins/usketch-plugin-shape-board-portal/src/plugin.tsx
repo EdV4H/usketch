@@ -9,6 +9,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { BoardPortalShapeData } from "./types.js";
@@ -334,7 +335,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 			ctx.shapes.register("board-portal", {
 				render: renderPortal,
 				getBounds,
-				hitTest,
+				hitTest: withRotation(hitTest),
 				resize,
 				createDefault,
 				renderTarget: "html",
