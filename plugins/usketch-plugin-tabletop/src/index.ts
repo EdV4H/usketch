@@ -46,6 +46,7 @@ export {
 	type ViewCameraHandle,
 	type ViewportSize,
 	type ViewRect,
+	type ViewTilt,
 	viewCameraRotation,
 	viewFitZoom,
 	viewRectOf,
