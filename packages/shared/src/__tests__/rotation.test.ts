@@ -3,7 +3,9 @@ import type { ShapeData } from "../types/shape.js";
 import {
 	deltaToLocal,
 	getRotatedAABB,
+	keepRotatedTopLeft,
 	normalizeAngle,
+	placeLocalBox,
 	rotatePoint,
 	safeRotation,
 	snapAngle,
@@ -213,5 +215,43 @@ describe("withRotation", () => {
 	it("NaN rotation で元の関数にフォールバック", () => {
 		const wrapped = withRotation(alwaysTrue);
 		expect(wrapped(makeShape(Number.NaN), { x: 0, y: 0 })).toBe(true);
+	});
+});
+
+describe("placeLocalBox", () => {
+	it("回転 0 ならローカルの x/y をそのまま返す", () => {
+		expect(placeLocalBox({ x: 5, y: 6, width: 10, height: 10 }, { x: 0, y: 0 }, 0)).toEqual({
+			x: 5,
+			y: 6,
+		});
+	});
+
+	it("箱の中心を pivot まわりに回した位置に置く", () => {
+		// 中心 (150, 50) を (50, 50) まわりに 90° → (50, 150)
+		const p = placeLocalBox({ x: 100, y: 0, width: 100, height: 100 }, { x: 50, y: 50 }, 90);
+		expect(p.x).toBeCloseTo(0);
+		expect(p.y).toBeCloseTo(100);
+	});
+});
+
+describe("keepRotatedTopLeft", () => {
+	it("回転していなければ null", () => {
+		expect(keepRotatedTopLeft({ x: 0, y: 0, width: 10, height: 10 }, 20, 20)).toBeNull();
+	});
+
+	it("大きさを変えても画面上の左上の角が動かない", () => {
+		const shape = { x: 0, y: 0, width: 200, height: 100, rotation: 30 };
+		const corner = (s: { x: number; y: number; width: number; height: number }) =>
+			rotatePoint(
+				{ x: s.x, y: s.y },
+				{ x: s.x + s.width / 2, y: s.y + s.height / 2 },
+				(30 * Math.PI) / 180,
+			);
+		const pos = keepRotatedTopLeft(shape, 260, 180);
+		expect(pos).not.toBeNull();
+		const before = corner(shape);
+		const after = corner({ x: pos?.x ?? 0, y: pos?.y ?? 0, width: 260, height: 180 });
+		expect(after.x).toBeCloseTo(before.x);
+		expect(after.y).toBeCloseTo(before.y);
 	});
 });
