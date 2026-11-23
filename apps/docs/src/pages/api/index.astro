@@ -185,6 +185,78 @@ const packages = [
 			},
 		],
 	},
+	{
+		name: "@edv4h/usketch-session-gather",
+		summary:
+			"The `gather` session type — whoever starts it brings everyone on the board to one place (a selected shape or the host's view), including people who open the board later. Has no HUD card; the host draws the UI through `getGatherApi`. Works over the session server or the shared Yjs doc.",
+		reference: "https://www.npmjs.com/package/@edv4h/usketch-session-gather",
+		install: "pnpm add @edv4h/usketch-session-gather",
+		exports: [
+			{
+				name: "gatherServerType",
+				kind: "const",
+				signature: "ServerSessionType",
+				description: "From `/server` — the state is just the create config; there are no actions.",
+			},
+			{
+				name: "createGatherClientType",
+				kind: "function",
+				signature: "(options) => ClientSessionType",
+				description: "From `/client` — moves the camera (countdown, late joiners, `gather` / `stay`). Pass to createSessionPlugin({ types }).",
+			},
+			{
+				name: "getGatherApi",
+				kind: "function",
+				signature: "(services) => GatherApi | undefined",
+				description: "From `/client` — getState / subscribe / start / end / leave / rejoin / refresh / resolveTarget for the host's UI.",
+			},
+			{
+				name: "GatherPublic / GatherConfig / GatherTarget",
+				kind: "type",
+				signature: "interface",
+				description: "Public state and create config (place, hold, title, prompt, backdrop, viewOnly, audience).",
+			},
+		],
+	},
+	{
+		name: "@edv4h/usketch-session-respond",
+		summary:
+			"The `respond` session type — the host asks a question and everyone answers; each answer stays visible only to its author until the host reveals them all. Has no HUD card; the host draws the UI through `getRespondApi`.",
+		reference: "https://www.npmjs.com/package/@edv4h/usketch-session-respond",
+		install: "pnpm add @edv4h/usketch-session-respond",
+		exports: [
+			{
+				name: "respondServerType",
+				kind: "const",
+				signature: "ServerSessionType",
+				description: "From `/server` — submit / retract actions, answers kept secret until `close` reveals them.",
+			},
+			{
+				name: "createRespondClientType",
+				kind: "function",
+				signature: "(options?) => ClientSessionType",
+				description: "From `/client` — pass to createSessionPlugin({ types }).",
+			},
+			{
+				name: "getRespondApi",
+				kind: "function",
+				signature: "(services) => RespondApi | undefined",
+				description: "From `/client` — getState / subscribe / start / submit / retract / reveal / end for the host's UI.",
+			},
+			{
+				name: "arrangeResponses",
+				kind: "function",
+				signature: "(items, options) => ArrangedItem[]",
+				description: "From `/client` — pure grid layout of answers inside an area, optionally grouped by tag (use flattenResponseParts first for answers with parts).",
+			},
+			{
+				name: "RespondPublic / RespondAnswer / RespondConfig",
+				kind: "type",
+				signature: "interface",
+				description: "Public state, an answer (text, tag, parts) and create config (prompt, maxText, maxParts).",
+			},
+		],
+	},
 ] as const;
 ---
 
