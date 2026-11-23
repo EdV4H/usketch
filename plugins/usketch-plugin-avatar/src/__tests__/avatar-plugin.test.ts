@@ -33,7 +33,7 @@ function fakeAwareness(clientID = 1) {
 let setCalls: string[] = [];
 
 function fakeCtx() {
-	let viewport = { x: 0, y: 0, zoom: 1 };
+	let viewport: { x: number; y: number; zoom: number; rotation?: number } = { x: 0, y: 0, zoom: 1 };
 	const storeListeners = new Set<() => void>();
 	const layers = new Set<string>();
 	const transients = new Set<string>();
@@ -69,6 +69,10 @@ function fakeCtx() {
 		emitted,
 		pan(dx: number) {
 			viewport = { ...viewport, x: viewport.x + dx };
+			for (const l of storeListeners) l();
+		},
+		rotate(deg: number) {
+			viewport = { ...viewport, rotation: deg };
 			for (const l of storeListeners) l();
 		},
 	};
@@ -169,6 +173,18 @@ describe("avatar plugin", () => {
 		expect(sent).toBeGreaterThan(10);
 		// The last position is always delivered.
 		expect(awareness.getLocalState()?.viewportCenter).toEqual({ x: 400 - 60, y: 300 });
+		dispose?.();
+	});
+
+	it("shares the world point at the screen centre when the viewport is rotated", () => {
+		const { rotate, awareness, dispose } = setup();
+		expect(awareness.getLocalState()?.viewportCenter).toEqual({ x: 400, y: 300 });
+		// Only the rotation changes; the screen centre (400, 300) now maps to R(-90°)·(400, 300).
+		rotate(90);
+		vi.advanceTimersByTime(100);
+		const vc = awareness.getLocalState()?.viewportCenter as { x: number; y: number };
+		expect(vc.x).toBeCloseTo(300);
+		expect(vc.y).toBeCloseTo(-400);
 		dispose?.();
 	});
 });
