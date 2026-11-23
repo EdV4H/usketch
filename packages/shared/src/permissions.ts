@@ -137,3 +137,19 @@ export function createStaticPermissionProvider(rule: PermissionRule): StaticPerm
 		},
 	};
 }
+
+/**
+ * `base` と同じだが、`resource` を省いて聞かれたら（「今開いているもの」について）`scope` の
+ * ものとして聞く。渡された `resource` は `scope` に重ねる。ホストがページごとの App に渡す:
+ * `scopePermissions(boardPermissions, () => ({ boardId, pageId, ...pageAccess }))`。
+ */
+export function scopePermissions(
+	base: PermissionProvider,
+	scope: PermissionResource | (() => PermissionResource),
+): PermissionProvider {
+	const current = typeof scope === "function" ? scope : () => scope;
+	return {
+		can: (permission, resource) => base.can(permission, { ...current(), ...resource }),
+		subscribe: (listener) => base.subscribe(listener),
+	};
+}

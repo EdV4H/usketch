@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { type BoardRuntime, rememberLastPage } from "../lib/board-pages.js";
 import { getErrorMessage } from "../lib/errors.js";
 import { syncStatusStore } from "../lib/sync-status-store.js";
+import type { PagePermissions } from "./board-permissions.js";
 import {
 	API_URL,
 	devHeaders,
@@ -39,6 +40,8 @@ export interface PageAppOptions {
 	extraPlugins?: () => UsketchPlugin[];
 	/** App ができた直後に呼ぶ（地形を置く・ウィンドウシステムを有効にする など）。 */
 	onCreated?: (app: AppInstance, wiring: HostWiring) => void;
+	/** ページの権限（`useBoardPermissions`）。無ければ何でもできる。 */
+	permissions?: PagePermissions | null;
 }
 
 /** 最後に開き終えたページと、そこまでの時間（ms）。 */
@@ -141,7 +144,8 @@ export function usePageApp(options: PageAppOptions): {
 					store,
 					plugins,
 					keymap: { warnConflicts: import.meta.env.DEV },
-					// 開発中だけ: `?readonly` を付けると見るだけの人として開く（権限は R3b でつなぐ）。
+					permissions: latest.current.permissions?.(pageId) ?? undefined,
+					// 開発中だけ: `?readonly` を付けると権限に関係なく見るだけの人として開く。
 					readOnly: import.meta.env.DEV && new URLSearchParams(location.search).has("readonly"),
 				});
 				if (cancelled) {

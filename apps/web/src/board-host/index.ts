@@ -1,3 +1,4 @@
+export * from "./board-permissions.js";
 export * from "./host-wiring.js";
 export * from "./page-presets.js";
 export * from "./plugin-catalog.js";

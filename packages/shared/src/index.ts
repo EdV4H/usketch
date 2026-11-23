@@ -91,6 +91,7 @@ export {
 	permissionsOf,
 	type ServerPermissionResolver,
 	type StaticPermissionProvider,
+	scopePermissions,
 } from "./permissions.js";
 // 3D view state (Mode 7 etc.) shared across plugins
 export {
