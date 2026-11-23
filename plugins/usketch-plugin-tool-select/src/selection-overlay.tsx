@@ -109,6 +109,7 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 
 	// Drop target indicator: shown during move even when isMoving is true
 	const dropBounds = dropTargetId ? getShapeBounds(store, shapes, dropTargetId) : null;
+	const dropRotation = dropTargetId ? safeRotation(store.getShape(dropTargetId)?.rotation) : 0;
 	const dropIndicator = dropBounds ? (
 		<svg
 			style={{
@@ -126,6 +127,11 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 				y={dropBounds.y * viewport.zoom + viewport.y}
 				width={dropBounds.width * viewport.zoom}
 				height={dropBounds.height * viewport.zoom}
+				transform={
+					dropRotation
+						? `rotate(${dropRotation}, ${(dropBounds.x + dropBounds.width / 2) * viewport.zoom + viewport.x}, ${(dropBounds.y + dropBounds.height / 2) * viewport.zoom + viewport.y})`
+						: undefined
+				}
 				fill="none"
 				strokeWidth={2}
 				style={{ stroke: strokeColor }}

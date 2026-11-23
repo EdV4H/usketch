@@ -154,6 +154,115 @@ export function keepRotatedTopLeft(
 }
 
 /**
+ * シェイプの箱（既定は x/y/width/height、`bounds` を渡せばその箱）の 4 隅を、画面上の
+ * 位置（シェイプの中心まわりに `rotation` 回した位置）で返す。順序は左上・右上・右下・左下
+ * （回転前の向きで）。回転していなければ箱の 4 隅そのもの。
+ */
+export function getShapeCorners(
+	shape: { x: number; y: number; width: number; height: number; rotation?: unknown },
+	bounds: BoundingBox = shape,
+): Point[] {
+	const corners: Point[] = [
+		{ x: bounds.x, y: bounds.y },
+		{ x: bounds.x + bounds.width, y: bounds.y },
+		{ x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+		{ x: bounds.x, y: bounds.y + bounds.height },
+	];
+	const rotation = safeRotation(shape.rotation);
+	if (rotation === 0) return corners;
+	const center = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+	const rad = (rotation * Math.PI) / 180;
+	return corners.map((c) => rotatePoint(c, center, rad));
+}
+
+/**
+ * シェイプが画面上で占める軸平行の外接矩形（回転込み）。スナップ・範囲選択・
+ * 表示範囲の判定など、回転前の箱ではなく見えている範囲で比べたいときに使う。
+ */
+export function getShapeWorldAABB(
+	shape: { x: number; y: number; width: number; height: number; rotation?: unknown },
+	bounds: BoundingBox = shape,
+): BoundingBox {
+	if (safeRotation(shape.rotation) === 0) {
+		return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+	}
+	const corners = getShapeCorners(shape, bounds);
+	let minX = corners[0].x;
+	let minY = corners[0].y;
+	let maxX = minX;
+	let maxY = minY;
+	for (const c of corners) {
+		if (c.x < minX) minX = c.x;
+		if (c.y < minY) minY = c.y;
+		if (c.x > maxX) maxX = c.x;
+		if (c.y > maxY) maxY = c.y;
+	}
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/**
+ * 軸平行の矩形 `rect` と、回転したシェイプの箱（{@link getShapeCorners}）が重なるか。
+ * 分離軸判定なので、斜めのシェイプの外接矩形の空いた隅だけにかかる矩形は重ならない。
+ */
+export function rectIntersectsShape(
+	rect: BoundingBox,
+	shape: { x: number; y: number; width: number; height: number; rotation?: unknown },
+	bounds: BoundingBox = shape,
+): boolean {
+	const aabb = getShapeWorldAABB(shape, bounds);
+	const overlaps =
+		rect.x < aabb.x + aabb.width &&
+		rect.x + rect.width > aabb.x &&
+		rect.y < aabb.y + aabb.height &&
+		rect.y + rect.height > aabb.y;
+	if (!overlaps || safeRotation(shape.rotation) === 0) return overlaps;
+	// The rect's own axes are covered by the AABB test; check the shape's two axes.
+	const quad = getShapeCorners(shape, bounds);
+	const rectCorners: Point[] = [
+		{ x: rect.x, y: rect.y },
+		{ x: rect.x + rect.width, y: rect.y },
+		{ x: rect.x + rect.width, y: rect.y + rect.height },
+		{ x: rect.x, y: rect.y + rect.height },
+	];
+	for (let i = 0; i < 2; i++) {
+		const axis = { x: quad[i + 1].x - quad[i].x, y: quad[i + 1].y - quad[i].y };
+		const project = (p: Point) => p.x * axis.x + p.y * axis.y;
+		const q = quad.map(project);
+		const r = rectCorners.map(project);
+		if (Math.max(...r) < Math.min(...q) || Math.min(...r) > Math.max(...q)) return false;
+	}
+	return true;
+}
+
+/**
+ * 点がシェイプの箱（回転込み）の中にあるか。点をシェイプの中心まわりに逆回転して
+ * 回転前の箱と比べる。
+ */
+export function shapeBoxContainsPoint(
+	shape: { x: number; y: number; width: number; height: number; rotation?: unknown },
+	point: Point,
+	bounds: BoundingBox = shape,
+): boolean {
+	const rotation = safeRotation(shape.rotation);
+	const p =
+		rotation === 0
+			? point
+			: unrotatePoint(
+					point,
+					{ x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 },
+					(rotation * Math.PI) / 180,
+				);
+	// A hair of slack so a point exactly on an edge of a turned box (rounding) counts.
+	const eps = rotation === 0 ? 0 : 1e-6;
+	return (
+		p.x >= bounds.x - eps &&
+		p.x <= bounds.x + bounds.width + eps &&
+		p.y >= bounds.y - eps &&
+		p.y <= bounds.y + bounds.height + eps
+	);
+}
+
+/**
  * ヒットテスト関数を回転対応にラップする。
  * シェイプが回転している場合、テスト対象の点をシェイプ中心周りに逆回転してから判定する。
  */

@@ -7,7 +7,7 @@ import type {
 	UsketchPlugin,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { screenRectToWorldBounds } from "@edv4h/usketch-shared";
+import { getShapeWorldAABB, safeRotation, screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { effectiveSnapEnabled, isSnapToggleKey } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
@@ -257,6 +257,14 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					return;
 				}
 
+				// A rotation (its updates carry `rotation`, e.g. a shape orbiting the
+				// pivot of a multi-selection rotation) never snaps: snapping would pull
+				// the shape off the circle it turns on.
+				if ("rotation" in updates) {
+					originalUpdateShape(id, updates);
+					return;
+				}
+
 				// Skip snap for connectors — they have their own anchor/snap logic
 				if (shape.type === "connector") {
 					originalUpdateShape(id, updates);
@@ -288,6 +296,14 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				}
 
 				const isResize = isResizeUpdate(updates);
+
+				// A rotated shape is resized along its own (turned) axes, which the
+				// axis-aligned guides can't line up with: resize it without snapping.
+				if (isResize && safeRotation(shape.rotation) !== 0) {
+					originalUpdateShape(id, updates);
+					setState({ lines: [], gaps: [] });
+					return;
+				}
 
 				// Get current frame ID to cache snap results across multi-shape updates
 				const currentFrame = frameId;
@@ -520,13 +536,13 @@ function getMovingBoundingBox(
 		const shape = store.getShape(id);
 		if (!shape) continue;
 
-		const x = shape.x + dx;
-		const y = shape.y + dy;
+		// Rotation-aware, like the candidate boxes.
+		const box = getShapeWorldAABB({ ...shape, x: shape.x + dx, y: shape.y + dy });
 
-		minX = Math.min(minX, x);
-		minY = Math.min(minY, y);
-		maxX = Math.max(maxX, x + shape.width);
-		maxY = Math.max(maxY, y + shape.height);
+		minX = Math.min(minX, box.x);
+		minY = Math.min(minY, box.y);
+		maxX = Math.max(maxX, box.x + box.width);
+		maxY = Math.max(maxY, box.y + box.height);
 	}
 
 	return {
@@ -583,9 +599,13 @@ function getCandidateBoxes(
 		// Cull off-screen shapes before the frame-context check below: that check
 		// walks the parent chain, and on a large board most shapes are off-screen.
 		const def = ctx.shapes.get(shape.type);
-		const box = def
-			? def.getBounds(shape)
-			: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		// Where the shape is drawn: a rotated shape snaps by its turned outline's bounds.
+		const box = getShapeWorldAABB(
+			shape,
+			def
+				? def.getBounds(shape)
+				: { x: shape.x, y: shape.y, width: shape.width, height: shape.height },
+		);
 		if (visibleRect && !boxesOverlap(box, visibleRect)) continue;
 
 		// Only snap within the same frame context:

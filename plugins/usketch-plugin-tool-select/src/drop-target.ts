@@ -1,5 +1,9 @@
 import type { Point, ShapeData, ShapeDefinition, ToolContext } from "@edv4h/usketch-shared";
-import { containerAccepts, isContainerAutoAttach } from "@edv4h/usketch-shared";
+import {
+	containerAccepts,
+	isContainerAutoAttach,
+	shapeBoxContainsPoint,
+} from "@edv4h/usketch-shared";
 
 type DropTargetCtx = Pick<ToolContext, "store" | "shapes">;
 
@@ -75,10 +79,6 @@ function containsPoint(def: ShapeDefinition | undefined, shape: ShapeData, point
 	const bounds = def
 		? def.getBounds(shape)
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-	return (
-		point.x >= bounds.x &&
-		point.x <= bounds.x + bounds.width &&
-		point.y >= bounds.y &&
-		point.y <= bounds.y + bounds.height
-	);
+	// Where the container is drawn: a rotated one holds the point in its turned box.
+	return shapeBoxContainsPoint(shape, point, bounds);
 }

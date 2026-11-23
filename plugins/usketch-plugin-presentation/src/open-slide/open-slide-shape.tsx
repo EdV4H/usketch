@@ -5,6 +5,7 @@ import type {
 	ShapeData,
 	ShapeDefinition,
 } from "@edv4h/usketch-shared";
+import { withRotation } from "@edv4h/usketch-shared";
 import type { OpenSlideDeckRegistry } from "./deck-registry.js";
 import type { OpenSlideEditState } from "./edit-state.js";
 import { OpenSlideShapeView, type OpenSlideShapeViewProps } from "./open-slide-shape-view.js";
@@ -168,7 +169,7 @@ export function createOpenSlideShapeDefinition({
 			</div>
 		),
 		getBounds,
-		hitTest,
+		hitTest: withRotation(hitTest),
 		resize: resizeOpenSlideShape,
 		createDefault: ({ id, x, y }) => {
 			const deck = registry.getDecks()[0];

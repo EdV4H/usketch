@@ -7,6 +7,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type ToolContext,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ServerClock } from "@edv4h/usketch-sync";
@@ -473,7 +474,7 @@ export function registerTimerShape(
 			/>
 		),
 		getBounds,
-		hitTest,
+		hitTest: withRotation(hitTest),
 		resize: (data, handle, delta) => resize(data, handle, delta, minSize),
 		createDefault: (params) => createDefault(params, defaultSize),
 		renderTarget: "html",
