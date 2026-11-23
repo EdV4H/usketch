@@ -103,7 +103,15 @@ const camera = applyViewCamera(app.store, getRect, "zoom", {
 	getSize,
 	getTilt: () => ({ pitch: 35, fov: 1200, horizon: 0.5 }),
 });
-``` Zones never take views. The pieces are exported too: `fitViewToScreen`,
+```
+
+The tilt is read on every commit, but changing it doesn't move the camera by
+itself: after turning the tilt on, off or to another pitch, call `returnToView()`
+(or apply the view again). The tilt has no yaw: a view's turn is the camera's
+turn, so keep the 3D view's own yaw at 0 while a view is applied. `heightPx` is
+for a raised 3D camera (Mode 7's `getRenderedCamera().heightPx`).
+
+Zones never take views. The pieces are exported too: `fitViewToScreen`,
 `stayInViewConstraint`, `pinToViewConstraint`, `isAtView`, `viewRectOf`,
 `viewCameraRotation`.
 

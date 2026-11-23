@@ -91,6 +91,14 @@ export interface Mode7PluginOptions {
 	exitOnShapeDoubleClick?: boolean;
 }
 
+/** What a double click on a shape does: leave for flat, unless the host keeps 3D on. */
+export function shapeDoubleClickExit(
+	options: Pick<Mode7PluginOptions, "exitOnShapeDoubleClick">,
+	disable: () => void,
+): (() => void) | undefined {
+	return options.exitOnShapeDoubleClick === false ? undefined : disable;
+}
+
 export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlugin {
 	const store = createMode7Store({
 		active: options.enabledInitially ?? false,
@@ -159,7 +167,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				yaw,
 				adoptDeclared: options.tiltLayerIds === undefined,
 				excludedLayerIds,
-				exit: options.exitOnShapeDoubleClick === false ? undefined : () => api.disable(),
+				exit: shapeDoubleClickExit(options, () => api.disable()),
 			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.

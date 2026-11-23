@@ -74,7 +74,9 @@ function withTurn({ rotation: _r, ...vp }: Viewport, rotation: number): Viewport
  * A 3D view the camera looks through: the flat stage tilted back by `pitch` about the
  * horizon line (`perspective(fov) rotateX(pitch)`, like `tiltCss` in
  * `@edv4h/usketch-shared`). The host draws it (e.g. Mode 7's camera); the view camera
- * only frames the view for it. A pitch of 0 (or less) is the flat camera.
+ * only frames the view for it. A pitch of 0 (or less) is the flat camera. There is no
+ * yaw: a view's turn is the camera's turn (the viewport's rotation), so a host keeps
+ * its 3D view's own yaw at 0 while a view is applied.
  */
 export interface ViewTilt {
 	/** How far the ground leans back, degrees (0 = straight down). */
@@ -83,6 +85,8 @@ export interface ViewTilt {
 	fov: number;
 	/** The pivot line as a fraction of the screen height. */
 	horizon: number;
+	/** Px the 3D camera is raised (everything is drawn this much lower). Default 0. */
+	heightPx?: number;
 }
 
 const isTilted = (tilt: ViewTilt | null | undefined): tilt is ViewTilt =>
@@ -98,6 +102,7 @@ const projectionOf = (tilt: ViewTilt): ProjectionCamera => ({
 	yaw: 0,
 	fov: tilt.fov,
 	horizon: tilt.horizon,
+	heightPx: Number.isFinite(tilt.heightPx) ? tilt.heightPx : 0,
 });
 
 export interface ViewportSize {
@@ -202,7 +207,7 @@ function tiltedFit(
 	size: ViewportSize,
 	padding: number,
 	tilt: ViewTilt,
-): { x: number; y: number; zoom: number } | null {
+): Fit | null {
 	const cam = projectionOf(tilt);
 	const cx = size.width / 2;
 	const bottom = size.height - padding;
@@ -216,9 +221,15 @@ function tiltedFit(
 	if (!far) return null;
 	const width = Math.max(1, box.width);
 	const height = Math.max(1, box.height);
+	// Every corner on screen (the near ones are the widest and lowest on a usual tilt,
+	// but a raised camera or a low horizon can make it otherwise).
 	const fits = (zoom: number): boolean => {
-		const near = projectStagePoint(cx + (width * zoom) / 2, far.y + height * zoom, cam, size);
-		return !!near && near.y <= bottom && near.x - cx <= halfWidth;
+		const half = (width * zoom) / 2;
+		for (const y of [far.y, far.y + height * zoom]) {
+			const p = projectStagePoint(cx + half, y, cam, size);
+			if (!p || p.y > bottom + 1e-6 || p.y < top - 1e-6 || p.x - cx > halfWidth) return false;
+		}
+		return true;
 	};
 	let lo = 0;
 	let hi = viewFitZoom(box, size, padding);
@@ -238,6 +249,42 @@ function tiltedFit(
 		x: cx - (box.x + width / 2) * zoom + 0,
 		y: far.y - box.y * zoom + 0,
 		zoom,
+	};
+}
+
+type Fit = { x: number; y: number; zoom: number };
+
+/**
+ * {@link tiltedFit} remembering its last answer: a constraint runs on every commit
+ * (every animation frame), and the fit only changes with the view, screen or tilt.
+ */
+function memoTiltedFit(): (
+	box: BoundingBox,
+	size: ViewportSize,
+	padding: number,
+	tilt: ViewTilt,
+) => Fit | null {
+	let lastKey = "";
+	let last: Fit | null = null;
+	return (box, size, padding, tilt) => {
+		const key = [
+			box.x,
+			box.y,
+			box.width,
+			box.height,
+			size.width,
+			size.height,
+			padding,
+			tilt.pitch,
+			tilt.fov,
+			tilt.horizon,
+			tilt.heightPx ?? 0,
+		].join(",");
+		if (key !== lastKey) {
+			lastKey = key;
+			last = tiltedFit(box, size, padding, tilt);
+		}
+		return last;
 	};
 }
 
@@ -285,6 +332,7 @@ const readRect = (opts: RectConstraintOptions) => {
  */
 export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
+	const fitTilted = memoTiltedFit();
 	return (proposed) => {
 		const read = readRect(opts);
 		if (!read) return proposed;
@@ -292,7 +340,7 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
 		const rotation = viewCameraRotation(read.rect);
 		const rect = turnedBox(read.rect, rotation);
 		const vp = withTurn(proposed, rotation);
-		const fit = tilt ? tiltedFit(rect, size, padding, tilt) : null;
+		const fit = tilt ? fitTilted(rect, size, padding, tilt) : null;
 		const minZoom = fit ? fit.zoom : viewFitZoom(rect, size, padding);
 		let { x, y, zoom } = vp;
 		if (!Number.isFinite(zoom) || zoom <= 0) {
@@ -319,11 +367,7 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
  * view drawn where the fit draws the view's centre may move from that centre by the
  * share of the view the zoom has gained (`1 − fit.zoom / zoom` of the half size).
  */
-function clampTilted(
-	box: BoundingBox,
-	fit: { x: number; y: number; zoom: number },
-	vp: { x: number; y: number; zoom: number },
-): { x: number; y: number } {
+function clampTilted(box: BoundingBox, fit: Fit, vp: Fit): { x: number; y: number } {
 	const cx = box.x + box.width / 2;
 	const cy = box.y + box.height / 2;
 	// The stage point (px) where the fit draws the view's centre.
@@ -342,10 +386,17 @@ function clampTilted(
  */
 export function pinToViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
+	const fitTilted = memoTiltedFit();
 	return (vp) => {
 		const read = readRect(opts);
 		if (!read) return vp;
-		return fitViewToScreen(read.rect, read.size, padding, read.tilt);
+		const { rect, size, tilt } = read;
+		if (tilt) {
+			const rotation = viewCameraRotation(rect);
+			const fit = fitTilted(turnedBox(rect, rotation), size, padding, tilt);
+			if (fit) return withTurn(fit, rotation);
+		}
+		return fitViewToScreen(rect, size, padding);
 	};
 }
 

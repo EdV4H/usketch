@@ -273,6 +273,33 @@ describe("tilted view camera", () => {
 		expect(Number.isFinite(vp.zoom) && vp.zoom > 0).toBe(true);
 	});
 
+	it("frames for a raised camera and for an unusual pivot, every corner on screen", () => {
+		for (const t of [
+			{ ...tilt, heightPx: 200 },
+			{ pitch: 30, fov: 500, horizon: 0.9 },
+			{ pitch: 30, fov: 500, horizon: 0.1 },
+		]) {
+			const vp = fitViewToScreen(view, screen, pad, t);
+			const corners = [
+				[0, 0],
+				[1600, 0],
+				[0, 900],
+				[1600, 900],
+			].map(([x, y]) => {
+				const s = worldToScreen(x, y, vp);
+				return projectStagePoint(s.x, s.y, { ...t, yaw: 0 }, screen);
+			});
+			for (const p of corners) {
+				expect(p).not.toBeNull();
+				expect(p?.x ?? -1).toBeGreaterThanOrEqual(pad - 1e-6);
+				expect(p?.x ?? Infinity).toBeLessThanOrEqual(screen.width - pad + 1e-6);
+				expect(p?.y ?? -1).toBeGreaterThanOrEqual(pad - 1e-6);
+				expect(p?.y ?? Infinity).toBeLessThanOrEqual(screen.height - pad + 1e-6);
+			}
+			expect(corners[0]?.y ?? 0).toBeCloseTo(pad, 3);
+		}
+	});
+
 	it("fixed: pinned to the tilted fit", () => {
 		const constrain = pinToViewConstraint({
 			getRect: () => view,
