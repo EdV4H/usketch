@@ -9,6 +9,7 @@ export {
 } from "y-protocols/awareness";
 export {
 	createPageDocManager,
+	PageAccessDeniedError,
 	type PageDocHandle,
 	type PageDocManager,
 	type PageDocManagerOptions,
@@ -68,12 +69,14 @@ export {
 	isValidDocId,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_DENIED,
 	MSG_DOC_SUBSCRIBE,
 	MSG_DOC_SYNC,
 	MSG_DOC_UNSUBSCRIBE,
 	MSG_DOC_UPDATE,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
+	MSG_PERMISSIONS_CHANGED,
 	MSG_SESSION,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,

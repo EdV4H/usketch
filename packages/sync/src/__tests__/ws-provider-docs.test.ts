@@ -3,10 +3,12 @@ import * as Y from "yjs";
 import {
 	decodeDocFrame,
 	encodeDocFrame,
+	MSG_DOC_DENIED,
 	MSG_DOC_SUBSCRIBE,
 	MSG_DOC_SYNC,
 	MSG_DOC_UNSUBSCRIBE,
 	MSG_DOC_UPDATE,
+	MSG_PERMISSIONS_CHANGED,
 } from "../protocol.js";
 import { createWsProvider, type WsProviderHandle } from "../ws-provider.js";
 
@@ -187,6 +189,39 @@ describe("WsProvider.subscribeDoc", () => {
 		expect(socket.docFrames().filter((f) => f?.type === MSG_DOC_UPDATE)).toHaveLength(0);
 		// もう一度購読できる
 		expect(() => provider.subscribeDoc("p1", page)).not.toThrow();
+	});
+
+	it("ends a subscription the server denied and does not resubscribe it", () => {
+		const { provider, socket } = setup();
+		const page = new Y.Doc();
+		const sub = provider.subscribeDoc("p1", page);
+		const denied = vi.fn();
+		sub.onDenied?.(denied);
+		socket.open();
+		socket.deliver(encodeDocFrame(MSG_DOC_DENIED, "p1"));
+		expect(denied).toHaveBeenCalledTimes(1);
+		// 断られた後の編集は送らない
+		socket.sent = [];
+		page.getMap("shapes").set("x", { id: "x" });
+		expect(socket.docFrames()).toHaveLength(0);
+		// 後から登録しても呼ばれる
+		const late = vi.fn();
+		sub.onDenied?.(late);
+		expect(late).toHaveBeenCalledTimes(1);
+		// 購読し直せる（権限が戻ったとき）
+		expect(() => provider.subscribeDoc("p1", page)).not.toThrow();
+	});
+
+	it("tells listeners when the board's permissions changed", () => {
+		const { provider, socket } = setup();
+		const changed = vi.fn();
+		const off = provider.onPermissionsChanged?.(changed);
+		socket.open();
+		socket.deliver(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		expect(changed).toHaveBeenCalledTimes(1);
+		off?.();
+		socket.deliver(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		expect(changed).toHaveBeenCalledTimes(1);
 	});
 
 	it("rejects a second subscription to the same id and invalid ids", () => {

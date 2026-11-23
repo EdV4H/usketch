@@ -8,7 +8,11 @@ import {
 } from "@edv4h/usketch-plugin-sync-ywebsocket";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
-import { createPageScopedProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
+import {
+	createPageScopedProvider,
+	PageAccessDeniedError,
+	type WsProviderHandle,
+} from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { type BoardRuntime, rememberLastPage } from "../lib/board-pages.js";
 import { getErrorMessage } from "../lib/errors.js";
@@ -44,6 +48,9 @@ export interface PageAppOptions {
 	permissions?: PagePermissions | null;
 }
 
+/** 見る権限の無いページを開いた（開いている間に無くなった）ときの知らせ。 */
+const DENIED_MESSAGE = "このページを見る権限がありません";
+
 /** 最後に開き終えたページと、そこまでの時間（ms）。 */
 export interface LastOpen {
 	pageId: string | null;
@@ -77,6 +84,8 @@ export function usePageApp(options: PageAppOptions): {
 	useEffect(() => {
 		if (!board || pageId === undefined) return;
 
+		// 前のページの失敗（見る権限が無いなど）は持ち越さない
+		setError(null);
 		let cancelled = false;
 		let instance: AppInstance | null = null;
 		const startedAt = performance.now();
@@ -112,6 +121,15 @@ export function usePageApp(options: PageAppOptions): {
 				disposers.push(dispose);
 			},
 		};
+
+		// 開いた後に見る権限が無くなったら（公開範囲が変わった）、ページを閉じて知らせる。
+		const offDenied = pageHandle?.onDenied(() => {
+			if (cancelled) return;
+			instance?.destroy();
+			instance = null;
+			setApp(null);
+			setError(DENIED_MESSAGE);
+		});
 
 		(async () => {
 			try {
@@ -196,12 +214,18 @@ export function usePageApp(options: PageAppOptions): {
 				lastOpenRef.current = { pageId, ms };
 				if (import.meta.env.DEV && pageId) console.info(`[pages] opened ${pageId} in ${ms}ms`);
 			} catch (e) {
-				if (!cancelled) setError(getErrorMessage(e, "Failed to initialize board"));
+				if (cancelled) return;
+				setError(
+					e instanceof PageAccessDeniedError
+						? DENIED_MESSAGE
+						: getErrorMessage(e, "Failed to initialize board"),
+				);
 			}
 		})();
 
 		return () => {
 			cancelled = true;
+			offDenied?.();
 			instance?.destroy();
 			for (const dispose of disposers) dispose();
 			scopedProvider?.dispose();
