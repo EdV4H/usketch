@@ -5,6 +5,7 @@ import type {
 	ShapeData,
 	ShapeDefinition,
 } from "@edv4h/usketch-shared";
+import { withRotation } from "@edv4h/usketch-shared";
 import {
 	type CSSProperties,
 	type ReactElement,
@@ -268,7 +269,7 @@ export function tableShapeDefinition(opts: TableShapeOptions): ShapeDefinition {
 		render: (data) =>
 			isTable(data) ? <TableHost shape={data} api={opts.api} render={render} /> : <></>,
 		getBounds: rectBounds,
-		hitTest: rectHit,
+		hitTest: withRotation(rectHit),
 		resize: resizeRect,
 		minSize: TABLE_MIN_SIZE,
 		createDefault: ({ id, x, y }) =>
@@ -303,7 +304,7 @@ export function seatShapeDefinition(opts: SeatShapeOptions): ShapeDefinition {
 		render: (data) =>
 			isSeat(data) ? <SeatHost seat={data} api={opts.api} render={render} /> : <></>,
 		getBounds: rectBounds,
-		hitTest: rectHit,
+		hitTest: withRotation(rectHit),
 		resize: (data) => data,
 		resizable: false,
 		// Seats are only created by joining; a bare one (no table, no meta) is removed

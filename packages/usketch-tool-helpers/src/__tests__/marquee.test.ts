@@ -1,6 +1,6 @@
 import type { ShapeDefinition } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { boxContains, boxesIntersect, startMarqueeSession } from "../marquee.js";
+import { boxContains, boxesIntersect, findShapesInRect, startMarqueeSession } from "../marquee.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
 
 describe("startMarqueeSession", () => {
@@ -149,5 +149,31 @@ describe("box predicates", () => {
 				{ x: 50, y: 50, width: 100, height: 100 },
 			),
 		).toBe(false);
+	});
+});
+
+describe("findShapesInRect with rotated shapes", () => {
+	// 200x20 bar turned 90°: drawn over x 90..110, y -90..110.
+	function ctxWithBar() {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 200, height: 20, rotation: 90 }));
+		return ctx;
+	}
+
+	it("contain: selects when the drawn bar is enclosed", () => {
+		const ctx = ctxWithBar();
+		expect([
+			...findShapesInRect(ctx, { x: 85, y: -95, width: 30, height: 210 }, "contain"),
+		]).toEqual(["a"]);
+	});
+
+	it("intersect: ignores a rect over the un-rotated box only", () => {
+		const ctx = ctxWithBar();
+		expect([...findShapesInRect(ctx, { x: 0, y: 0, width: 50, height: 20 }, "intersect")]).toEqual(
+			[],
+		);
+		expect([...findShapesInRect(ctx, { x: 95, y: -80, width: 5, height: 5 }, "intersect")]).toEqual(
+			["a"],
+		);
 	});
 });

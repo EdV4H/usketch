@@ -8,6 +8,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { CounterShapeData } from "./types.js";
@@ -225,7 +226,7 @@ export function createCounterPlugin(): UsketchPlugin {
 			ctx.shapes.register("counter", {
 				render,
 				getBounds,
-				hitTest,
+				hitTest: withRotation(hitTest),
 				resize,
 				createDefault,
 				renderTarget: "html",

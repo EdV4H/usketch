@@ -187,7 +187,9 @@ export function createStickyPlugin(): UsketchPlugin {
 			// Shared editable-text controller (machine + DOM/canvas wiring).
 			const editor = createEditableTextController(ctx, {
 				isEditableType: (type) => type === "sticky",
-				hitTest,
+				// Same rotation-aware test the shape registers, so a double-click on any
+				// visible part of a rotated note starts editing.
+				hitTest: withRotation(hitTest),
 				growHeight: true,
 				growOnly: true,
 				minHeight: 100,

@@ -7,6 +7,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type ToolContext,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { DEFAULT_APPEARANCE, type ResolvedAppearance } from "./appearance.js";
 import { buildSummaryChildren } from "./diagram.js";
@@ -391,7 +392,7 @@ export function registerVoiceFrame(
 			/>
 		),
 		getBounds,
-		hitTest,
+		hitTest: withRotation(hitTest),
 		resize,
 		createDefault,
 		renderTarget: "html",

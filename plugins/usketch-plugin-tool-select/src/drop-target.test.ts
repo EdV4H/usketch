@@ -115,3 +115,13 @@ describe("findDropTarget", () => {
 		});
 	});
 });
+
+describe("findDropTarget with a rotated container", () => {
+	it("finds a turned frame where it is drawn", () => {
+		// 300x100 frame turned 90°: drawn over x 100..200, y -100..200.
+		const frame = { ...shape("f", "frame", 0, 0, 300, 100), rotation: 90 } as ShapeData;
+		const c = ctx([frame]);
+		expect(findDropTarget(c, { x: 150, y: -80 }, new Set())).toBe("f");
+		expect(findDropTarget(c, { x: 20, y: 50 }, new Set())).toBeNull();
+	});
+});

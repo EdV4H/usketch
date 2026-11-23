@@ -3,11 +3,14 @@ import type { ShapeData } from "../types/shape.js";
 import {
 	deltaToLocal,
 	getRotatedAABB,
+	getShapeWorldAABB,
 	keepRotatedTopLeft,
 	normalizeAngle,
 	placeLocalBox,
+	rectIntersectsShape,
 	rotatePoint,
 	safeRotation,
+	shapeBoxContainsPoint,
 	snapAngle,
 	unrotatePoint,
 	withRotation,
@@ -253,5 +256,35 @@ describe("keepRotatedTopLeft", () => {
 		const after = corner({ x: pos?.x ?? 0, y: pos?.y ?? 0, width: 260, height: 180 });
 		expect(after.x).toBeCloseTo(before.x);
 		expect(after.y).toBeCloseTo(before.y);
+	});
+});
+
+describe("getShapeWorldAABB / rectIntersectsShape / shapeBoxContainsPoint", () => {
+	// 200x20 bar turned 90° about (100, 10): drawn over x 90..110, y -90..110.
+	const bar = { x: 0, y: 0, width: 200, height: 20, rotation: 90 };
+
+	it("外接矩形は描かれた範囲", () => {
+		const b = getShapeWorldAABB(bar);
+		expect(b.x).toBeCloseTo(90);
+		expect(b.y).toBeCloseTo(-90);
+		expect(b.width).toBeCloseTo(20);
+		expect(b.height).toBeCloseTo(200);
+	});
+
+	it("回転前の箱にだけかかる矩形とは重ならない", () => {
+		expect(rectIntersectsShape({ x: 0, y: 0, width: 50, height: 20 }, bar)).toBe(false);
+		expect(rectIntersectsShape({ x: 95, y: -80, width: 5, height: 5 }, bar)).toBe(true);
+	});
+
+	it("ひし形の外接矩形の空いた隅には重ならない", () => {
+		const diamond = { x: 0, y: 0, width: 100, height: 100, rotation: 45 };
+		// The AABB's top-left corner region, outside the diamond.
+		expect(rectIntersectsShape({ x: -20, y: -20, width: 15, height: 15 }, diamond)).toBe(false);
+		expect(rectIntersectsShape({ x: 45, y: 45, width: 10, height: 10 }, diamond)).toBe(true);
+	});
+
+	it("点の内外を回転込みで判定する", () => {
+		expect(shapeBoxContainsPoint(bar, { x: 100, y: -80 })).toBe(true);
+		expect(shapeBoxContainsPoint(bar, { x: 20, y: 10 })).toBe(false);
 	});
 });
