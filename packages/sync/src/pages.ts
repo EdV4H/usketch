@@ -31,6 +31,21 @@ export interface PageMeta {
 	createdAt: number;
 	/** 削除した時刻。削除済みのページは一覧に出さない（一定期間は戻せる）。 */
 	deletedAt?: number;
+	/**
+	 * 作るときに選んだプリセット（ホストが決める名前。例: `"whiteboard"`）。`plugins` が無ければ、
+	 * ホストはこのプリセットのプラグインでページを開く。
+	 */
+	preset?: string;
+	/**
+	 * このページに入れるプラグイン（ホストのカタログの id）。プリセットから 1 つずつ足し引きした
+	 * ときに書く。無ければプリセットのまま。
+	 */
+	plugins?: string[];
+}
+
+/** プリセット・プラグインの名前として使える文字列か（短い英数字と `-` `_` `:` `.` `/` `@`）。 */
+function isPluginKey(value: unknown): value is string {
+	return typeof value === "string" && /^[A-Za-z0-9@][A-Za-z0-9_.:/@-]{0,99}$/.test(value);
 }
 
 /** ページ doc の guid。 */
@@ -51,6 +66,8 @@ export function toPageMeta(value: unknown): PageMeta | null {
 		createdAt: typeof v.createdAt === "number" ? v.createdAt : 0,
 	};
 	if (typeof v.deletedAt === "number") page.deletedAt = v.deletedAt;
+	if (isPluginKey(v.preset)) page.preset = v.preset;
+	if (Array.isArray(v.plugins)) page.plugins = [...new Set(v.plugins.filter(isPluginKey))];
 	return page;
 }
 
@@ -127,6 +144,10 @@ export interface CreatePageOptions {
 	after?: string | null;
 	/** 作成時刻（テスト用）。省略時は Date.now()。 */
 	now?: number;
+	/** プリセット（{@link PageMeta.preset}）。 */
+	preset?: string;
+	/** プラグイン（{@link PageMeta.plugins}）。 */
+	plugins?: readonly string[];
 }
 
 /** ページを足す（ページ doc の中身は空）。足したページを返す。 */
@@ -151,8 +172,43 @@ export function createPage(root: Y.Doc, options: CreatePageOptions): PageMeta {
 		order: generateKeyBetween(before, next),
 		createdAt: options.now ?? Date.now(),
 	};
+	if (options.preset !== undefined) {
+		if (!isPluginKey(options.preset)) throw new Error(`Invalid preset: ${options.preset}`);
+		page.preset = options.preset;
+	}
+	if (options.plugins !== undefined) page.plugins = pluginList(options.plugins);
 	pagesMap(root).set(id, { ...page });
 	return page;
+}
+
+function pluginList(plugins: readonly string[]): string[] {
+	for (const id of plugins) {
+		if (!isPluginKey(id)) throw new Error(`Invalid plugin id: ${id}`);
+	}
+	return [...new Set(plugins)];
+}
+
+/**
+ * ページのプリセットとプラグインを変える。`null` を渡すと消す（`plugins: null` でプリセットの
+ * ままに戻す）。省いたものはそのまま。無いページは例外。
+ */
+export function setPagePlugins(
+	root: Y.Doc,
+	pageId: string,
+	change: { preset?: string | null; plugins?: readonly string[] | null },
+): PageMeta {
+	const page = getPage(root, pageId);
+	if (!page) throw new Error(`Page not found: ${pageId}`);
+	const next: PageMeta = { ...page };
+	if (change.preset === null) delete next.preset;
+	else if (change.preset !== undefined) {
+		if (!isPluginKey(change.preset)) throw new Error(`Invalid preset: ${change.preset}`);
+		next.preset = change.preset;
+	}
+	if (change.plugins === null) delete next.plugins;
+	else if (change.plugins !== undefined) next.plugins = pluginList(change.plugins);
+	pagesMap(root).set(pageId, next);
+	return next;
 }
 
 /** ページ名を変える。無いページは例外。 */

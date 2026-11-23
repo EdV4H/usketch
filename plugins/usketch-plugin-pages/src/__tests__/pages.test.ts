@@ -126,6 +126,23 @@ describe("createPagesApi", () => {
 	});
 });
 
+describe("page plugins in the api", () => {
+	it("creates a page with a preset, sets and clears its plugins, and copies them on duplicate", async () => {
+		const { root, openPageDoc } = board();
+		const api = createPagesApi({ root, currentPageId: "p1", switchPage: () => {}, openPageDoc });
+		const page = api.create({ preset: "boardgame" });
+		expect(page.preset).toBe("boardgame");
+		api.setPlugins(page.id, ["tabletop", "shape-card"]);
+		const copy = await api.duplicate(page.id);
+		expect(listPages(root).find((p) => p.id === copy.id)).toMatchObject({
+			preset: "boardgame",
+			plugins: ["tabletop", "shape-card"],
+		});
+		api.setPlugins(page.id, null);
+		expect(listPages(root).find((p) => p.id === page.id)?.plugins).toBeUndefined();
+	});
+});
+
 describe("pages-ops", () => {
 	it("nextPageName は使われていない番号を選ぶ（削除済みの名前も避ける）", () => {
 		const { root } = board();

@@ -2,6 +2,7 @@ import type { BoardStore } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import type { BoardRuntime } from "../lib/board-pages.js";
 import { getDevUser } from "../lib/dev-auth.js";
+import type { PresetId } from "./page-presets.js";
 
 /** 発表（presentation プラグイン）を使うホストが渡すもの。 */
 export interface PresentationWiring {
@@ -12,8 +13,10 @@ export interface PresentationWiring {
 
 /** ホストごとに違うところ。カタログのエントリが読む。 */
 export interface HostOptions {
-	/** HUD にページパネル（一覧・追加・切り替え）を出すか。 */
+	/** HUD にページパネル（一覧・追加・切り替え・ページのプラグイン）を出すか。 */
 	pagesPanel?: boolean;
+	/** プリセットの無いページ（とページを使わないボード）のプリセット。 */
+	defaultPreset?: PresetId;
 	/** 発表モードを使うホストだけが渡す。無ければ presentation プラグインは読まない。 */
 	presentation?: PresentationWiring;
 	/** 画面を移る（ボードポータル・ボード情報パネルから別のボードへ）。 */

@@ -59,7 +59,13 @@ export async function duplicatePage(
 	const from = openPageDoc(sourceId);
 	try {
 		await from.whenLoaded;
-		const page = createPage(root, { name: options.name ?? copyName(source.name), after: sourceId });
+		// プリセットとプラグインも引き継ぐ（同じプラグインで開くように）
+		const page = createPage(root, {
+			name: options.name ?? copyName(source.name),
+			after: sourceId,
+			preset: source.preset,
+			plugins: source.plugins,
+		});
 		const to = openPageDoc(page.id);
 		try {
 			copyPageContent(from.doc, to.doc);

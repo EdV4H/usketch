@@ -58,6 +58,7 @@ export {
 	reorderPage,
 	resolvePageId,
 	restorePage,
+	setPagePlugins,
 	toPageMeta,
 } from "./pages.js";
 export {

@@ -14,6 +14,7 @@ import {
 	reorderPage,
 	resolvePageId,
 	restorePage,
+	setPagePlugins,
 	toPageMeta,
 } from "../pages.js";
 import { isValidDocId } from "../protocol.js";
@@ -163,5 +164,58 @@ describe("ページの名前・並び・削除", () => {
 		restorePage(root, "p2");
 		expect(ids(root)).toEqual(["p1", "p2"]);
 		expect(getPage(root, "p2")?.deletedAt).toBeUndefined();
+	});
+});
+
+describe("page plugins", () => {
+	it("keeps the preset and plugins through create, rename and reorder", () => {
+		const root = new Y.Doc();
+		createPage(root, { id: "p1", name: "A", now: 1 });
+		const page = createPage(root, {
+			id: "p2",
+			name: "B",
+			now: 2,
+			preset: "boardgame",
+			plugins: ["tabletop", "shape-card", "tabletop"],
+		});
+		expect(page.preset).toBe("boardgame");
+		expect(page.plugins).toEqual(["tabletop", "shape-card"]);
+		renamePage(root, "p2", "C");
+		reorderPage(root, "p2", 0);
+		expect(getPage(root, "p2")).toMatchObject({
+			name: "C",
+			preset: "boardgame",
+			plugins: ["tabletop", "shape-card"],
+		});
+		expect(getPage(root, "p1")?.preset).toBeUndefined();
+	});
+
+	it("setPagePlugins changes, keeps or clears each field", () => {
+		const root = new Y.Doc();
+		createPage(root, { id: "p1", name: "A", preset: "map" });
+		setPagePlugins(root, "p1", { plugins: ["map", "avatar"] });
+		expect(getPage(root, "p1")).toMatchObject({ preset: "map", plugins: ["map", "avatar"] });
+		setPagePlugins(root, "p1", { preset: "map-terrain" });
+		expect(getPage(root, "p1")).toMatchObject({
+			preset: "map-terrain",
+			plugins: ["map", "avatar"],
+		});
+		setPagePlugins(root, "p1", { plugins: null });
+		expect(getPage(root, "p1")?.plugins).toBeUndefined();
+		setPagePlugins(root, "p1", { preset: null });
+		expect(getPage(root, "p1")?.preset).toBeUndefined();
+		expect(() => setPagePlugins(root, "nope", { plugins: [] })).toThrow();
+		expect(() => setPagePlugins(root, "p1", { plugins: ["bad id!"] })).toThrow();
+	});
+
+	it("toPageMeta drops plugin ids it cannot use", () => {
+		const page = toPageMeta({
+			id: "p1",
+			order: "a0",
+			preset: 3,
+			plugins: ["ok", 5, "no spaces", "ok"],
+		});
+		expect(page?.preset).toBeUndefined();
+		expect(page?.plugins).toEqual(["ok"]);
 	});
 });

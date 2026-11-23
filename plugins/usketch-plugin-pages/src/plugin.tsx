@@ -1,5 +1,11 @@
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	PERMISSIONS,
+	type PluginContext,
+	permissionsOf,
+	type UsketchPlugin,
+} from "@edv4h/usketch-shared";
 import type * as Y from "yjs";
+import type { PagePluginsOptions } from "./page-plugins.js";
 import { watchMovedOutShapes } from "./page-transfer.js";
 import { createPagesApi } from "./pages-api.js";
 import type { OpenPageDoc } from "./pages-ops.js";
@@ -21,6 +27,11 @@ export interface PagesPluginOptions {
 	 * シェイプを別のページへ移す・コピーする操作を出さない。
 	 */
 	openPageDoc?: OpenPageDoc;
+	/**
+	 * ページごとのプラグイン。渡すと、HUD のページパネルで「プリセットから新しいページ」と
+	 * 「このページのプラグイン」を選べる（何があるかはホストが決める）。
+	 */
+	pagePlugins?: PagePluginsOptions;
 }
 
 /**
@@ -51,12 +62,23 @@ export function createPagesPlugin(options: PagesPluginOptions): UsketchPlugin {
 				ctx.hud.registerPanel({
 					id: `${PAGES_PLUGIN_ID}:panel`,
 					title: "ページ",
-					render: () => <PagesPanel api={api} store={ctx.store} />,
+					render: () => (
+						<PagesPanel
+							api={api}
+							store={ctx.store}
+							pagePlugins={options.pagePlugins}
+							canCreate={() => permissionsOf(ctx).can(PERMISSIONS.pageCreate)}
+							canManage={() =>
+								permissionsOf(ctx).can(PERMISSIONS.pageManage, { pageId: options.pageId })
+							}
+						/>
+					),
 				}),
 				ctx.actions.register({
 					id: "pages:new",
 					group: GROUP,
 					label: "ページを追加",
+					requires: PERMISSIONS.pageCreate,
 					run: () => {
 						api.create({ open: true });
 					},

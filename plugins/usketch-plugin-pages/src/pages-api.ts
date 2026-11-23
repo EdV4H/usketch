@@ -8,6 +8,7 @@ import {
 	renamePage,
 	reorderPage,
 	restorePage,
+	setPagePlugins,
 } from "@edv4h/usketch-sync";
 import type * as Y from "yjs";
 import { copyShapesToPage, moveShapesToPage } from "./page-transfer.js";
@@ -36,8 +37,21 @@ export interface PagesApi {
 	switchTo(pageId: string): void;
 	/** 次（step 1）・前（-1）のページへ。端なら何もしないで false。 */
 	go(step: 1 | -1): boolean;
-	/** ページを足す。`after` を省くと今のページの直後。`open` で足したページへ移る。 */
-	create(options?: { name?: string; after?: string | null; open?: boolean }): PageMeta;
+	/**
+	 * ページを足す。`after` を省くと今のページの直後。`open` で足したページへ移る。
+	 * `preset` はホストのプリセット名（そのプリセットのプラグインで開く）。
+	 */
+	create(options?: {
+		name?: string;
+		after?: string | null;
+		open?: boolean;
+		preset?: string;
+	}): PageMeta;
+	/**
+	 * ページのプラグインを決める（ホストのカタログの id）。`null` でプリセットのままに戻す。
+	 * 今のページを変えると、ホストがそのプラグインで開き直す。
+	 */
+	setPlugins(pageId: string, plugins: readonly string[] | null): PageMeta;
 	rename(pageId: string, name: string): PageMeta;
 	/** 並び順の `toIndex` 番目へ動かす。 */
 	reorder(pageId: string, toIndex: number): PageMeta;
@@ -121,10 +135,12 @@ export function createPagesApi(deps: PagesApiDeps): PagesApi {
 				name: options.name ?? nextPageName(root),
 				after: options.after === undefined ? currentPageId : options.after,
 				now: now(),
+				preset: options.preset,
 			});
 			if (options.open) deps.switchPage(page.id);
 			return page;
 		},
+		setPlugins: (pageId, plugins) => setPagePlugins(root, pageId, { plugins }),
 		rename: (pageId, name) => renamePage(root, pageId, name.trim() || "ページ"),
 		reorder: (pageId, toIndex) => reorderPage(root, pageId, toIndex),
 		move(pageId, step) {

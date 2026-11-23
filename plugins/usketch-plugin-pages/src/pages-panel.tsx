@@ -2,6 +2,7 @@ import type { BoardStore } from "@edv4h/usketch-shared";
 import type { PageMeta } from "@edv4h/usketch-sync";
 import type React from "react";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { conflictingPlugins, type PagePluginsOptions, togglePlugin } from "./page-plugins.js";
 import type { PagesApi } from "./pages-api.js";
 
 const ACCENT = "var(--u-1)";
@@ -115,8 +116,101 @@ function formatDate(ms: number | undefined): string {
 	return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+/** 今のページのプラグイン: プリセットと、1 つずつの足し引き。 */
+function PagePluginsSection({
+	api,
+	page,
+	options,
+	run,
+}: {
+	api: PagesApi;
+	page: PageMeta;
+	options: PagePluginsOptions;
+	run: (fn: () => unknown) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const current = options.resolve(page);
+	const presetId = page.preset ?? options.defaultPreset;
+	const presetLabel = options.presets.find((p) => p.id === presetId)?.label ?? presetId;
+	const label = (id: string) => options.choices.find((c) => c.id === id)?.label ?? id;
+	return (
+		<div style={transferStyle}>
+			<button type="button" style={linkBtnStyle} onClick={() => setOpen((v) => !v)}>
+				{open ? "▾" : "▸"} このページのプラグイン（{presetLabel}
+				{page.plugins ? "・変更あり" : ""}）
+			</button>
+			{open && (
+				<>
+					<div style={{ color: MUTED }}>
+						変えると、このページを開いている全員の画面が開き直します。外したプラグインの Shape
+						は消えずに残ります。
+					</div>
+					<ul style={pluginListStyle} aria-label="このページのプラグイン">
+						{options.choices.map((choice) => {
+							const on = current.includes(choice.id);
+							const removes = on ? [] : conflictingPlugins(current, choice.id, options.choices);
+							return (
+								<li key={choice.id}>
+									<label
+										style={pluginRowStyle}
+										title={
+											removes.length > 0
+												? `入れると ${removes.map(label).join("・")} が外れます`
+												: undefined
+										}
+									>
+										<input
+											type="checkbox"
+											checked={on}
+											onChange={(e) =>
+												run(() =>
+													api.setPlugins(
+														page.id,
+														togglePlugin(current, choice.id, e.target.checked, options.choices),
+													),
+												)
+											}
+										/>
+										<span style={ellipsisStyle}>{choice.label}</span>
+										{removes.length > 0 && <span style={{ color: MUTED }}>（入れ替え）</span>}
+									</label>
+								</li>
+							);
+						})}
+					</ul>
+					{page.plugins && (
+						<button
+							type="button"
+							style={btnStyle}
+							onClick={() => run(() => api.setPlugins(page.id, null))}
+						>
+							プリセット（{presetLabel}）に戻す
+						</button>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
 /** HUD のページパネル: 一覧・切り替え・追加・名前変更・並べ替え・複製・削除・復元。 */
-export function PagesPanel({ api, store }: { api: PagesApi; store?: BoardStore }) {
+export function PagesPanel({
+	api,
+	store,
+	pagePlugins,
+	canCreate = () => true,
+	canManage = () => true,
+}: {
+	api: PagesApi;
+	store?: BoardStore;
+	/** ホストが渡すと、プリセットから作る・このページのプラグインを変える UI を出す。 */
+	pagePlugins?: PagePluginsOptions;
+	/** ページを作れるか（権限）。 */
+	canCreate?: () => boolean;
+	/** このページのプラグインを変えられるか（権限）。 */
+	canManage?: () => boolean;
+}) {
+	const [newPreset, setNewPreset] = useState<string>(pagePlugins?.defaultPreset ?? "");
 	const { live, deleted } = usePages(api);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
@@ -262,13 +356,46 @@ export function PagesPanel({ api, store }: { api: PagesApi; store?: BoardStore }
 					);
 				})}
 			</ul>
-			<button
-				type="button"
-				style={primaryBtnStyle}
-				onClick={() => run(() => api.create({ open: true }))}
-			>
-				＋ ページを追加
-			</button>
+			{canCreate() && (
+				<div style={transferRowStyle}>
+					<button
+						type="button"
+						style={{ ...primaryBtnStyle, flex: 1 }}
+						onClick={() =>
+							run(() =>
+								api.create({
+									open: true,
+									preset: pagePlugins ? newPreset || undefined : undefined,
+								}),
+							)
+						}
+					>
+						＋ ページを追加
+					</button>
+					{pagePlugins && pagePlugins.presets.length > 1 && (
+						<select
+							style={{ ...selectStyle, flex: "none" }}
+							aria-label="新しいページのプリセット"
+							value={newPreset}
+							onChange={(e) => setNewPreset(e.target.value)}
+						>
+							{pagePlugins.presets.map((preset) => (
+								<option key={preset.id} value={preset.id}>
+									{preset.label}
+								</option>
+							))}
+						</select>
+					)}
+				</div>
+			)}
+			{pagePlugins &&
+				canManage() &&
+				(() => {
+					const page = live.find((p) => p.id === api.currentPageId);
+					return page ? (
+						<PagePluginsSection api={api} page={page} options={pagePlugins} run={run} />
+					) : null;
+				})()}
 			{store && api.canTransfer && (
 				<TransferSelection api={api} store={store} pages={live} run={run} busy={busy} />
 			)}
@@ -421,6 +548,23 @@ const selectStyle: React.CSSProperties = {
 	color: "inherit",
 	font: "inherit",
 	fontSize: 10,
+};
+const pluginListStyle: React.CSSProperties = {
+	listStyle: "none",
+	margin: 0,
+	padding: 0,
+	display: "grid",
+	gridTemplateColumns: "1fr 1fr",
+	gap: "1px 6px",
+	maxHeight: 240,
+	overflowY: "auto",
+};
+const pluginRowStyle: React.CSSProperties = {
+	display: "flex",
+	alignItems: "center",
+	gap: 4,
+	minWidth: 0,
+	cursor: "pointer",
 };
 const deletedWrapStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 2 };
 const dateStyle: React.CSSProperties = {

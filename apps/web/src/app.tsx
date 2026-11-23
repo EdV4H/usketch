@@ -8,7 +8,6 @@ import {
 	API_URL,
 	type BoardSource,
 	devHeaders,
-	presetPlugins,
 	readRenderer3d,
 	useBoardHost,
 } from "./board-host/index.js";
@@ -47,8 +46,6 @@ function readPresentationMode(search: string): PresentationMode {
 function readDesktopTemplate(search: string): boolean {
 	return new URLSearchParams(search).get("desktop") === "1";
 }
-
-const WHITEBOARD = presetPlugins("whiteboard");
 
 /** `/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。プリセットは whiteboard。 */
 export function App() {
@@ -124,7 +121,7 @@ export function App() {
 						lastOpened: readLastPage(boardId),
 					}) ?? undefined)
 				: null,
-		plugins: WHITEBOARD,
+		defaultPreset: "whiteboard",
 		host: {
 			pagesPanel: true,
 			navigate,
