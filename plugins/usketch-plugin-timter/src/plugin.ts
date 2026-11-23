@@ -1,5 +1,6 @@
 import {
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	screenCenterWorld,
@@ -109,6 +110,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 			const globalOffs = [
 				ctx.actions.register({
 					id: "timter:new-countdown",
+					requires: PERMISSIONS.pageEdit,
 					label: "⏳ カウントダウン追加",
 					group: "Timter",
 					order: 0,
@@ -117,6 +119,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "timter:new-stopwatch",
+					requires: PERMISSIONS.pageEdit,
 					label: "⏱ ストップウォッチ追加",
 					group: "Timter",
 					order: 1,
@@ -124,6 +127,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "timter:clear-all",
+					requires: PERMISSIONS.pageEdit,
 					label: "✕ 全タイマー削除",
 					group: "Timter",
 					order: 2,
@@ -182,6 +186,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 					perTimerOffs.push(
 						ctx.actions.register({
 							id: `timter:${s.id}:toggle`,
+							requires: PERMISSIONS.pageEdit,
 							group: "Timter",
 							order: 10 + idx * 3,
 							label: toggleLabels[idx] ?? "",
@@ -191,6 +196,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 						}),
 						ctx.actions.register({
 							id: `timter:${s.id}:reset`,
+							requires: PERMISSIONS.pageEdit,
 							group: "Timter",
 							order: 10 + idx * 3 + 1,
 							label: `↺ #${n} リセット`,
@@ -198,6 +204,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 						}),
 						ctx.actions.register({
 							id: `timter:${s.id}:remove`,
+							requires: PERMISSIONS.pageEdit,
 							group: "Timter",
 							order: 10 + idx * 3 + 2,
 							label: `✕ #${n} 削除`,

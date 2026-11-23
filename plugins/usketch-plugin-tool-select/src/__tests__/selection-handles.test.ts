@@ -261,3 +261,36 @@ describe("selection handles from other plugins", () => {
 		expect(calls).toEqual(["start", "cancel"]);
 	});
 });
+
+describe("見るだけのページ（読み取り専用）", () => {
+	beforeEach(() => {
+		t.store.setReadOnly?.(true);
+	});
+
+	it("クリックで選べるが、ドラッグしても動かない", () => {
+		t.down(50, 50);
+		t.move(80, 80);
+		t.up(80, 80);
+		expect([...t.store.getSelection()]).toEqual(["a"]);
+		expect(t.store.getShape("a")?.x).toBe(0);
+		expect(t.history).toEqual([]);
+	});
+
+	it("リサイズハンドルを押してもリサイズしない", () => {
+		t.store.setSelection(["a"]);
+		t.down(100, 100);
+		t.move(150, 150);
+		t.up(150, 150);
+		expect(t.store.getShape("a")?.width).toBe(100);
+	});
+
+	it("他のプラグインのハンドルも出さない", () => {
+		const { p, calls } = provider();
+		t.selectionHandles.register(p);
+		const ctx = { store: t.store, shapes: t.ctx.shapes };
+		expect(collectHandles(t.selectionHandles, ctx, t.store.getViewport())).toEqual([]);
+		t.down(300, 150);
+		t.up(300, 150);
+		expect(calls).toEqual([]);
+	});
+});

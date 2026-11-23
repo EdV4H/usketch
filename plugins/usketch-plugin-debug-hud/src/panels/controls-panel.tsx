@@ -10,6 +10,7 @@ import type {
 	ShapeStyle,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
+import { isReadOnly, isToolUsable } from "@edv4h/usketch-shared";
 import type React from "react";
 import { useCallback, useEffect, useReducer, useState, useSyncExternalStore } from "react";
 import {
@@ -99,6 +100,12 @@ export function ControlsPanel({
 	useEffect(() => hud.subscribe(bump), [hud]);
 	// …and when what the viewer may do changes (role changed, invited…).
 	useEffect(() => permissions?.subscribe(bump), [permissions]);
+	// …and when the page turns read-only or editable (the tools and the style section).
+	const readOnly = useSyncExternalStore(
+		useCallback((cb: () => void) => store.subscribe(cb), [store]),
+		() => isReadOnly(store),
+		() => isReadOnly(store),
+	);
 
 	const subscribePrefs = useCallback((cb: () => void) => prefsStore.subscribe(cb), [prefsStore]);
 	const getPrefs = useCallback(() => prefsStore.get(), [prefsStore]);
@@ -124,7 +131,10 @@ export function ControlsPanel({
 		);
 	}
 
-	const toolList = tools.getOrdered();
+	// On a read-only page only the tools that don't change the board (select, pan…).
+	const toolList = readOnly
+		? tools.getOrdered().filter(({ definition }) => isToolUsable(store, definition))
+		: tools.getOrdered();
 	const q = query.trim().toLowerCase();
 	const searching = q !== "";
 	const buckets = buildPluginBuckets(actions, hud, plugins, q, permissions);
@@ -276,9 +286,12 @@ export function ControlsPanel({
 				<EventConsole events={events} />
 			</Section>
 
-			<Section title="Style" {...sectionProps(BUILTIN_SECTION.style)}>
-				<StyleControls store={store} />
-			</Section>
+			{/* The style of new shapes: nothing to draw on a read-only page. */}
+			{!readOnly && (
+				<Section title="Style" {...sectionProps(BUILTIN_SECTION.style)}>
+					<StyleControls store={store} />
+				</Section>
+			)}
 		</div>
 	);
 }

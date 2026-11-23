@@ -2,6 +2,7 @@
 // only reads settings and calls the pure service — no operation logic in the run
 // closure (per docs/plugin-system-design.md).
 import type { PluginContext } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { listScatterPatterns } from "../patterns.js";
 import { listRelationResolvers } from "../resolvers.js";
 import { getScatterApi } from "../scatter-service.js";
@@ -42,6 +43,7 @@ export function registerScatterHud(ctx: PluginContext): () => void {
 	offs.push(
 		ctx.actions.register({
 			id: "scatter:spill",
+			requires: PERMISSIONS.pageEdit,
 			group: "ぶちまける",
 			label: "関連Shapeをぶちまける",
 			isEnabled: () => ctx.store.getSelection().size === 1,
@@ -70,6 +72,7 @@ export function registerScatterHud(ctx: PluginContext): () => void {
 	offs.push(
 		ctx.actions.register({
 			id: "scatter:spawn",
+			requires: PERMISSIONS.pageEdit,
 			group: "ぶちまける",
 			label: "新規Shapeを生成してぶちまける",
 			isEnabled: () => ctx.store.getSelection().size === 1,

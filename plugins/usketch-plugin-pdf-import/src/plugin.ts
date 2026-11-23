@@ -1,5 +1,6 @@
 import { getAssetStore } from "@edv4h/usketch-plugin-asset-store";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { createPdfFileHandler, PDF_IMPORT_DEFAULTS } from "./external-content-handler.js";
 import { selectedPdfPages } from "./grid-control.js";
 import { setWorkerSrc } from "./pdf-document.js";
@@ -65,6 +66,7 @@ export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPl
 
 			const unregisterSetColumns = ctx.actions.register({
 				id: "pdf-import:set-columns",
+				requires: PERMISSIONS.pageEdit,
 				label: "列数を変更",
 				group: "PDF",
 				params: [{ name: "columns", label: "列数", type: "number", min: 1, step: 1, default: 2 }],
@@ -73,6 +75,7 @@ export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPl
 			});
 			const unregisterSquare = ctx.actions.register({
 				id: "pdf-import:square-grid",
+				requires: PERMISSIONS.pageEdit,
 				label: "正方形に近い並びに戻す",
 				group: "PDF",
 				isEnabled: hasGrid,

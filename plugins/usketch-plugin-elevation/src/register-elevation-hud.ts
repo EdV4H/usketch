@@ -2,6 +2,7 @@
 // the look as live settings, the terrain operations as actions. The actions only call
 // the service's functions.
 import type { PluginContext } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { type BrushSettings, MAX_RADIUS, MIN_RADIUS, normalizeBrush } from "./elevation-brush.js";
 import { DEFAULT_GEN, DEFAULT_WATER_RATIO, MAX_HEIGHT } from "./elevation-field.js";
 import { DEFAULT_ELEVATION_SEED } from "./elevation-ops.js";
@@ -93,6 +94,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 	offs.push(
 		ctx.actions.register({
 			id: "elevation:enable",
+			requires: PERMISSIONS.pageEdit,
 			group: GROUP,
 			label: "無限地形を作る・変える",
 			order: 0,
@@ -169,6 +171,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 	offs.push(
 		ctx.actions.register({
 			id: "elevation:disable",
+			requires: PERMISSIONS.pageEdit,
 			group: GROUP,
 			label: "無限地形を外す（ブラシの差分は残す）",
 			order: 1,
@@ -179,6 +182,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 	offs.push(
 		ctx.actions.register({
 			id: "elevation:clear-edits",
+			requires: PERMISSIONS.pageEdit,
 			group: GROUP,
 			label: "ブラシの差分を全部消す",
 			order: 2,
@@ -189,6 +193,7 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 	offs.push(
 		ctx.actions.register({
 			id: "elevation:remove",
+			requires: PERMISSIONS.pageEdit,
 			group: GROUP,
 			label: "標高を削除",
 			order: 3,

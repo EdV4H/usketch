@@ -60,6 +60,8 @@ export function createPanToolPlugin(): UsketchPlugin {
 			}
 
 			ctx.tools.register("pan", {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: PanIcon,
 				cursor: "grab",
 				shortcut: "h",

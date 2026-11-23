@@ -1,5 +1,5 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
-import { isShapeResizable, safeRotation } from "@edv4h/usketch-shared";
+import { isReadOnly, isShapeResizable, safeRotation } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import { getDropTargetId, subscribeDropTarget } from "./drop-target-state.js";
@@ -102,6 +102,12 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 		() => store.getHoveredShapeId(),
 	);
 	const dropTargetId = useSyncExternalStore(subscribeDropTarget, getDropTargetId, getDropTargetId);
+	// A read-only page can only select: no resize / rotate handles.
+	const readOnly = useSyncExternalStore(
+		(cb) => store.subscribe(cb),
+		() => isReadOnly(store),
+		() => isReadOnly(store),
+	);
 	// In 3D the selection is outlined where each shape is drawn (selection-outline-3d).
 	const in3d = useView3dShown(store);
 
@@ -192,7 +198,7 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 		const screenCy = sy + sh / 2;
 
 		// Hide resize handles when the shape is not resizable (boolean or predicate)
-		const hideHandles = !isShapeResizable(def, shape);
+		const hideHandles = readOnly || !isShapeResizable(def, shape);
 		const positions = getHandlePositions(bounds, viewport);
 		const half = HANDLE_SIZE / 2;
 
@@ -280,17 +286,18 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 						strokeWidth={1}
 						strokeDasharray="4 2"
 					/>
-					{[...getHandlePositions(multiBounds, viewport).entries()].map(([handle, pos]) => (
-						<rect
-							key={`multi-handle-${handle}`}
-							x={pos.x - HANDLE_SIZE / 2}
-							y={pos.y - HANDLE_SIZE / 2}
-							width={HANDLE_SIZE}
-							height={HANDLE_SIZE}
-							strokeWidth={1}
-							style={{ fill: handleFillColor, stroke: strokeColor }}
-						/>
-					))}
+					{!readOnly &&
+						[...getHandlePositions(multiBounds, viewport).entries()].map(([handle, pos]) => (
+							<rect
+								key={`multi-handle-${handle}`}
+								x={pos.x - HANDLE_SIZE / 2}
+								y={pos.y - HANDLE_SIZE / 2}
+								width={HANDLE_SIZE}
+								height={HANDLE_SIZE}
+								strokeWidth={1}
+								style={{ fill: handleFillColor, stroke: strokeColor }}
+							/>
+						))}
 				</>
 			)}
 			{/* Individual bounding boxes for marquee-hovered shapes */}

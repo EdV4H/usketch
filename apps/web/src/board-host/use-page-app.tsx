@@ -141,6 +141,8 @@ export function usePageApp(options: PageAppOptions): {
 					store,
 					plugins,
 					keymap: { warnConflicts: import.meta.env.DEV },
+					// 開発中だけ: `?readonly` を付けると見るだけの人として開く（権限は R3b でつなぐ）。
+					readOnly: import.meta.env.DEV && new URLSearchParams(location.search).has("readonly"),
 				});
 				if (cancelled) {
 					created.destroy();

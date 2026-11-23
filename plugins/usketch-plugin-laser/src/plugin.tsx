@@ -332,6 +332,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			}
 
 			ctx.tools.register("laser", {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: LaserIcon,
 				cursor: "crosshair",
 				shortcut: "l",

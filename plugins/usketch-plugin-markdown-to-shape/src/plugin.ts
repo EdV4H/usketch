@@ -1,4 +1,5 @@
 import type { Command, PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import {
 	createMarkdownConverterRegistry,
 	MARKDOWN_CONVERTERS_SERVICE,
@@ -41,6 +42,7 @@ export function createMarkdownToShapePlugin(): UsketchPlugin {
 
 			const off = ctx.actions.register({
 				id: "markdown:explode",
+				requires: PERMISSIONS.pageEdit,
 				label: "🧩 Markdown を図形に分解",
 				group: "Markdown",
 				isEnabled: () => selectedMarkdownId() !== null,

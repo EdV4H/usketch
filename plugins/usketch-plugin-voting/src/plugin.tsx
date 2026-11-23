@@ -1,4 +1,5 @@
 import {
+	PERMISSIONS,
 	type PluginContext,
 	screenCenterWorld,
 	type TransientObject,
@@ -246,6 +247,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			// Control HUD から質問＋選択肢を指定して投票を作成（ビュー中心に配置）。
 			const unsubAction = ctx.actions.register({
 				id: "voting:create",
+				requires: PERMISSIONS.pageEdit,
 				group: "投票",
 				label: "投票を作成",
 				params: [

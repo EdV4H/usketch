@@ -2,6 +2,7 @@
 // NO bespoke toolbar/panel — it contributes a declarative settings group and an
 // "整列 (Arrange)" action to the shared HUD, both of which just call the service.
 import type { PluginContext } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import type { DashboardApi } from "./dashboard-service.js";
 import { isGridOverlayVisible, setGridOverlayVisible } from "./grid-overlay.js";
 
@@ -121,6 +122,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 
 	const unregisterEnable = ctx.actions.register({
 		id: "usketch-plugin-dashboard:enable",
+		requires: PERMISSIONS.pageEdit,
 		label: "ダッシュボード化",
 		group: "ダッシュボード",
 		order: 0,
@@ -133,6 +135,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 
 	const unregisterDisable = ctx.actions.register({
 		id: "usketch-plugin-dashboard:disable",
+		requires: PERMISSIONS.pageEdit,
 		label: "ダッシュボード解除",
 		group: "ダッシュボード",
 		order: 1,
@@ -144,6 +147,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 
 	const unregisterArrange = ctx.actions.register({
 		id: "usketch-plugin-dashboard:arrange",
+		requires: PERMISSIONS.pageEdit,
 		label: "整列",
 		group: "ダッシュボード",
 		order: 2,

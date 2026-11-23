@@ -114,6 +114,8 @@ export {
 	viewMatrix,
 	type WorldPoint3d,
 } from "./projection-3d.js";
+// Read-only pages (view-only viewers)
+export { applyExternal, isReadOnly, isToolUsable } from "./read-only.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
 export {

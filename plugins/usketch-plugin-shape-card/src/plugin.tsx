@@ -3,6 +3,7 @@ import {
 	type Command,
 	DEFAULT_STYLE,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type Point,
 	SHAPE_VIEW_3D_MODES,
@@ -632,6 +633,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offActions.push(
 					ctx.actions.register({
 						id: "card:select-type",
+						requires: PERMISSIONS.pageEdit,
 						label: "Card type",
 						group: "Card",
 						params: [
@@ -646,6 +648,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					}),
 					ctx.actions.register({
 						id: "card:flip",
+						requires: PERMISSIONS.pageEdit,
 						label: "Flip selected card",
 						group: "Card",
 						isEnabled: () => selectedOfType(CARD_TYPE) !== undefined,
@@ -656,6 +659,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					}),
 					ctx.actions.register({
 						id: "card:to-hand",
+						requires: PERMISSIONS.pageEdit,
 						label: "Selected card → hand",
 						group: "Card",
 						isEnabled: () => selectedOfType(CARD_TYPE) !== undefined,
@@ -669,6 +673,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					offActions.push(
 						ctx.actions.register({
 							id: "card-deck:draw",
+							requires: PERMISSIONS.pageEdit,
 							label: "Draw from selected deck",
 							group: "Card",
 							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
@@ -679,6 +684,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						}),
 						ctx.actions.register({
 							id: "card-deck:shuffle",
+							requires: PERMISSIONS.pageEdit,
 							label: "Shuffle selected deck",
 							group: "Card",
 							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
@@ -689,6 +695,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						}),
 						ctx.actions.register({
 							id: "card-deck:draw-many",
+							requires: PERMISSIONS.pageEdit,
 							label: "Draw cards to board",
 							group: "Card",
 							params: [{ name: "count", type: "number", default: 5, min: 1, max: 52, step: 1 }],
@@ -700,6 +707,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						}),
 						ctx.actions.register({
 							id: "card-deck:draw-to-hand",
+							requires: PERMISSIONS.pageEdit,
 							label: "Draw to hand",
 							group: "Card",
 							params: [{ name: "count", type: "number", default: 1, min: 1, max: 52, step: 1 }],
@@ -712,6 +720,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						}),
 						ctx.actions.register({
 							id: "card-deck:scatter",
+							requires: PERMISSIONS.pageEdit,
 							label: "Spread deck",
 							group: "Card",
 							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,

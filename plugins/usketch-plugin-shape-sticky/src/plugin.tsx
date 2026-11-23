@@ -3,6 +3,7 @@ import {
 	type BoundingBox,
 	type CanvasPointerEvent,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type Point,
 	type ResizeHandle,
@@ -205,6 +206,7 @@ export function createStickyPlugin(): UsketchPlugin {
 			// ── 操作を Action として公開（Control HUD が自動でUI化） ──
 			const offColorAction = ctx.actions.register({
 				id: "sticky:select-color",
+				requires: PERMISSIONS.pageEdit,
 				label: "Sticky color",
 				group: "Sticky",
 				params: [

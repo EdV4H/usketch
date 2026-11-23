@@ -2,6 +2,7 @@ import {
 	type BoundingBox,
 	type Command,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	type UsketchPlugin,
@@ -103,6 +104,7 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 			const offActions = [
 				ctx.actions.register({
 					id: "portal:pin-selected",
+					requires: PERMISSIONS.pageEdit,
 					label: "📌 選択をポータル",
 					group: "Portal",
 					order: 0,
@@ -123,6 +125,7 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 				// the portal (snapshot). Restore puts them back. Mirrors the card hand.
 				ctx.actions.register({
 					id: "portal:stash-selected",
+					requires: PERMISSIONS.pageEdit,
 					label: "📥 選択を取り込む",
 					group: "Portal",
 					order: 0.5,
@@ -157,6 +160,7 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "portal:clear-mine",
+					requires: PERMISSIONS.pageEdit,
 					label: "✕ 自分のポータルを全解除",
 					group: "Portal",
 					order: 1,

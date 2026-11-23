@@ -1,4 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { type FreedrawConfigInput, parseFreedrawConfig } from "./config.js";
 import {
 	assertCustomPenId,
@@ -145,6 +146,7 @@ export function createFreedrawPlugin(
 			const offActions = [
 				ctx.actions.register({
 					id: "freedraw:pen",
+					requires: PERMISSIONS.pageEdit,
 					label: "Pen",
 					group: "Freedraw",
 					params: [
@@ -168,6 +170,7 @@ export function createFreedrawPlugin(
 				}),
 				ctx.actions.register({
 					id: "freedraw:color",
+					requires: PERMISSIONS.pageEdit,
 					label: "Color",
 					group: "Freedraw",
 					params: [{ name: "color", type: "color", default: "#1e1e1e" }],
@@ -175,6 +178,7 @@ export function createFreedrawPlugin(
 				}),
 				ctx.actions.register({
 					id: "freedraw:size",
+					requires: PERMISSIONS.pageEdit,
 					label: "Size",
 					group: "Freedraw",
 					// 足したペンの太さの範囲まで届くようにする（実際の値は set-size がペンごとに丸める）。
@@ -183,6 +187,7 @@ export function createFreedrawPlugin(
 				}),
 				ctx.actions.register({
 					id: "freedraw:eraser",
+					requires: PERMISSIONS.pageEdit,
 					label: "Eraser",
 					group: "Freedraw",
 					isActive: () => settings.getSnapshot().mode === "eraser",

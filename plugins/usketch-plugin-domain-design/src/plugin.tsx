@@ -9,6 +9,7 @@ import { aabbHitTest, createResize, getBounds } from "@edv4h/usketch-shape-utils
 import {
 	type CanvasPointerEvent,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeDefinition,
 	type ToolContext,
@@ -167,6 +168,7 @@ export function createDomainDesignPlugin(): UsketchPlugin {
 			cleanups.push(
 				ctx.actions.register({
 					id: "domain-design:subtype",
+					requires: PERMISSIONS.pageEdit,
 					label: "Domain subtype",
 					group: "Domain",
 					params: [

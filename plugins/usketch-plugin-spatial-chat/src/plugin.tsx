@@ -316,6 +316,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			const TOOL_ID = "spatial-chat";
 
 			ctx.tools.register(TOOL_ID, {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: ChatIcon,
 				cursor: "default",
 				shortcut: "c",

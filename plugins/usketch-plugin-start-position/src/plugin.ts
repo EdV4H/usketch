@@ -10,6 +10,7 @@ import type {
 	StoreEvent,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import {
 	applyStartPosition,
 	captureViewport,
@@ -169,12 +170,14 @@ export function createStartPositionPlugin(
 				}),
 				ctx.actions.register({
 					id: "start-position:capture-view",
+					requires: PERMISSIONS.pageEdit,
 					group: "スタート位置",
 					label: "現在の画角をスタートに設定",
 					run: () => setStart({ kind: "viewport", ...captureViewport(ctx.store) }),
 				}),
 				ctx.actions.register({
 					id: "start-position:from-selection",
+					requires: PERMISSIONS.pageEdit,
 					group: "スタート位置",
 					label: "選択Shapeをスタートに設定",
 					// Exactly one shape selected, and not the (locked) start shape itself.
@@ -189,6 +192,7 @@ export function createStartPositionPlugin(
 				}),
 				ctx.actions.register({
 					id: "start-position:clear",
+					requires: PERMISSIONS.pageEdit,
 					group: "スタート位置",
 					label: "スタート位置をクリア",
 					isEnabled: () => currentShape() != null,

@@ -3,6 +3,7 @@ import {
 	type CanvasPointerEvent,
 	DEFAULT_STYLE,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type Point,
 	type ResizeHandle,
@@ -204,6 +205,7 @@ export function createMarkdownPlugin(): UsketchPlugin {
 			// content interactions stay free.)
 			const offEditAction = ctx.actions.register({
 				id: "markdown:edit",
+				requires: PERMISSIONS.pageEdit,
 				label: "✎ Edit source",
 				group: "Markdown",
 				isEnabled: () => selectedMarkdownId() !== null,

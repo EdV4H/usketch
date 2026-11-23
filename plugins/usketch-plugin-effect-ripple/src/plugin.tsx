@@ -137,6 +137,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			}
 
 			ctx.tools.register("effect-ripple", {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: RippleIcon,
 				cursor: "crosshair",
 				shortcut: "r",
