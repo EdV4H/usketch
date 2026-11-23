@@ -5,7 +5,7 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { generateId, SHAPE_VIEW_3D_MODES } from "@edv4h/usketch-shared";
+import { generateId, SHAPE_VIEW_3D_MODES, withRotation } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { FrameTitleEditor, setEditingFrameTitle } from "./frame-title-editor.js";
 import {
@@ -82,7 +82,7 @@ export function createFramePlugin(): UsketchPlugin {
 				view3d: { modes: SHAPE_VIEW_3D_MODES },
 				render: renderFrame,
 				getBounds: getBoundsFrame,
-				hitTest: hitTestFrame,
+				hitTest: withRotation(hitTestFrame),
 				resize: resizeFrame,
 				createDefault: createDefaultFrame,
 				renderTarget: "html",

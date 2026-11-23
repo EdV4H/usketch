@@ -77,7 +77,15 @@ function setup(list: ShapeData[]) {
 		const s = shapes.get(id) as ShapeData;
 		return { x: s.x, y: s.y };
 	}
-	return { drag, lookups };
+	/** Apply `patch` to `id` mid-drag (as a tool would) and return the stored shape. */
+	function update(id: string, patch: Partial<ShapeData>) {
+		selection = new Set([id]);
+		ctx.events.emit("canvas:pointerdown", {});
+		store.updateShape(id, patch);
+		ctx.events.emit("canvas:pointerup", {});
+		return shapes.get(id) as ShapeData;
+	}
+	return { drag, update, lookups };
 }
 
 describe("snap targets", () => {
@@ -111,5 +119,38 @@ describe("snap targets", () => {
 		drag("a", 303, 500);
 		expect(lookups).not.toContain("child");
 		expect(lookups).not.toContain("f");
+	});
+});
+
+describe("snap with rotated shapes", () => {
+	it("aligns a rotated shape by the outline it is drawn with, not its un-rotated box", () => {
+		// 100x100 square at 45°: drawn as a diamond reaching ~20.7 past each side of its box.
+		const diamond = { ...rect("r", 600, 400), width: 100, height: 100, rotation: 45 } as ShapeData;
+		const { drag } = setup([rect("t", 300, 200), diamond]);
+		const reach = 50 * Math.SQRT2 - 50;
+		// Put the diamond's drawn left corner 3px right of t's right edge (400).
+		const moved = drag("r", 400 + reach + 3, 600);
+		expect(moved.x).toBeCloseTo(400 + reach);
+	});
+
+	it("uses a rotated target's drawn outline", () => {
+		const diamond = { ...rect("t", 300, 200), width: 100, height: 100, rotation: 45 } as ShapeData;
+		const { drag } = setup([diamond, rect("a", 0, 500)]);
+		const reach = 50 * Math.SQRT2 - 50;
+		// a's left edge 3px off the diamond's drawn right corner (400 + reach).
+		expect(drag("a", 400 + reach + 3, 600).x).toBeCloseTo(400 + reach);
+	});
+
+	it("never snaps a rotation (updates that carry rotation)", () => {
+		const { update } = setup([rect("t", 300, 200), rect("a", 0, 500)]);
+		// x would snap to 300 if this were a move.
+		expect(update("a", { x: 303, y: 520, rotation: 10 }).x).toBe(303);
+	});
+
+	it("does not snap the resize of a rotated shape", () => {
+		const turned = { ...rect("a", 0, 500), rotation: 30 } as ShapeData;
+		const { update } = setup([rect("t", 300, 200), turned]);
+		// The right edge would snap to 300 (t's left) for an unrotated shape.
+		expect(update("a", { width: 303 }).width).toBe(303);
 	});
 });

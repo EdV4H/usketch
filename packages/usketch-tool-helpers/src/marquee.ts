@@ -1,5 +1,10 @@
 import type { BoundingBox, CanvasPointerEvent, Point, ToolContext } from "@edv4h/usketch-shared";
-import { hasSelectableChildren, isAttachable } from "@edv4h/usketch-shared";
+import {
+	getShapeWorldAABB,
+	hasSelectableChildren,
+	isAttachable,
+	rectIntersectsShape,
+} from "@edv4h/usketch-shared";
 import {
 	getTopLevelAncestor,
 	isEffectivelyHidden,
@@ -106,7 +111,6 @@ export function findShapesInRect(
 	mode: MarqueeMode,
 	editingGroupId: string | null = null,
 ): Set<string> {
-	const test = mode === "contain" ? boxContains : boxesIntersect;
 	const shapes = ctx.store.getShapes();
 	const ids = new Set<string>();
 
@@ -115,7 +119,12 @@ export function findShapesInRect(
 		const bounds = def
 			? def.getBounds(data)
 			: { x: data.x, y: data.y, width: data.width, height: data.height };
-		if (!test(rect, bounds)) continue;
+		// Compare where the shape is drawn: a rotated shape's corners, not its un-rotated box.
+		const hit =
+			mode === "contain"
+				? boxContains(rect, getShapeWorldAABB(data, bounds))
+				: rectIntersectsShape(rect, data, bounds);
+		if (!hit) continue;
 		// Hidden or locked shapes (or those under a hidden/locked ancestor) never
 		// enter a marquee selection. Checked after the rect test so the ancestor
 		// walk only runs for shapes inside the marquee, not the whole board on

@@ -9,6 +9,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
@@ -419,7 +420,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 			ctx.shapes.register("chat-widget", {
 				render: renderChatPin,
 				getBounds,
-				hitTest,
+				hitTest: withRotation(hitTest),
 				resize,
 				createDefault,
 				renderTarget: "html",

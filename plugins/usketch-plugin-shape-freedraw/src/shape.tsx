@@ -7,6 +7,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type ShapeDefinition,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { getPenDefinition } from "./custom-pens.js";
 import { brushOutlineD } from "./geometry/brush-outline.js";
@@ -243,8 +244,9 @@ export function createFreedrawShapeDefinition(
 ): ShapeDefinition {
 	return {
 		...baseDefinition,
-		hitTest: (shape, point) =>
+		hitTest: withRotation((shape, point) =>
 			getHitMode() === "bounds" ? hitBounds(shape, point) : hitStroke(asFreedraw(shape), point),
+		),
 	};
 }
 

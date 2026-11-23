@@ -5,6 +5,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import type { CommunityRegionShapeData } from "./types.js";
 
@@ -205,14 +206,13 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 					height: data.height,
 				}),
 
-				hitTest: (data, point) => {
-					return (
+				hitTest: withRotation(
+					(data, point) =>
 						point.x >= data.x &&
 						point.x <= data.x + data.width &&
 						point.y >= data.y &&
-						point.y <= data.y + data.height
-					);
-				},
+						point.y <= data.y + data.height,
+				),
 
 				// 読み取り専用 — リサイズ不可
 				resize: (data: ShapeData, _handle: ResizeHandle, _delta: { x: number; y: number }) => data,
