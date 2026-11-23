@@ -39,6 +39,7 @@ export {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenViewRect,
 	screenWorldBounds,
 	stayInViewConstraint,
 	VIEW_FIT_PADDING,

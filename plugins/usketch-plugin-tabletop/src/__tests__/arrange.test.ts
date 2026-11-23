@@ -161,9 +161,20 @@ describe("arrangeZone in a turned zone", () => {
 		).toEqual([{ id: "b", patch: { rotation: 180 } }]);
 	});
 
-	it("turning the zone back turns its children back", () => {
-		expect(arrangeZone(zone("pile"), [card("a", "a1", { x: 100, y: 30, rotation: 180 })])).toEqual([
-			{ id: "a", patch: { rotation: 0 } },
+	it("an unturned zone leaves a child's own turn alone (a tapped card stays tapped)", () => {
+		expect(arrangeZone(zone("pile"), [card("a", "a1", { x: 100, y: 30, rotation: 90 })])).toEqual(
+			[],
+		);
+	});
+
+	it("reads turns the short way (-180 and 180 face the same way, 360 is upright)", () => {
+		expect(
+			arrangeZone(zone("pile", { rotation: -180 }), [
+				card("a", "a1", { x: 100, y: 30, rotation: 180 }),
+			]),
+		).toEqual([]);
+		expect(arrangeZone(zone("pile", { rotation: 360 }), [card("a", "a1")])).toEqual([
+			{ id: "a", patch: { x: 100, y: 30 } },
 		]);
 	});
 });

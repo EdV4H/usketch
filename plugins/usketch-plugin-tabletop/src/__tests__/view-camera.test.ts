@@ -1,4 +1,4 @@
-import { screenToWorld } from "@edv4h/usketch-shared";
+import { screenToWorld, viewportAnchoredAt } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -6,6 +6,7 @@ import {
 	fitViewToScreen,
 	isAtView,
 	pinToViewConstraint,
+	screenViewRect,
 	screenWorldBounds,
 	stayInViewConstraint,
 	viewRectOf,
@@ -91,6 +92,21 @@ describe("view camera math", () => {
 		expect(shown.x).toBeGreaterThanOrEqual(-12 - 1e-6);
 		expect(shown.x + shown.width).toBeLessThanOrEqual(1012 + 1e-6);
 		expect(stayInViewConstraint(o)({ x: 0, y: 0, zoom: 0.1 }).zoom).toBeCloseTo(0.5);
+	});
+
+	it("screenViewRect makes what is on screen a view that brings the same picture back", () => {
+		const upright = { x: -100, y: -50, zoom: 2 };
+		expect(screenViewRect(upright, size)).toEqual(visibleWorldRect(upright, size));
+		const across = viewportAnchoredAt({ x: 500, y: 250 }, { x: 274, y: 174 }, 0.5, 180);
+		const view = screenViewRect(across, size);
+		expect(view.rotation).toBe(180);
+		expect(view.width).toBeCloseTo(1096);
+		expect(view.height).toBeCloseTo(696);
+		const back = fitViewToScreen(view, size, 0);
+		expect(back.rotation).toBe(180);
+		expect(back.zoom).toBeCloseTo(0.5);
+		expect(back.x).toBeCloseTo(across.x);
+		expect(back.y).toBeCloseTo(across.y);
 	});
 
 	it("viewRectOf carries a shape's turn, and none when it isn't turned", () => {

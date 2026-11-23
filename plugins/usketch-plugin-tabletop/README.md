@@ -41,8 +41,8 @@ plugins: [
 - The newest drop goes on top (except in `free`).
 - A turned zone (a hand across the table) lays out along its own edges, and
   what it holds turns with it, so the cards read the right way up for the
-  player sitting there. Every arrangement but `free` keeps a shape facing the
-  zone's way (a card turned on its own inside a pile is turned back).
+  player sitting there. Every arrangement but `free` keeps a shape in a turned
+  zone facing the zone's way; an unturned zone leaves a shape's own turn alone.
 
 The HUD gets four actions on a selected zone: **Zone layout**, **Zone
 alignment**, **Turn dropped shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
@@ -64,7 +64,7 @@ Only the frame's edge and its label take clicks, so a view drawn over the
 table doesn't get in the way of the cards inside it. Turn a view to face its
 seat (180° for the player across the table): applying it turns the camera the
 other way, so that player sees it upright. The HUD gets **Add player
-view** (what is on screen becomes the view), **View camera** and **View label**.
+view** (what is on screen becomes the view, turned like the camera), **View camera** and **View label**.
 
 The plugin doesn't move anyone's camera by itself. The host applies a view when
 play starts, and decides who gets which view:

@@ -1,4 +1,10 @@
-import { compareZIndex, rotatePoint, type ShapeData, safeRotation } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	rotatePoint,
+	type ShapeData,
+	safeRotation,
+	wrapDeg,
+} from "@edv4h/usketch-shared";
 import { defaultZoneAlign, readZoneMeta, type ZoneAlign, type ZoneArrange } from "./zone.js";
 
 /** Spacing for {@link arrangeZone}, in world units. */
@@ -25,6 +31,10 @@ function moved(child: ShapeData, x: number, y: number): Patch | null {
 	return child.x === x && child.y === y ? null : { id: child.id, patch: { x, y } };
 }
 
+/** How far a shape is turned, in (-180, 180] (so 360 is 0 and -180 is 180). */
+const turnOf = (shape: Pick<ShapeData, "rotation">): number =>
+	wrapDeg(safeRotation(shape.rotation));
+
 /** Round off float noise from turning a point, so a child in place gets no patch. */
 const tidy = (n: number): number => Math.round(n * 1e6) / 1e6 + 0;
 
@@ -34,8 +44,12 @@ const tidy = (n: number): number => Math.round(n * 1e6) / 1e6 + 0;
  * the way the zone faces (a hand across the table reads the right way up for the
  * player sitting there).
  */
-function turned(zone: ShapeData, children: readonly ShapeData[], laid: Patch[]): Patch[] {
-	const deg = safeRotation(zone.rotation);
+function turned(
+	zone: ShapeData,
+	deg: number,
+	children: readonly ShapeData[],
+	laid: Patch[],
+): Patch[] {
 	const at = new Map(laid.map((p) => [p.id, p.patch]));
 	const centre = { x: zone.x + zone.width / 2, y: zone.y + zone.height / 2 };
 	const rad = (deg * Math.PI) / 180;
@@ -44,16 +58,13 @@ function turned(zone: ShapeData, children: readonly ShapeData[], laid: Patch[]):
 		const local = at.get(child.id);
 		const lx = local?.x ?? child.x;
 		const ly = local?.y ?? child.y;
-		const c =
-			deg === 0
-				? { x: lx + child.width / 2, y: ly + child.height / 2 }
-				: rotatePoint({ x: lx + child.width / 2, y: ly + child.height / 2 }, centre, rad);
+		const c = rotatePoint({ x: lx + child.width / 2, y: ly + child.height / 2 }, centre, rad);
 		const x = tidy(c.x - child.width / 2);
 		const y = tidy(c.y - child.height / 2);
 		const patch: Partial<ShapeData> = {};
 		if (child.x !== x) patch.x = x;
 		if (child.y !== y) patch.y = y;
-		if (safeRotation(child.rotation) !== deg) patch.rotation = deg;
+		if (turnOf(child) !== deg) patch.rotation = deg;
 		if (Object.keys(patch).length > 0) out.push({ id: child.id, patch });
 	}
 	return out;
@@ -64,9 +75,9 @@ function turned(zone: ShapeData, children: readonly ShapeData[], laid: Patch[]):
  * Pure: reads the zone's `arrange` and `align` from its meta and the children
  * as given (sorted by zIndex, bottom first). Children already in place get no patch.
  *
- * A turned zone lays out along its own edges, and its children turn with it. Every
- * arrangement but `free` keeps a child facing the way the zone faces (a card turned
- * on its own inside a pile is turned back).
+ * A turned zone lays out along its own edges, and its children turn with it: every
+ * arrangement but `free` keeps them facing the way the zone faces. An unturned zone
+ * leaves its children's own turn alone (a card turned on its own stays turned).
  */
 export function arrangeZone(
 	zone: ShapeData,
@@ -85,13 +96,10 @@ export function arrangeBy(
 	align: ZoneAlign = defaultZoneAlign(arrange),
 ): Patch[] {
 	if (arrange === "free") return [];
-	const upright = children.every((c) => safeRotation(c.rotation) === 0);
-	if (safeRotation(zone.rotation) === 0 && upright) {
-		return arrangeUpright(arrange, zone, children, options, align);
-	}
+	const deg = turnOf(zone);
+	if (deg === 0) return arrangeUpright(arrange, zone, children, options, align);
 	// Lay out as if nothing were turned, then turn it all with the zone.
-	const flat = children.map((c) => ({ ...c, rotation: 0 }));
-	return turned(zone, children, arrangeUpright(arrange, zone, flat, options, align));
+	return turned(zone, deg, children, arrangeUpright(arrange, zone, children, options, align));
 }
 
 function arrangeUpright(

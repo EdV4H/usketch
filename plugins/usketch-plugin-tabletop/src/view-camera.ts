@@ -98,6 +98,21 @@ export function screenWorldBounds(vp: Viewport, size: ViewportSize): BoundingBox
 	return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
 
+/**
+ * What a screen of `size` shows as a view: its own width and height in world units
+ * around the world point at its centre, turned like the camera (so applying it
+ * brings back the same picture, also on a turned camera).
+ */
+export function screenViewRect(vp: Viewport, size: ViewportSize): ViewRect {
+	const c = screenToWorld(size.width / 2, size.height / 2, vp);
+	const width = size.width / vp.zoom;
+	const height = size.height / vp.zoom;
+	const rect: ViewRect = { x: c.x - width / 2 + 0, y: c.y - height / 2 + 0, width, height };
+	const rotation = wrapDeg(-safeRotation(vp.rotation));
+	if (rotation !== 0) rect.rotation = rotation;
+	return rect;
+}
+
 /** Zoom at which `rect` plus `padding` fits the screen. */
 export function viewFitZoom(
 	rect: BoundingBox,
@@ -283,7 +298,10 @@ export function applyViewCamera(
 		const size = opts.getSize();
 		if (!rect || !size || size.width <= 0 || size.height <= 0) return false;
 		const target = fitViewToScreen(rect, size, padding);
-		if (animate) store.animateViewportTo(target, { durationMs });
+		// Swing about the screen's centre, so a move that also turns the camera (to a
+		// seat across the table) doesn't sweep the board off screen on the way.
+		const pivot = { x: size.width / 2, y: size.height / 2 };
+		if (animate) store.animateViewportTo(target, { durationMs, pivot });
 		else store.setViewport(target);
 		return true;
 	};
