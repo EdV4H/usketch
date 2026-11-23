@@ -10,7 +10,6 @@
 "@edv4h/usketch-plugin-domain-design": patch
 "@edv4h/usketch-plugin-effect-ripple": patch
 "@edv4h/usketch-plugin-elevation": patch
-"@edv4h/usketch-plugin-history": patch
 "@edv4h/usketch-plugin-laser": patch
 "@edv4h/usketch-plugin-markdown-to-shape": patch
 "@edv4h/usketch-plugin-pdf-import": patch
