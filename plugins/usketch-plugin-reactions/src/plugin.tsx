@@ -135,6 +135,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			}
 
 			ctx.tools.register("reaction", {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: ReactionIcon,
 				cursor: "pointer",
 				shortcut: "e",

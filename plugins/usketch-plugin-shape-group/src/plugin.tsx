@@ -1,5 +1,5 @@
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
-import { generateId, safeRotation } from "@edv4h/usketch-shared";
+import { generateId, PERMISSIONS, safeRotation } from "@edv4h/usketch-shared";
 import {
 	computeGroupBounds,
 	createDeleteWithChildrenCommand,
@@ -101,6 +101,7 @@ export function createGroupPlugin(): UsketchPlugin {
 			};
 			const unsubGroupAction = ctx.actions.register({
 				id: "group:group",
+				requires: PERMISSIONS.pageEdit,
 				group: "グループ",
 				label: "グループ化",
 				isEnabled: () => ctx.store.getSelection().size >= 2,
@@ -108,6 +109,7 @@ export function createGroupPlugin(): UsketchPlugin {
 			});
 			const unsubUngroupAction = ctx.actions.register({
 				id: "group:ungroup",
+				requires: PERMISSIONS.pageEdit,
 				group: "グループ",
 				label: "グループ解除",
 				isEnabled: selectionHasGroup,

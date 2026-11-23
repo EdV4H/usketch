@@ -3,6 +3,7 @@ import {
 	type CanvasPointerEvent,
 	getScreenSize,
 	isShapeContainer,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	type ToolContext,
@@ -275,6 +276,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					: [
 							ctx.actions.register({
 								id: "tabletop-view:add",
+								requires: PERMISSIONS.pageEdit,
 								label: "Add player view",
 								group: "Tabletop",
 								run: () => {
@@ -290,6 +292,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 							}),
 							ctx.actions.register({
 								id: "tabletop-view:camera",
+								requires: PERMISSIONS.pageEdit,
 								label: "View camera",
 								group: "Tabletop",
 								params: [
@@ -310,6 +313,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 							}),
 							ctx.actions.register({
 								id: "tabletop-view:label",
+								requires: PERMISSIONS.pageEdit,
 								label: "View label",
 								group: "Tabletop",
 								params: [{ name: "label", type: "string" }],
@@ -324,6 +328,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				...viewActions,
 				ctx.actions.register({
 					id: "tabletop-zone:arrange",
+					requires: PERMISSIONS.pageEdit,
 					label: "Zone layout",
 					group: "Tabletop",
 					params: [
@@ -344,6 +349,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				}),
 				ctx.actions.register({
 					id: "tabletop-zone:align",
+					requires: PERMISSIONS.pageEdit,
 					label: "Zone alignment",
 					group: "Tabletop",
 					params: [
@@ -364,6 +370,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				}),
 				ctx.actions.register({
 					id: "tabletop-zone:face",
+					requires: PERMISSIONS.pageEdit,
 					label: "Turn dropped shapes",
 					group: "Tabletop",
 					params: [
@@ -384,6 +391,7 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				}),
 				ctx.actions.register({
 					id: "tabletop-zone:label",
+					requires: PERMISSIONS.pageEdit,
 					label: "Zone label",
 					group: "Tabletop",
 					params: [{ name: "label", type: "string", default: "" }],

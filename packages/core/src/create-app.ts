@@ -11,6 +11,7 @@ import {
 	type HudRegistry,
 	type LayerManager,
 	type LodPolicy,
+	PERMISSIONS,
 	type PermissionProvider,
 	type PluginContext,
 	type PluginInfoRegistry,
@@ -49,6 +50,7 @@ import {
 	type LodControllerInternal,
 } from "./lod/index.js";
 import { createPluginRegistry } from "./plugin-registry.js";
+import { bindReadOnlyToPermissions, denyPermission, keepToolUsable } from "./read-only.js";
 import { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
 import { createSelectionHandleRegistry } from "./selection-handle-registry.js";
 import { createServiceRegistry } from "./service-registry.js";
@@ -128,6 +130,13 @@ export interface CreateAppOptions {
 	 * Default: everything is allowed.
 	 */
 	permissions?: PermissionProvider;
+	/**
+	 * Open the page read-only whatever the permissions say (`page.edit` is then denied):
+	 * the viewer's own shape writes are dropped, only `readOnlySafe` tools (select, pan…)
+	 * are offered, and the HUD hides controls that need `page.edit`. Without it the page
+	 * is read-only while `permissions` denies `page.edit`, and follows it when it changes.
+	 */
+	readOnly?: boolean;
 }
 
 export async function createApp(options: CreateAppOptions): Promise<AppInstance> {
@@ -172,7 +181,10 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		externalContent,
 	}));
 	const pluginRegistry = createPluginRegistry();
-	const permissions = options.permissions ?? allowAllPermissions();
+	const basePermissions = options.permissions ?? allowAllPermissions();
+	const permissions = options.readOnly
+		? denyPermission(basePermissions, PERMISSIONS.pageEdit)
+		: basePermissions;
 
 	const lodPolicy =
 		options.lod?.policy ??
@@ -215,6 +227,9 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const unsubMutation = store.onMutation((event) => {
 		events.emit(event.type, event.payload);
 	});
+	// Read-only follows `page.edit` (before the plugins' setup, so what a setup writes on a
+	// view-only page is dropped too).
+	const unbindReadOnly = bindReadOnlyToPermissions(store, permissions);
 
 	// Register and setup plugins.
 	// Each plugin's setup may return a per-instance teardown closure; we collect
@@ -276,8 +291,11 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 			}
 		}
 		unsubMutation();
+		unbindReadOnly();
 		throw error;
 	}
+	// On a read-only page, switching to a tool that edits goes back to one that doesn't.
+	const offToolGuard = keepToolUsable(store, baseTools);
 
 	// Register core shortcuts (Mod = Cmd on macOS, Ctrl elsewhere)
 	shortcuts.register("Mod+Z", () => commands.undo(), {
@@ -351,6 +369,8 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 				}
 			}
 			lod.destroy();
+			offToolGuard();
+			unbindReadOnly();
 			unsubMutation();
 			offShapeView3d?.();
 			unprovideShapeSolids();

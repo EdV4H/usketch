@@ -8,7 +8,12 @@ import type {
 	ToolContext,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { hasSelectableChildren, isAttachable, safeRotation } from "@edv4h/usketch-shared";
+import {
+	hasSelectableChildren,
+	isAttachable,
+	isReadOnly,
+	safeRotation,
+} from "@edv4h/usketch-shared";
 import {
 	getTopLevelAncestor,
 	isEffectivelyHidden,
@@ -58,6 +63,11 @@ export function trackHover(
 	event: CanvasPointerEvent,
 	options: TrackHoverOptions = {},
 ): HoverResult {
+	// A read-only page has no handles to grab: only the shape under the cursor.
+	if (isReadOnly(ctx.store)) {
+		return { cursor: "", hoveredShapeId: findShapeAtPoint(ctx, event.worldPoint, options) };
+	}
+
 	const viewport = ctx.store.getViewport();
 
 	// 1. Rotation handle (outside bbox, no conflict with resize)

@@ -1,4 +1,4 @@
-import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
+import { applyExternal, type BoardStore, type ShapeData } from "@edv4h/usketch-shared";
 import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
 import { Awareness } from "y-protocols/awareness";
 import { WebsocketProvider } from "y-websocket";
@@ -227,44 +227,46 @@ export function createYwebsocketSync(
 		status.batch(() => {
 			isSyncing = true;
 			try {
-				for (const [key, change] of events.changes.keys) {
-					switch (change.action) {
-						case "add":
-						case "update": {
-							const value = shapesMap.get(key);
-							if (value) {
-								const shape = value as unknown as ShapeData;
-								const existing = store.getShape(key);
-								if (existing) {
-									store.updateShape(key, toReplacingUpdates(existing, shape));
-								} else {
-									store.addShape(shape);
-									if (!isLocalTxn) {
-										// Remote add → confirmed by server.
-										status.noteShapeAdded(key, "remote");
+				applyExternal(store, () => {
+					for (const [key, change] of events.changes.keys) {
+						switch (change.action) {
+							case "add":
+							case "update": {
+								const value = shapesMap.get(key);
+								if (value) {
+									const shape = value as unknown as ShapeData;
+									const existing = store.getShape(key);
+									if (existing) {
+										store.updateShape(key, toReplacingUpdates(existing, shape));
+									} else {
+										store.addShape(shape);
+										if (!isLocalTxn) {
+											// Remote add → confirmed by server.
+											status.noteShapeAdded(key, "remote");
+										}
 									}
+									// Note: only `observedIds` is updated here, not
+									// `locallyAuthoredIds`. Remote-origin keys must
+									// remain eligible for `shapesMap.delete` on a
+									// later local removal, but they were NOT authored
+									// locally — so a later `shouldSync` flip to false
+									// must not let us evict them from the shared doc.
+									observedIds?.add(key);
 								}
-								// Note: only `observedIds` is updated here, not
-								// `locallyAuthoredIds`. Remote-origin keys must
-								// remain eligible for `shapesMap.delete` on a
-								// later local removal, but they were NOT authored
-								// locally — so a later `shouldSync` flip to false
-								// must not let us evict them from the shared doc.
-								observedIds?.add(key);
+								break;
 							}
-							break;
-						}
-						case "delete": {
-							if (store.getShape(key)) {
-								store.deleteShape(key);
+							case "delete": {
+								if (store.getShape(key)) {
+									store.deleteShape(key);
+								}
+								observedIds?.delete(key);
+								locallyAuthoredIds?.delete(key);
+								status.noteShapeRemoved(key);
+								break;
 							}
-							observedIds?.delete(key);
-							locallyAuthoredIds?.delete(key);
-							status.noteShapeRemoved(key);
-							break;
 						}
 					}
-				}
+				});
 			} finally {
 				isSyncing = false;
 			}
@@ -282,17 +284,19 @@ export function createYwebsocketSync(
 		const loadedIds: string[] = [];
 		isSyncing = true;
 		try {
-			for (const [id, value] of shapesMap.entries()) {
-				const shape = value as unknown as ShapeData;
-				if (!store.getShape(id)) {
-					store.addShape(shape);
+			applyExternal(store, () => {
+				for (const [id, value] of shapesMap.entries()) {
+					const shape = value as unknown as ShapeData;
+					if (!store.getShape(id)) {
+						store.addShape(shape);
+					}
+					// Track legacy shapes that were persisted before z-order was introduced.
+					if (typeof shape.zIndex !== "string") {
+						idsNeedingZIndex.push(id);
+					}
+					loadedIds.push(id);
 				}
-				// Track legacy shapes that were persisted before z-order was introduced.
-				if (typeof shape.zIndex !== "string") {
-					idsNeedingZIndex.push(id);
-				}
-				loadedIds.push(id);
-			}
+			});
 		} finally {
 			isSyncing = false;
 		}

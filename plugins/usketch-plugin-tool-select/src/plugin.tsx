@@ -11,6 +11,7 @@ import {
 	containerAccepts,
 	getContainerAttachHit,
 	isContainerAutoAttach,
+	isReadOnly,
 	isView3dShown,
 	safeRotation,
 } from "@edv4h/usketch-shared";
@@ -383,7 +384,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const viewport = toolCtx.store.getViewport();
 				// In a 3D view the handles drawn flat aren't where the pointer sees them:
 				// select and move only (resize, rotate and the like go back to flat first).
-				const handlesShown = !isView3dShown(toolCtx.store);
+				// On a read-only page: select only (no handles, no moving).
+				const readOnly = isReadOnly(toolCtx.store);
+				const handlesShown = !isView3dShown(toolCtx.store) && !readOnly;
 
 				// 0. Rotation handle (outside bbox, no conflict with resize)
 				const rotationHit =
@@ -573,6 +576,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				if (hitId) {
 					clickSelect(toolCtx, hitId, event.shiftKey);
+					if (readOnly) return;
 
 					const currentSelection = toolCtx.store.getSelection();
 					setMovingSelection(true);
@@ -787,6 +791,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			const syncBusy = () => handleInteraction.set({ busy: dragState !== null });
 
 			ctx.tools.register("select", {
+				// 見るだけのページでも使える（ボードを変えない）。
+				readOnlySafe: true,
 				icon: SelectIcon,
 				cursor: "default",
 				shortcut: "v",

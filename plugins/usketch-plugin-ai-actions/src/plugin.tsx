@@ -1,4 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import type { SmartActionRequestEvent, SmartActionType } from "./types.js";
 
 export interface AiActionsOptions {
@@ -59,6 +60,7 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 			const offActions = [
 				ctx.actions.register({
 					id: "ai:tidy",
+					requires: PERMISSIONS.pageEdit,
 					label: "✨ Tidy",
 					group: "AI",
 					isEnabled: hasActionableSelection,
@@ -66,6 +68,7 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "ai:label",
+					requires: PERMISSIONS.pageEdit,
 					label: "🏷 Label",
 					group: "AI",
 					isEnabled: hasActionableSelection,
@@ -73,6 +76,7 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "ai:recognize",
+					requires: PERMISSIONS.pageEdit,
 					label: "✍ Recognize",
 					group: "AI",
 					isEnabled: canRecognize,
@@ -80,6 +84,7 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 				}),
 				ctx.actions.register({
 					id: "ai:ask",
+					requires: PERMISSIONS.pageEdit,
 					label: "⌨ Ask AI",
 					group: "AI",
 					isEnabled: hasActionableSelection,

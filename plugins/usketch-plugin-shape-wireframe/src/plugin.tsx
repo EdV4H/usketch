@@ -1,6 +1,7 @@
 import {
 	type CanvasPointerEvent,
 	generateId,
+	PERMISSIONS,
 	type PluginContext,
 	type ShapeData,
 	type ToolContext,
@@ -134,6 +135,7 @@ export function createWireframePlugin(): UsketchPlugin {
 			// Control HUD 用 Action（Demo の subtype picker 相当）
 			const offSubtypeAction = ctx.actions.register({
 				id: "wireframe:subtype",
+				requires: PERMISSIONS.pageEdit,
 				label: "Wireframe subtype",
 				group: "Wireframe",
 				params: [

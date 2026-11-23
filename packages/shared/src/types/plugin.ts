@@ -715,6 +715,12 @@ export interface ToolDefinition {
 	cursor?: string;
 	shortcut?: string;
 	order?: number;
+	/**
+	 * The tool works on a read-only page (it doesn't change the board: select, pan, a laser
+	 * pointer…). On a read-only page the other tools aren't offered and can't be switched
+	 * to. Default: false.
+	 */
+	readOnlySafe?: boolean;
 	onActivate?: (ctx: ToolContext) => void;
 	onDeactivate?: (ctx: ToolContext) => void;
 	onPointerDown?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
@@ -1283,7 +1289,8 @@ export type StoreEvent =
 	| { type: "default-tool:changed"; payload: { id: string } }
 	| { type: "shapes:z-index-initialized"; payload: { count: number } }
 	| { type: "viewport:changed"; payload?: undefined }
-	| { type: "style:changed"; payload?: undefined };
+	| { type: "style:changed"; payload?: undefined }
+	| { type: "read-only:changed"; payload: { readOnly: boolean } };
 
 /** {@link StoreEvent} の `type` リテラル。store の `notifyMutation` で使用。 */
 export type StoreEventType = StoreEvent["type"];
@@ -1423,6 +1430,21 @@ export interface BoardStore {
 	 * `view3dCellOf(store)`, which is `null` on a store without it.
 	 */
 	getView3d?(): View3dState;
+	/**
+	 * Whether the viewer may only look (read-only page): {@link addShape},
+	 * {@link updateShape}, {@link deleteShape} and {@link ensureZIndex} do nothing,
+	 * except inside {@link applyExternal}. Optional until the next major; read it through
+	 * `isReadOnly(store)`.
+	 */
+	isReadOnly?(): boolean;
+	/** Make the store read-only or writable again (`createApp` does this from the permissions). */
+	setReadOnly?(readOnly: boolean): void;
+	/**
+	 * Run changes that aren't the viewer's own — another person's edit arriving through
+	 * sync, the saved document loading — so they go through on a read-only store too.
+	 * Call it through `applyExternal(store, fn)`.
+	 */
+	applyExternal?<T>(fn: () => T): T;
 	/** Change the 3D view (camera fields merged and clamped, amount clamped to 0…1). */
 	setView3d?(patch: View3dPatch): void;
 	/**

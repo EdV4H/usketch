@@ -208,6 +208,14 @@ interface PluginContext {
 - プラグインの中で読むときは `permissionsOf(ctx)`（古いコアの文脈には `permissions` が無いので、そのときは全部可）。
 - サーバー側（Workers / Durable Object）は `ServerPermissionResolver`（非同期）で `PermissionSnapshot` を作って使う。ブラウザの出し分けは見た目のためで、**書き込みを止めるのはサーバー**。
 
+**読み取り専用（見るだけの人）**: `page.edit` が無いと App は読み取り専用で開く（`createApp({ readOnly: true })` で権限に関係なく読み取り専用にもできる）。
+
+- ストアは閲覧者自身の Shape の書き込み（`addShape` / `updateShape` / `deleteShape` / `ensureZIndex`）を受け付けない。選択・ビューポート・ツールのような自分だけの状態は変えられる。読むときは `isReadOnly(store)`。
+- **同期のプラグインは、doc からストアへ入れるところを `applyExternal(store, () => …)` で包む**（他の人の変更・保存したものの読み込みは読み取り専用でも入る）。
+- ツールは **`readOnlySafe: true` のものだけ**使える（ボードを変えないもの: select・pan・laser など）。それ以外には切り替わらず、HUD にも出ない。
+- ページを変える HUD の操作は `requires: PERMISSIONS.pageEdit` を書く。見るだけの人には出ない。
+- ストアを通さずに Y.Doc に直接書くプラグイン（コメント・チャット・地形の差分など）は、ストアの読み取り専用では止まらない。書く前に `permissionsOf(ctx).can(PERMISSIONS.pageEdit)` を見る（最後に止めるのはサーバー）。
+
 ### 3.1.3 HUD の置き場（サイドパネル・状態表示）
 
 HUD の中で、プラグインの UI を置ける場所は次の 3 つ。どれも HUD が描くので、プラグインは画面に固定の UI を自分で出さない（#1558 R7）。

@@ -382,3 +382,62 @@ describe("createYjsSync — persist: false（保存はホストが持つ）", ()
 		loaded.destroy();
 	});
 });
+
+/** 読み取り専用にできるストア（自分の書き込みは止め、`applyExternal` の中だけ通す）。 */
+function createReadOnlyTestStore(): BoardStore {
+	const base = createTestStore();
+	let depth = 0;
+	const blocked = () => depth === 0;
+	return {
+		...base,
+		addShape: (shape) => {
+			if (!blocked()) base.addShape(shape);
+		},
+		updateShape: (id, updates) => {
+			if (!blocked()) base.updateShape(id, updates);
+		},
+		deleteShape: (id) => {
+			if (!blocked()) base.deleteShape(id);
+		},
+		isReadOnly: () => true,
+		applyExternal<T>(fn: () => T): T {
+			depth++;
+			try {
+				return fn();
+			} finally {
+				depth--;
+			}
+		},
+	};
+}
+
+describe("createYjsSync on a read-only store", () => {
+	let syncHandle: YjsSyncHandle;
+
+	afterEach(() => {
+		syncHandle?.destroy();
+	});
+
+	it("loads what the doc already has and applies changes from others", async () => {
+		const doc = new Y.Doc();
+		doc.getMap("shapes").set("a", makeShape({ id: "a" }) as unknown as Record<string, unknown>);
+		const store = createReadOnlyTestStore();
+		syncHandle = createYjsSync(store, { doc, persist: false });
+		await syncHandle.whenSynced;
+		expect(store.getShape("a")).toBeDefined();
+
+		doc.getMap("shapes").set("b", makeShape({ id: "b" }) as unknown as Record<string, unknown>);
+		expect(store.getShape("b")).toBeDefined();
+		doc.getMap("shapes").delete("a");
+		expect(store.getShape("a")).toBeUndefined();
+	});
+
+	it("does not write the viewer's own changes to the doc", async () => {
+		const doc = new Y.Doc();
+		const store = createReadOnlyTestStore();
+		syncHandle = createYjsSync(store, { doc, persist: false });
+		await syncHandle.whenSynced;
+		store.addShape(makeShape({ id: "mine" }));
+		expect(doc.getMap("shapes").has("mine")).toBe(false);
+	});
+});
