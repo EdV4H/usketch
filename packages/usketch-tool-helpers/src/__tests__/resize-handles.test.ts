@@ -1,7 +1,12 @@
 import type { ShapeData, ShapeDefinition, Viewport } from "@edv4h/usketch-shared";
-import { worldToScreen } from "@edv4h/usketch-shared";
+import { rotatePoint, worldToScreen } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { findHandleAtScreenPoint, getRotationCursor } from "../internal/resize-handles.js";
+import {
+	findHandleAtScreenPoint,
+	findMultiRotationHandleAtScreenPoint,
+	findRotationHandleAtScreenPoint,
+	getRotationCursor,
+} from "../internal/resize-handles.js";
 import { createTestToolContext, makeShape } from "./test-helpers.js";
 
 const VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
@@ -143,5 +148,44 @@ describe("hit tests under camera rotation", () => {
 		});
 		// Where the handle would be WITHOUT the rotation is now empty space.
 		expect(findHandleAtScreenPoint({ x: 500, y: 400 }, ctx.shapes, ctx.store, rotated)).toBeNull();
+	});
+});
+
+describe("rotation zone", () => {
+	it("starts outside a corner but not inside the shape near it", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.setSelection(["a"]);
+		// Just outside the NW corner: rotation.
+		expect(
+			findRotationHandleAtScreenPoint({ x: -12, y: -12 }, ctx.shapes, ctx.store, VIEWPORT),
+		).toEqual({ shapeId: "a", corner: "nw" });
+		// Just inside it, or on the left edge near it: the shape is grabbed (no rotation).
+		expect(
+			findRotationHandleAtScreenPoint({ x: 12, y: 12 }, ctx.shapes, ctx.store, VIEWPORT),
+		).toBeNull();
+		expect(
+			findRotationHandleAtScreenPoint({ x: 0, y: 18 }, ctx.shapes, ctx.store, VIEWPORT),
+		).toBeNull();
+	});
+
+	it("tests inside/outside in the rotated shape's own frame", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100, rotation: 45 }));
+		ctx.store.setSelection(["a"]);
+		const center = { x: 50, y: 50 };
+		const turn = (p: { x: number; y: number }) => rotatePoint(p, center, Math.PI / 4);
+		expect(
+			findRotationHandleAtScreenPoint(turn({ x: -12, y: -12 }), ctx.shapes, ctx.store, VIEWPORT),
+		).toEqual({ shapeId: "a", corner: "nw" });
+		expect(
+			findRotationHandleAtScreenPoint(turn({ x: 12, y: 12 }), ctx.shapes, ctx.store, VIEWPORT),
+		).toBeNull();
+	});
+
+	it("multi-selection: only outside the group box", () => {
+		const bounds = { x: 0, y: 0, width: 200, height: 100 };
+		expect(findMultiRotationHandleAtScreenPoint({ x: 212, y: -12 }, bounds, VIEWPORT)).toBe("ne");
+		expect(findMultiRotationHandleAtScreenPoint({ x: 188, y: 12 }, bounds, VIEWPORT)).toBeNull();
 	});
 });

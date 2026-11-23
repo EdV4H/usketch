@@ -118,6 +118,42 @@ export function deltaToLocal(delta: Point, angleDeg: number): Point {
 }
 
 /**
+ * 回転したシェイプのローカル（回転前）座標で計算した箱を、画面上のどこに置くかを返す。
+ *
+ * シェイプは自分の中心まわりに回転して描かれるため、回転したまま幅・高さを変えると
+ * 中心が動き、回転前の座標で固定したはずの辺や角が画面上では滑ってしまう。リサイズなどは
+ * 「操作開始時のシェイプの中心（`pivot`）と回転角で決まるローカル座標系」で箱を計算し、
+ * 最後にこの関数で x/y を求める。返す x/y で描くと、箱の中心は `pivot` まわりに `angleDeg`
+ * 回した位置に来る（幅・高さはそのまま）。回転 0 のときは `local` の x/y をそのまま返す。
+ */
+export function placeLocalBox(local: BoundingBox, pivot: Point, angleDeg: number): Point {
+	const rotation = safeRotation(angleDeg);
+	if (rotation === 0) return { x: local.x, y: local.y };
+	const center = rotatePoint(
+		{ x: local.x + local.width / 2, y: local.y + local.height / 2 },
+		pivot,
+		(rotation * Math.PI) / 180,
+	);
+	return { x: center.x - local.width / 2, y: center.y - local.height / 2 };
+}
+
+/**
+ * 回転したシェイプの大きさを `width` × `height` に変えるとき、画面上の左上の角
+ * （回転前の左上が回転して来た位置）を動かさない x/y を返す。回転していなければ `null`。
+ * テキスト入力で付箋やテキストが伸びるときなどに使う。
+ */
+export function keepRotatedTopLeft(
+	shape: { x: number; y: number; width: number; height: number; rotation?: unknown },
+	width: number,
+	height: number,
+): Point | null {
+	const rotation = safeRotation(shape.rotation);
+	if (rotation === 0) return null;
+	const pivot = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+	return placeLocalBox({ x: shape.x, y: shape.y, width, height }, pivot, rotation);
+}
+
+/**
  * ヒットテスト関数を回転対応にラップする。
  * シェイプが回転している場合、テスト対象の点をシェイプ中心周りに逆回転してから判定する。
  */
