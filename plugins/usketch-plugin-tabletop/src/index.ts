@@ -44,7 +44,10 @@ export {
 	VIEW_FIT_PADDING,
 	type ViewCameraHandle,
 	type ViewportSize,
+	type ViewRect,
+	viewCameraRotation,
 	viewFitZoom,
+	viewRectOf,
 	visibleWorldRect,
 } from "./view-camera.js";
 export {

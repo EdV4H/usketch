@@ -39,6 +39,10 @@ plugins: [
   (`readZoneMeta` fills it in; `storedZoneMeta` is what gets written back).
 - `face` needs the `turnFace` option; without it, `face` does nothing.
 - The newest drop goes on top (except in `free`).
+- A turned zone (a hand across the table) lays out along its own edges, and
+  what it holds turns with it, so the cards read the right way up for the
+  player sitting there. Every arrangement but `free` keeps a shape facing the
+  zone's way (a card turned on its own inside a pile is turned back).
 
 The HUD gets four actions on a selected zone: **Zone layout**, **Zone
 alignment**, **Turn dropped shapes** and **Zone label**. A drawing tool (`tabletop-zone-draw`) drags a zone
@@ -57,17 +61,23 @@ what a player sees while a game is played. A board can have any number of them
 | `free`   | The camera is brought to the view once and can then go anywhere. |
 
 Only the frame's edge and its label take clicks, so a view drawn over the
-table doesn't get in the way of the cards inside it. The HUD gets **Add player
+table doesn't get in the way of the cards inside it. Turn a view to face its
+seat (180° for the player across the table): applying it turns the camera the
+other way, so that player sees it upright. The HUD gets **Add player
 view** (what is on screen becomes the view), **View camera** and **View label**.
 
 The plugin doesn't move anyone's camera by itself. The host applies a view when
 play starts, and decides who gets which view:
 
 ```ts
-import { applyViewCamera, readViewMeta } from "@edv4h/usketch-plugin-tabletop";
+import { applyViewCamera, readViewMeta, viewRectOf } from "@edv4h/usketch-plugin-tabletop";
 
 const view = app.store.getShape(seatViewId);
-const camera = applyViewCamera(app.store, () => app.store.getShape(seatViewId) ?? null, readViewMeta(view).camera, {
+const getRect = () => {
+	const shape = app.store.getShape(seatViewId);
+	return shape ? viewRectOf(shape) : null; // its box and its turn
+};
+const camera = applyViewCamera(app.store, getRect, readViewMeta(view).camera, {
 	getSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
 });
 camera.returnToView(); // after zooming in
@@ -75,10 +85,12 @@ camera.release(); // when play ends
 ```
 
 `applyViewCamera` fits the whole view on any screen shape, then holds it with
-the store's viewport constraint (`fixed` / `zoom`; a held camera stays upright).
+the store's viewport constraint (`fixed` / `zoom`; a held camera keeps the
+view's turn and can't be turned by hand).
 Applying another view on the same store releases the first, and `release` only
 removes the constraint it installed. Zones never take views. The pieces are exported too: `fitViewToScreen`,
-`stayInViewConstraint`, `pinToViewConstraint`, `isAtView`.
+`stayInViewConstraint`, `pinToViewConstraint`, `isAtView`, `viewRectOf`,
+`viewCameraRotation`.
 
 ## Plugin options
 
