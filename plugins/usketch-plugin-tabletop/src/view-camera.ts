@@ -1,14 +1,65 @@
 import {
 	type BoardStore,
 	type BoundingBox,
+	type ShapeData,
+	safeRotation,
 	screenToWorld,
 	type Viewport,
 	type ViewportConstraint,
+	worldToScreen,
+	wrapDeg,
 } from "@edv4h/usketch-shared";
 import type { ViewCamera } from "./view.js";
 
 // Bringing a camera to a view and holding it there. Screen = viewport.{x,y} + world * zoom.
 // The fit / stay-inside math is the same as gathering's (`usketch-session-gather`).
+//
+// A turned view (a seat across the table) turns the camera the other way, so the view
+// shows upright on that player's screen. With the camera turned by `r`, screen =
+// t + zoom · R(r)·world, so in "turned" coordinates L = R(r)·world the camera is an
+// unturned one: the same fit / clamp math runs on the view's box in L.
+
+/** A view's box and how far it is turned (degrees, clockwise, like a shape's `rotation`). */
+export interface ViewRect extends BoundingBox {
+	rotation?: number;
+}
+
+/** The {@link ViewRect} of a view shape (its box and its turn). */
+export function viewRectOf(
+	shape: Pick<ShapeData, "x" | "y" | "width" | "height" | "rotation">,
+): ViewRect {
+	const rect: ViewRect = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+	const rotation = safeRotation(shape.rotation);
+	if (rotation !== 0) rect.rotation = rotation;
+	return rect;
+}
+
+/** The camera turn that shows `rect` upright (0 for an unturned view). */
+export function viewCameraRotation(rect: ViewRect): number {
+	return wrapDeg(-safeRotation(rect.rotation));
+}
+
+/** `rect`'s box in the coordinates of a camera turned by `rotation` (see the top). */
+function turnedBox(rect: ViewRect, rotation: number): BoundingBox {
+	if (rotation === 0) return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+	const c = worldToScreen(rect.x + rect.width / 2, rect.y + rect.height / 2, {
+		x: 0,
+		y: 0,
+		zoom: 1,
+		rotation,
+	});
+	return {
+		x: c.x - rect.width / 2,
+		y: c.y - rect.height / 2,
+		width: rect.width,
+		height: rect.height,
+	};
+}
+
+/** `vp` turned to `rotation` (the key left out when 0, like an unturned viewport). */
+function withTurn({ rotation: _r, ...vp }: Viewport, rotation: number): Viewport {
+	return rotation === 0 ? vp : { ...vp, rotation };
+}
 
 export interface ViewportSize {
 	width: number;
@@ -47,6 +98,21 @@ export function screenWorldBounds(vp: Viewport, size: ViewportSize): BoundingBox
 	return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
 
+/**
+ * What a screen of `size` shows as a view: its own width and height in world units
+ * around the world point at its centre, turned like the camera (so applying it
+ * brings back the same picture, also on a turned camera).
+ */
+export function screenViewRect(vp: Viewport, size: ViewportSize): ViewRect {
+	const c = screenToWorld(size.width / 2, size.height / 2, vp);
+	const width = size.width / vp.zoom;
+	const height = size.height / vp.zoom;
+	const rect: ViewRect = { x: c.x - width / 2 + 0, y: c.y - height / 2 + 0, width, height };
+	const rotation = wrapDeg(-safeRotation(vp.rotation));
+	if (rotation !== 0) rect.rotation = rotation;
+	return rect;
+}
+
 /** Zoom at which `rect` plus `padding` fits the screen. */
 export function viewFitZoom(
 	rect: BoundingBox,
@@ -58,16 +124,24 @@ export function viewFitZoom(
 	return Math.min(w / Math.max(1, rect.width), h / Math.max(1, rect.height));
 }
 
-/** The viewport that shows all of `rect`, centred, whatever the screen's shape. */
+/**
+ * The viewport that shows all of `rect`, centred, whatever the screen's shape. A
+ * turned view turns the camera too, so it shows upright.
+ */
 export function fitViewToScreen(
-	rect: BoundingBox,
+	rect: ViewRect,
 	size: ViewportSize,
 	padding: number = VIEW_FIT_PADDING,
 ): Viewport {
-	const zoom = viewFitZoom(rect, size, padding);
-	const cx = rect.x + rect.width / 2;
-	const cy = rect.y + rect.height / 2;
-	return { x: size.width / 2 - cx * zoom, y: size.height / 2 - cy * zoom, zoom };
+	const rotation = viewCameraRotation(rect);
+	const box = turnedBox(rect, rotation);
+	const zoom = viewFitZoom(box, size, padding);
+	const cx = box.x + box.width / 2;
+	const cy = box.y + box.height / 2;
+	return withTurn(
+		{ x: size.width / 2 - cx * zoom + 0, y: size.height / 2 - cy * zoom + 0, zoom },
+		rotation,
+	);
 }
 
 /** One axis: centre what is smaller than the screen, else stop at its edges. */
@@ -87,7 +161,7 @@ function clampAxis(
 }
 
 interface RectConstraintOptions {
-	getRect: () => BoundingBox | null;
+	getRect: () => ViewRect | null;
 	getSize: () => ViewportSize | null;
 	padding?: number;
 }
@@ -99,22 +173,22 @@ const readRect = (opts: RectConstraintOptions) => {
 	return { rect, size };
 };
 
-/** Drop the camera's turn (a held view is always shown upright). */
-const upright = ({ rotation: _r, ...vp }: Viewport): Viewport => vp;
-
 /**
  * `zoom`: keep the camera inside `getRect()` — no zooming out past the fit (zooming
  * in is free), no panning outside; an axis where the view is smaller than the screen
  * stays centred. The camera can't be turned (turning it would show what is outside
- * the view). Read live on every commit, so a resized screen is followed.
+ * the view): it keeps the view's own turn. Read live on every commit, so a resized
+ * screen is followed.
  */
 export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
 	return (proposed) => {
 		const read = readRect(opts);
 		if (!read) return proposed;
-		const { rect, size } = read;
-		const vp = upright(proposed);
+		const { size } = read;
+		const rotation = viewCameraRotation(read.rect);
+		const rect = turnedBox(read.rect, rotation);
+		const vp = withTurn(proposed, rotation);
 		const minZoom = viewFitZoom(rect, size, padding);
 		let { x, y, zoom } = vp;
 		if (!Number.isFinite(zoom) || zoom <= 0) {
@@ -135,7 +209,10 @@ export function stayInViewConstraint(opts: RectConstraintOptions): ViewportConst
 	};
 }
 
-/** `fixed`: the camera always shows `getRect()` fitted and upright, whatever is asked. */
+/**
+ * `fixed`: the camera always shows `getRect()` fitted, whatever is asked (upright: a
+ * turned view turns the camera).
+ */
 export function pinToViewConstraint(opts: RectConstraintOptions): ViewportConstraint {
 	const padding = opts.padding ?? VIEW_FIT_PADDING;
 	return (vp) => {
@@ -148,7 +225,7 @@ export function pinToViewConstraint(opts: RectConstraintOptions): ViewportConstr
 /** Whether the camera shows `rect` as {@link fitViewToScreen} would (within half a pixel). */
 export function isAtView(
 	vp: Viewport,
-	rect: BoundingBox,
+	rect: ViewRect,
 	size: ViewportSize,
 	padding: number = VIEW_FIT_PADDING,
 ): boolean {
@@ -156,7 +233,8 @@ export function isAtView(
 	return (
 		Math.abs(vp.x - fit.x) < 0.5 &&
 		Math.abs(vp.y - fit.y) < 0.5 &&
-		Math.abs(vp.zoom - fit.zoom) < 1e-4
+		Math.abs(vp.zoom - fit.zoom) < 1e-4 &&
+		Math.abs(wrapDeg(safeRotation(vp.rotation) - safeRotation(fit.rotation))) < 0.01
 	);
 }
 
@@ -182,13 +260,14 @@ const applied = new WeakMap<BoardStore, ViewCameraHandle>();
 
 /**
  * Bring the camera to a view and hold it there by `camera` (see {@link ViewCamera}).
- * `getRect` is read live (the view's bounds; null = leave the camera alone). Uses the
+ * `getRect` is read live (the view's bounds and turn, e.g. {@link viewRectOf}; null =
+ * leave the camera alone). A turned view turns the camera with it, also for `free`. Uses the
  * store's single viewport constraint. Applying another view on the same store
  * releases this one first.
  */
 export function applyViewCamera(
 	store: BoardStore,
-	getRect: () => BoundingBox | null,
+	getRect: () => ViewRect | null,
 	camera: ViewCamera,
 	opts: ApplyViewCameraOptions,
 ): ViewCameraHandle {
@@ -219,7 +298,10 @@ export function applyViewCamera(
 		const size = opts.getSize();
 		if (!rect || !size || size.width <= 0 || size.height <= 0) return false;
 		const target = fitViewToScreen(rect, size, padding);
-		if (animate) store.animateViewportTo(target, { durationMs });
+		// Swing about the screen's centre, so a move that also turns the camera (to a
+		// seat across the table) doesn't sweep the board off screen on the way.
+		const pivot = { x: size.width / 2, y: size.height / 2 };
+		if (animate) store.animateViewportTo(target, { durationMs, pivot });
 		else store.setViewport(target);
 		return true;
 	};
