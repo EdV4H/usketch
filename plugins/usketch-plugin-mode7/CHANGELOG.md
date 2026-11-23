@@ -1,5 +1,22 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.10.0
+
+### Minor Changes
+
+- 3701095: 傾けた 3D の画面でも、プレイヤー視点の枠に合わせられるようにしました。
+  
+  - tabletop: `applyViewCamera` に `getTilt`（`{ pitch, fov, horizon }`、毎回読む。`null` = 平ら）を足しました。ホストが盤面を奥へ傾けて見せている間（Mode 7 など）、視点を傾いた見え方で枠に収めます（画面の中央に、手前の広い辺も含めて 4 つの角が余白の内側に入るいちばん大きいズームで）。`fixed` はその位置で止め、`zoom` は拡大した分だけ動けます。`fitViewToScreen` / `isAtView` も `tilt` を、`stayInViewConstraint` / `pinToViewConstraint` も `getTilt` を受け取ります。型 `ViewTilt`（上げたカメラの `heightPx` も渡せます）を出しました。傾きを変えたら `returnToView()` で合わせ直してください。
+  - mode7: `exitOnShapeDoubleClick`（既定 `true`）を足しました。`false` にすると、Shape をダブルクリックしても平面へ戻らず 3D のままです。
+
+### Patch Changes
+
+- Updated dependencies [61ee9e6]
+- Updated dependencies [56a137e]
+  - @edv4h/usketch-shared@4.32.0
+  - @edv4h/usketch-store@3.15.0
+  - @edv4h/usketch-css3d-renderer@0.1.7
+
 ## 0.9.5
 
 ### Patch Changes
