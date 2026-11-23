@@ -292,6 +292,12 @@ importers:
 
   apps/server:
     dependencies:
+      '@edv4h/usketch-demo-permissions':
+        specifier: workspace:*
+        version: link:../../packages/usketch-demo-permissions
+      '@edv4h/usketch-permissions-casl':
+        specifier: workspace:*
+        version: link:../../packages/usketch-permissions-casl
       '@edv4h/usketch-plugin-server-ai':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-server-ai

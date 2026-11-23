@@ -12,6 +12,11 @@ import { registerTranscribeRoute } from "./transcribe-route.js";
 export interface AiPluginSchema {
 	boards: SQLiteTableWithColumns<any>;
 	boardMembers: SQLiteTableWithColumns<any>;
+	/**
+	 * 誰でも編集できるボード（`boardId` 列を持つ表）。ここにあるボードは、メンバーでなくても
+	 * AI で Shape を置ける。省略すると、置けるのはボードの owner / editor だけ。
+	 */
+	communityBoards?: SQLiteTableWithColumns<any>;
 }
 
 const completeSchema = z.object({
@@ -349,7 +354,7 @@ When the user asks to modify existing shapes (tidy, label, translate, etc.):
 - You can use BOTH place_shapes (to add new shapes) AND modify_shapes (to update existing) in the same response.`;
 
 export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
-	const { boards, boardMembers } = schema;
+	const { boards, boardMembers, communityBoards } = schema;
 
 	return {
 		id: "server-ai",
@@ -381,6 +386,18 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 				if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
 					return c.json({ error: "Not found" }, 404);
 				}
+				// Shape を置く（書き込む）ので、見るだけの人（viewer・公開ボードの閲覧者）は断る
+				const role = result[0].role as string | null;
+				let canWrite = role === "owner" || role === "editor";
+				if (!canWrite && role === null && communityBoards) {
+					const community = await db
+						.select({ boardId: communityBoards.boardId })
+						.from(communityBoards)
+						.where(eq(communityBoards.boardId, boardId))
+						.limit(1);
+					canWrite = community.length > 0;
+				}
+				if (!canWrite) return c.json({ error: "Forbidden" }, 403);
 
 				const apiKey = c.env.OPENAI_API_KEY;
 				if (!apiKey) {
