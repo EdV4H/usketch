@@ -1,5 +1,7 @@
-import type { ShapeData } from "@edv4h/usketch-shared";
+import type { ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
+import { rotatePoint } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
+import { computeRawBounds } from "../internal/resize-handles.js";
 import { startResizeSession, toLocalFlipAxes } from "../resize.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
 
@@ -233,5 +235,115 @@ describe("toLocalFlipAxes", () => {
 		expect(toLocalFlipAxes(axes, 170)).toEqual(axes);
 		expect(toLocalFlipAxes(axes, 90)).toEqual({ x: false, y: true });
 		expect(toLocalFlipAxes(axes, -100)).toEqual({ x: false, y: true });
+	});
+});
+
+function mustGet(ctx: ReturnType<typeof createTestToolContext>, id: string): ShapeData {
+	const shape = ctx.store.getShape(id);
+	if (!shape) throw new Error(`shape ${id} not found`);
+	return shape;
+}
+
+describe("startResizeSession (single, rotated)", () => {
+	/** World position of a point given as fractions of the shape's local box. */
+	function worldAt(shape: ShapeData, fx: number, fy: number) {
+		const center = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+		return rotatePoint(
+			{ x: shape.x + fx * shape.width, y: shape.y + fy * shape.height },
+			center,
+			((shape.rotation ?? 0) * Math.PI) / 180,
+		);
+	}
+
+	for (const rotation of [30, 90, 200]) {
+		it(`keeps the corner opposite the SE handle fixed on screen at ${rotation}°`, () => {
+			const ctx = createTestToolContext();
+			ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 200, height: 120, rotation }));
+			const start = mustGet(ctx, "a");
+			const nw = worldAt(start, 0, 0);
+			const se = worldAt(start, 1, 1);
+			const session = startResizeSession({
+				kind: "single",
+				ctx,
+				shapeId: "a",
+				handle: "se",
+				startPoint: se,
+			});
+			// Drag the handle 40 further along the shape's own x axis and 30 along its y axis.
+			const rad = (rotation * Math.PI) / 180;
+			const ux = { x: Math.cos(rad), y: Math.sin(rad) };
+			const uy = { x: -Math.sin(rad), y: Math.cos(rad) };
+			session.update(
+				makePointerEvent({ x: se.x + 40 * ux.x + 30 * uy.x, y: se.y + 40 * ux.y + 30 * uy.y }),
+			);
+			const after = mustGet(ctx, "a");
+			expect(after.width).toBeCloseTo(240);
+			expect(after.height).toBeCloseTo(150);
+			expect(worldAt(after, 0, 0).x).toBeCloseTo(nw.x);
+			expect(worldAt(after, 0, 0).y).toBeCloseTo(nw.y);
+			// The dragged corner follows the pointer.
+			expect(worldAt(after, 1, 1).x).toBeCloseTo(se.x + 40 * ux.x + 30 * uy.x);
+			expect(worldAt(after, 1, 1).y).toBeCloseTo(se.y + 40 * ux.y + 30 * uy.y);
+		});
+	}
+
+	it("keeps the opposite edge fixed for an edge handle, and across a flip", () => {
+		const ctx = createTestToolContext();
+		const rect = ctx.shapes.get("rect");
+		if (!rect) throw new Error("rect shape is not registered");
+		// A handle-aware resize (the default test rect only grows to the SE).
+		ctx.shapes.register("box", {
+			...rect,
+			resize: (data: ShapeData, handle: ResizeHandle, delta: { x: number; y: number }) => ({
+				...data,
+				...computeRawBounds(data, handle, delta),
+			}),
+		});
+		ctx.store.addShape(
+			makeShape({ id: "a", type: "box", x: 0, y: 0, width: 200, height: 100, rotation: 90 }),
+		);
+		const start = mustGet(ctx, "a");
+		const west = worldAt(start, 0, 0.5); // (100, -50) rotated: the anchor of the E handle
+		const east = worldAt(start, 1, 0.5);
+		const session = startResizeSession({
+			kind: "single",
+			ctx,
+			shapeId: "a",
+			handle: "e",
+			startPoint: east,
+		});
+		// At 90° the local x axis points down the screen: pull the E handle up past the W edge.
+		session.update(makePointerEvent({ x: east.x, y: west.y - 1 }));
+		session.update(makePointerEvent({ x: east.x, y: west.y - 100 }));
+		const after = mustGet(ctx, "a");
+		// The flip restarts from the crossing point (1 past the edge), as unrotated.
+		expect(after.width).toBeCloseTo(99);
+		// The flipped box hangs off the old W edge, on the same line (no sideways jump).
+		const ends = [worldAt(after, 0, 0.5), worldAt(after, 1, 0.5)];
+		for (const p of ends) expect(p.x).toBeCloseTo(west.x);
+		const ys = ends.map((p) => p.y).sort((a, b) => a - b);
+		expect(ys[0]).toBeCloseTo(west.y - 99);
+		expect(ys[1]).toBeCloseTo(west.y);
+	});
+
+	it("undo restores the rotated shape's original box", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100, rotation: 45 }));
+		const se = worldAt(mustGet(ctx, "a"), 1, 1);
+		const session = startResizeSession({
+			kind: "single",
+			ctx,
+			shapeId: "a",
+			handle: "se",
+			startPoint: se,
+		});
+		session.update(makePointerEvent({ x: se.x + 30, y: se.y + 30 }));
+		const moved = { ...mustGet(ctx, "a") };
+		const result = session.commit();
+		if (!result) throw new Error("expected a command");
+		ctx.commands.execute(result.command);
+		expect(ctx.store.getShape("a")).toMatchObject({ x: moved.x, y: moved.y, width: moved.width });
+		ctx.commands.undo();
+		expect(ctx.store.getShape("a")).toMatchObject({ x: 0, y: 0, width: 100, height: 100 });
 	});
 });

@@ -2,10 +2,10 @@ import {
 	type BoardStore,
 	type BoundingBox,
 	type Command,
+	keepRotatedTopLeft,
 	type Point,
 	type ResizeHandle,
 	type ShapeData,
-	safeRotation,
 } from "@edv4h/usketch-shared";
 import { createUpdateShapeCommand } from "@edv4h/usketch-store";
 
@@ -206,18 +206,7 @@ export function applyTextBounds(data: ShapeData, bounds: BoundingBox): Partial<S
  * new size alone would shift the visible left / top edges. Null when unrotated.
  */
 export function keepTopLeft(data: ShapeData, width: number, height: number): Point | null {
-	const rad = (safeRotation(data.rotation) * Math.PI) / 180;
-	if (!rad) return null;
-	const cos = Math.cos(rad);
-	const sin = Math.sin(rad);
-	const rotate = (u: number, v: number): Point => ({ x: u * cos - v * sin, y: u * sin + v * cos });
-	const offset = rotate(-data.width / 2, -data.height / 2);
-	const topLeft = {
-		x: data.x + data.width / 2 + offset.x,
-		y: data.y + data.height / 2 + offset.y,
-	};
-	const toCenter = rotate(width / 2, height / 2);
-	return { x: topLeft.x + toCenter.x - width / 2, y: topLeft.y + toCenter.y - height / 2 };
+	return keepRotatedTopLeft(data, width, height);
 }
 
 /** Patch that returns the text to auto width, fitted to its content. */

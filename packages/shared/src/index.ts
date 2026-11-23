@@ -339,7 +339,9 @@ export { isShapeResizable } from "./utils/resizable.js";
 export {
 	deltaToLocal,
 	getRotatedAABB,
+	keepRotatedTopLeft,
 	normalizeAngle,
+	placeLocalBox,
 	rotatePoint,
 	safeRotation,
 	shortestAngleDelta,

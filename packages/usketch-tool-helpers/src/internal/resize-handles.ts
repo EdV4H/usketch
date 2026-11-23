@@ -123,6 +123,23 @@ export function findHandleAtScreenPoint(
 	return null;
 }
 
+/**
+ * Whether a point (in the frame the handles were laid out in) lies inside the box
+ * spanned by the NW and SE handle positions — i.e. on the shape itself rather
+ * than in the rotation zone just outside a corner.
+ */
+function isInsideHandleBox(point: Point, positions: Map<ResizeHandle, Point>): boolean {
+	const nw = positions.get("nw");
+	const se = positions.get("se");
+	if (!nw || !se) return false;
+	return (
+		point.x >= Math.min(nw.x, se.x) &&
+		point.x <= Math.max(nw.x, se.x) &&
+		point.y >= Math.min(nw.y, se.y) &&
+		point.y <= Math.max(nw.y, se.y)
+	);
+}
+
 /** Figma 方式: 角のリサイズハンドルの外側エリアで回転を検出する */
 const ROTATION_OUTER_MARGIN = 12;
 
@@ -172,6 +189,8 @@ export function findRotationHandleAtScreenPoint(
 	const halfHit = HIT_AREA / 2;
 	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
 
+	// Only outside the box: inside it, near a corner, the pointer grabs the shape to move it.
+	if (isInsideHandleBox(testPoint, positions)) return null;
 	for (const handle of cornerHandles) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
@@ -557,6 +576,7 @@ export function findMultiRotationHandleAtScreenPoint(
 	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 	const halfHit = HIT_AREA / 2;
 	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+	if (isInsideHandleBox(screenPoint, positions)) return null;
 	for (const handle of cornerHandles) {
 		const pos = positions.get(handle);
 		if (!pos) continue;

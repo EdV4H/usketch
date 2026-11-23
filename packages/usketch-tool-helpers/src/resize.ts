@@ -10,6 +10,7 @@ import {
 	bidiffShape,
 	deltaToLocal,
 	diffShape,
+	placeLocalBox,
 	safeRotation,
 	unrotatePoint,
 } from "@edv4h/usketch-shared";
@@ -80,6 +81,7 @@ export function startResizeSession(
 interface SingleState {
 	handle: ResizeHandle;
 	startPoint: Point;
+	/** The shape as of the last (re)start, its x/y/width/height in the local frame. */
 	startData: ShapeData;
 }
 
@@ -94,10 +96,33 @@ function createSingleResizeSession(opts: {
 	const initialShape = ctx.store.getShape(shapeId);
 	if (!initialShape) throw new Error(`startResizeSession: shape ${shapeId} not found`);
 
+	// A rotated shape is resized in its local (un-rotated) frame: the frame of the
+	// shape as the drag began, turned by its rotation about its center then. All
+	// box math (handles, flips, min-size anchoring) runs there exactly as for an
+	// unrotated shape, and each result is placed back on the board with
+	// `placeLocalBox`, so the edge or corner opposite the handle stays where it
+	// is on screen. Unrotated, the local frame is the board itself.
+	const rotation = safeRotation(initialShape.rotation);
+	const pivot: Point = {
+		x: initialShape.x + initialShape.width / 2,
+		y: initialShape.y + initialShape.height / 2,
+	};
+	const toLocal = (p: Point): Point =>
+		rotation ? unrotatePoint(p, pivot, (rotation * Math.PI) / 180) : p;
+	/** The board x/y that draws a local-frame box where it lies in that frame. */
+	const place = (box: BoundingBox): Point => placeLocalBox(box, pivot, rotation);
+
 	let state: SingleState = {
 		handle: opts.handle,
 		startPoint: opts.startPoint,
 		startData: { ...initialShape },
+	};
+	/** The shape's current box in the local frame (its store x/y differ when rotated). */
+	let localBox: BoundingBox = {
+		x: initialShape.x,
+		y: initialShape.y,
+		width: initialShape.width,
+		height: initialShape.height,
 	};
 	const initialSnapshot = { ...initialShape };
 	let cancelled = false;
@@ -108,7 +133,6 @@ function createSingleResizeSession(opts: {
 			const def = ctx.shapes.get(state.startData.type);
 			if (!def) return { updates: new Map() };
 
-			const rotation = safeRotation(state.startData.rotation);
 			const worldDelta: Point = {
 				x: event.worldPoint.x - state.startPoint.x,
 				y: event.worldPoint.y - state.startPoint.y,
@@ -116,18 +140,12 @@ function createSingleResizeSession(opts: {
 			const delta = rotation ? deltaToLocal(worldDelta, rotation) : worldDelta;
 
 			const rawBounds = computeRawBounds(state.startData, state.handle, delta);
-			let worldPointForFlip = event.worldPoint;
-			if (rotation) {
-				const center = {
-					x: rawBounds.x + rawBounds.width / 2,
-					y: rawBounds.y + rawBounds.height / 2,
-				};
-				worldPointForFlip = unrotatePoint(event.worldPoint, center, (rotation * Math.PI) / 180);
-			}
-			const flip = applyFlip(state.handle, rawBounds, worldPointForFlip);
+			const flip = applyFlip(state.handle, rawBounds, toLocal(event.worldPoint));
 			if (flip.flipped) {
-				const current = ctx.store.getShape(shapeId);
-				if (current) {
+				const stored = ctx.store.getShape(shapeId);
+				if (stored) {
+					// Rotated, the store holds placed x/y: flip from the local box instead.
+					const current = rotation ? { ...stored, ...localBox } : stored;
 					const anchor = getAnchorEdges(state.handle, rawBounds);
 					const flipPatch = def.flip?.(current, { x: flip.flippedX, y: flip.flippedY }) ?? {};
 					const flippedData = { ...current, ...flipPatch };
@@ -144,7 +162,10 @@ function createSingleResizeSession(opts: {
 						startData: flippedData,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 					};
-					const patch = { ...flipPatch, x: flippedData.x, y: flippedData.y };
+					// Only x/y move now (the size follows on the next update), so place
+					// the box with the size the shape still has.
+					localBox = { ...localBox, x: flippedData.x, y: flippedData.y };
+					const patch = { ...flipPatch, ...place(localBox) };
 					ctx.store.updateShape(shapeId, patch);
 					const updates: ShapeUpdateMap = new Map([[shapeId, patch]]);
 					return { updates, flippedHandle: flip.handle };
@@ -155,7 +176,21 @@ function createSingleResizeSession(opts: {
 			const fixed = fixAnchorDrift(state.handle, state.startData, resized);
 			resized.x = fixed.x;
 			resized.y = fixed.y;
-			const patch = diffShape(state.startData, resized);
+			localBox = { x: resized.x, y: resized.y, width: resized.width, height: resized.height };
+			let patch: Partial<ShapeData>;
+			if (rotation) {
+				// The store holds the placed x/y, not the local ones `startData` has, so
+				// always send the whole box rather than a diff against `startData`.
+				const { x: _x, y: _y, ...rest } = diffShape(state.startData, resized);
+				patch = {
+					...rest,
+					...place(localBox),
+					width: resized.width,
+					height: resized.height,
+				};
+			} else {
+				patch = diffShape(state.startData, resized);
+			}
 			const updates: ShapeUpdateMap = new Map();
 			if (Object.keys(patch).length > 0) {
 				ctx.store.updateShape(shapeId, patch);
