@@ -1,5 +1,30 @@
 # @edv4h/usketch-plugin-tabletop
 
+## 0.5.0
+
+### Minor Changes
+
+- 3701095: 傾けた 3D の画面でも、プレイヤー視点の枠に合わせられるようにしました。
+  
+  - tabletop: `applyViewCamera` に `getTilt`（`{ pitch, fov, horizon }`、毎回読む。`null` = 平ら）を足しました。ホストが盤面を奥へ傾けて見せている間（Mode 7 など）、視点を傾いた見え方で枠に収めます（画面の中央に、手前の広い辺も含めて 4 つの角が余白の内側に入るいちばん大きいズームで）。`fixed` はその位置で止め、`zoom` は拡大した分だけ動けます。`fitViewToScreen` / `isAtView` も `tilt` を、`stayInViewConstraint` / `pinToViewConstraint` も `getTilt` を受け取ります。型 `ViewTilt`（上げたカメラの `heightPx` も渡せます）を出しました。傾きを変えたら `returnToView()` で合わせ直してください。
+  - mode7: `exitOnShapeDoubleClick`（既定 `true`）を足しました。`false` にすると、Shape をダブルクリックしても平面へ戻らず 3D のままです。
+
+### Patch Changes
+
+- 56a137e: 読み取り専用のページ（見るだけの人）を足した。
+  
+  - `BoardStore` に `isReadOnly` / `setReadOnly` / `applyExternal`（任意）。読み取り専用のあいだ、閲覧者自身の Shape の追加・変更・削除は止まり、同期で届く他の人の変更と保存したものの読み込みだけが `applyExternal(store, fn)` で通る。読むときは `isReadOnly(store)`。
+  - `createApp` は `page.edit` が無いと読み取り専用で開き、権限が変わったら追う（`readOnly: true` で権限に関係なく読み取り専用にもできる。そのとき `app.permissions` も `page.edit` を不可と答える）。
+  - `ToolDefinition.readOnlySafe`: 読み取り専用のページでも使えるツール（select・pan・laser・spotlight・reactions・effect-ripple・spatial-chat）。それ以外のツールには切り替わらず、HUD のツール欄にも出ない（`isToolUsable(store, tool)`）。
+  - 選択ツールは読み取り専用では選ぶだけ（移動・リサイズ・回転・他のプラグインのハンドルを出さない）。
+  - 同期（sync-localstorage-yjs / sync-ywebsocket）は doc からストアへ入れるときに `applyExternal` を使う。
+  - ページを変える HUD の操作に `requires: "page.edit"` を付けた（図形・カード・卓・タイマー・グループ・標高など）。見るだけの人には出ない。
+- Updated dependencies [61ee9e6]
+- Updated dependencies [56a137e]
+  - @edv4h/usketch-shared@4.32.0
+  - @edv4h/usketch-store@3.15.0
+  - @edv4h/usketch-shape-utils@2.4.13
+
 ## 0.4.0
 
 ### Minor Changes

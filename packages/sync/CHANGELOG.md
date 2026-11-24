@@ -1,5 +1,22 @@
 # @edv4h/usketch-sync
 
+## 1.6.0
+
+### Minor Changes
+
+- 92170c5: Let a server refuse a page doc.
+  
+  - New messages `MSG_DOC_DENIED` (12, server → client: the connection may not see that doc) and `MSG_PERMISSIONS_CHANGED` (13, server → client: the board's permissions changed).
+  - `DocSubscription.onDenied(handler)`: called when the server denies the subscription. The subscription ends and is not renewed on reconnect.
+  - `WsProviderHandle.onPermissionsChanged(handler)`: called when the server says permissions changed (re-read them).
+  - `PageDocHandle.onDenied(handler)` and `PageAccessDeniedError`: when a page is denied before it finished loading, `whenLoaded` rejects with `PageAccessDeniedError`; the page is dropped from the cache so the next `open` subscribes again.
+  
+  Servers that never send the new messages behave as before.
+- c948cc4: ページごとにプラグインを選べるようにしました。
+  
+  - sync: `PageMeta` に `preset`（作るときに選んだプリセット名）と `plugins`（このページに入れるプラグインの id）を足しました。`createPage` で渡せ、`setPagePlugins(root, pageId, { preset, plugins })` で変えられます（`null` で消す）。名前変更・並べ替え・複製でも残ります。何を読むかはホストが決めます。
+  - pages: `createPagesPlugin({ pagePlugins })` にプリセットと選べるプラグイン（`conflicts` つき）を渡すと、HUD のページパネルに「プリセットから新しいページ」と「このページのプラグイン」が出ます。`PagesApi` に `create({ preset })` と `setPlugins(pageId, plugins | null)` を足しました。ページの追加は `page.create`、プラグインの変更は `page.manage` の権限があるときだけ出します（権限を渡していないホストでは今までどおり出ます）。
+
 ## 1.5.0
 
 ### Minor Changes
