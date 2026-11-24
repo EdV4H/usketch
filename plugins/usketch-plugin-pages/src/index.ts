@@ -12,7 +12,7 @@ export {
 	removeMovedOutShapes,
 	watchMovedOutShapes,
 } from "./page-transfer.js";
-export type { PagesApi, PagesApiDeps } from "./pages-api.js";
+export type { PagesApi, PagesApiDeps, PageView } from "./pages-api.js";
 export { createPagesApi } from "./pages-api.js";
 export type { OpenPageDoc } from "./pages-ops.js";
 export {

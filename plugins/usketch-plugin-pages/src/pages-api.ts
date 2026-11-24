@@ -14,6 +14,24 @@ import type * as Y from "yjs";
 import { copyShapesToPage, moveShapesToPage } from "./page-transfer.js";
 import { duplicatePage, neighborPage, nextPageName, type OpenPageDoc } from "./pages-ops.js";
 
+/**
+ * ホストがページの見え方を変える（権限で見られないページを隠す・伏せた名前の代わりを出す）。
+ * ページ一覧はルート doc にあり全員に届くので、見せてよいかはホストが決める。
+ */
+export interface PageView {
+	/** 一覧に出すか（見る権限があるか）。省略すると全部出す。 */
+	isVisible?(pageId: string): boolean;
+	/** 出す名前（ルート doc で伏せたページの本当の名前など）。undefined ならルート doc の名前。 */
+	displayName?(page: PageMeta): string | undefined;
+	/**
+	 * 名前を変える。ホストが引き受けたら true（伏せたページは別の場所に名前があるので、
+	 * ルート doc には書かない）。false ならルート doc の名前を変える。
+	 */
+	rename?(pageId: string, name: string): boolean;
+	/** 見え方が変わったら呼ぶ（権限や名前を読み直した）。 */
+	subscribe?(listener: () => void): () => void;
+}
+
 export interface PagesApiDeps {
 	/** ルート doc（ページ一覧がある）。 */
 	root: Y.Doc;
@@ -23,6 +41,8 @@ export interface PagesApiDeps {
 	switchPage: (pageId: string) => void;
 	/** ページ doc を開く。無ければ複製と、ページをまたぐ移動・コピーはできない。 */
 	openPageDoc?: OpenPageDoc;
+	/** ページの見え方（権限で隠す・名前を変える）。 */
+	view?: PageView;
 	now?: () => number;
 }
 
@@ -85,9 +105,30 @@ export interface PagesApi {
 }
 
 export function createPagesApi(deps: PagesApiDeps): PagesApi {
-	const { root, currentPageId } = deps;
+	const { root, currentPageId, view } = deps;
 	const now = deps.now ?? Date.now;
-	const indexOf = (pageId: string) => listPages(root).findIndex((p) => p.id === pageId);
+
+	/** 見え方を当てたページ一覧（見られないページを除き、名前を差し替える）。 */
+	function visible(options?: { includeDeleted?: boolean }): PageMeta[] {
+		const pages = listPages(root, options);
+		if (!view) return pages;
+		const result: PageMeta[] = [];
+		for (const page of pages) {
+			// 今開いているページは、開けている以上は見られる
+			if (page.id !== currentPageId && view.isVisible && !view.isVisible(page.id)) continue;
+			const name = view.displayName?.(page);
+			result.push(name === undefined ? page : { ...page, name });
+		}
+		return result;
+	}
+	const indexOf = (pageId: string) => visible().findIndex((p) => p.id === pageId);
+	/** 見えるページの中で、`pageId` の次・前。 */
+	const neighbor = (pageId: string, step: 1 | -1): PageMeta | null => {
+		if (!view) return neighborPage(root, pageId, step);
+		const pages = visible();
+		const index = pages.findIndex((p) => p.id === pageId);
+		return index < 0 ? null : (pages[index + step] ?? null);
+	};
 
 	/** 今のページと `toPageId` のページ doc を開き、読み込みを待って `run` する。 */
 	async function transfer(
@@ -115,17 +156,24 @@ export function createPagesApi(deps: PagesApiDeps): PagesApi {
 
 	return {
 		currentPageId,
-		list: (options) => listPages(root, options),
+		list: (options) => visible(options),
 		listDeleted: () =>
-			listPages(root, { includeDeleted: true })
+			visible({ includeDeleted: true })
 				.filter((p) => p.deletedAt !== undefined)
 				.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0)),
-		subscribe: (listener) => observePages(root, listener),
+		subscribe(listener) {
+			const offPages = observePages(root, listener);
+			const offView = view?.subscribe?.(listener);
+			return () => {
+				offPages();
+				offView?.();
+			};
+		},
 		switchTo: (pageId) => {
 			if (pageId !== currentPageId) deps.switchPage(pageId);
 		},
 		go(step) {
-			const target = neighborPage(root, currentPageId, step);
+			const target = neighbor(currentPageId, step);
 			if (!target) return false;
 			deps.switchPage(target.id);
 			return true;
@@ -141,7 +189,15 @@ export function createPagesApi(deps: PagesApiDeps): PagesApi {
 			return page;
 		},
 		setPlugins: (pageId, plugins) => setPagePlugins(root, pageId, { plugins }),
-		rename: (pageId, name) => renamePage(root, pageId, name.trim() || "ページ"),
+		rename(pageId, name) {
+			const next = name.trim() || "ページ";
+			if (view?.rename?.(pageId, next)) {
+				const page = visible({ includeDeleted: true }).find((p) => p.id === pageId);
+				if (!page) throw new Error(`Page not found: ${pageId}`);
+				return { ...page, name: next };
+			}
+			return renamePage(root, pageId, next);
+		},
 		reorder: (pageId, toIndex) => reorderPage(root, pageId, toIndex),
 		move(pageId, step) {
 			return reorderPage(root, pageId, indexOf(pageId) + step);
@@ -153,12 +209,10 @@ export function createPagesApi(deps: PagesApiDeps): PagesApi {
 			if (options.open) deps.switchPage(page.id);
 			return page;
 		},
-		canDelete: (pageId) => listPages(root).length > 1 && indexOf(pageId) >= 0,
+		canDelete: (pageId) => visible().length > 1 && indexOf(pageId) >= 0,
 		delete(pageId) {
 			const fallback =
-				pageId === currentPageId
-					? (neighborPage(root, pageId, 1) ?? neighborPage(root, pageId, -1))
-					: null;
+				pageId === currentPageId ? (neighbor(pageId, 1) ?? neighbor(pageId, -1)) : null;
 			const page = deletePage(root, pageId, { now: now() });
 			if (fallback) deps.switchPage(fallback.id);
 			return page;

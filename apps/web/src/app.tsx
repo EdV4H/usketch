@@ -8,6 +8,7 @@ import {
 	API_URL,
 	type BoardSource,
 	devHeaders,
+	type PagePermissions,
 	readRenderer3d,
 	useBoardHost,
 	useBoardPermissions,
@@ -49,6 +50,15 @@ function readDesktopTemplate(search: string): boolean {
 }
 
 /** `/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。プリセットは whiteboard。 */
+/** 見る権限の無いページを除く（開くページを選ぶとき）。 */
+function visibleOnly<T extends { id: string }>(
+	pages: T[],
+	permissions: PagePermissions | null,
+): T[] {
+	const isVisible = permissions?.view.isVisible;
+	return isVisible ? pages.filter((p) => isVisible(p.id)) : pages;
+}
+
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
@@ -125,7 +135,7 @@ export function App() {
 		// 開くページ: URL の ?page= → 前回開いたページ → 先頭ページ。ページ無しのボードは null。
 		pickPage: (state) =>
 			state.paged && boardId
-				? (resolvePageId(state.pages, {
+				? (resolvePageId(visibleOnly(state.pages, permissions), {
 						requested: readRequestedPage(location.search),
 						lastOpened: readLastPage(boardId),
 					}) ?? undefined)
@@ -133,6 +143,7 @@ export function App() {
 		defaultPreset: "whiteboard",
 		host: {
 			pagesPanel: true,
+			pageView: permissions?.view,
 			navigate,
 			presentation: {
 				getMode: () => modeRef.current,

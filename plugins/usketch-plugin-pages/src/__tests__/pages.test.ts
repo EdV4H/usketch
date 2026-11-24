@@ -23,6 +23,54 @@ function board() {
 const names = (root: Y.Doc) => listPages(root).map((p) => p.name);
 
 describe("createPagesApi", () => {
+	it("見え方（view）: 見られないページを隠し、本当の名前を出し、名前の変更を任せる", () => {
+		const { root } = board();
+		const setup = createPagesApi({ root, currentPageId: "p1", switchPage: () => {} });
+		const secret = setup.create({ name: "" });
+		const third = setup.create({ name: "ページ 3", after: secret.id });
+		let hidden = new Set([secret.id]);
+		const listeners = new Set<() => void>();
+		const renamed: string[] = [];
+		const switchPage = vi.fn();
+		const api = createPagesApi({
+			root,
+			currentPageId: "p1",
+			switchPage,
+			view: {
+				isVisible: (id) => !hidden.has(id),
+				displayName: (page) => (page.id === secret.id ? "ひみつ" : undefined),
+				rename(pageId, name) {
+					if (pageId !== secret.id) return false;
+					renamed.push(name);
+					return true;
+				},
+				subscribe(listener) {
+					listeners.add(listener);
+					return () => listeners.delete(listener);
+				},
+			},
+		});
+		expect(api.list().map((p) => p.name)).toEqual(["ページ 1", "ページ 3"]);
+		// 隣は見えるページで数える
+		api.go(1);
+		expect(switchPage).toHaveBeenCalledWith(third.id);
+		// 見え方が変わったら購読者に届く
+		const listener = vi.fn();
+		const off = api.subscribe(listener);
+		hidden = new Set();
+		for (const l of listeners) l();
+		expect(listener).toHaveBeenCalled();
+		off();
+		expect(api.list().map((p) => p.name)).toEqual(["ページ 1", "ひみつ", "ページ 3"]);
+		// 伏せたページの名前変更はホストへ。ルート doc の名前は空のまま
+		expect(api.rename(secret.id, "新しい名前").name).toBe("新しい名前");
+		expect(renamed).toEqual(["新しい名前"]);
+		expect(listPages(root).find((p) => p.id === secret.id)?.name).toBe("");
+		// それ以外はルート doc の名前を変える
+		api.rename(third.id, "ページ C");
+		expect(listPages(root).find((p) => p.id === third.id)?.name).toBe("ページ C");
+	});
+
 	it("追加は今のページの直後に「ページ N」で足し、open で移る", () => {
 		const { root } = board();
 		const switchPage = vi.fn();

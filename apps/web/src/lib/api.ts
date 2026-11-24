@@ -46,6 +46,8 @@ export interface BoardPageAccess {
 	viewer: { userId: string; boardRole: DemoBoardRole | null; boardPublic: boolean };
 	/** 公開範囲を決めたページ（見られるものだけ）。無いページは既定の扱い。 */
 	pages: Record<string, DemoPageAccess>;
+	/** 非公開ページの本当の名前（ルート doc では伏せている。見られるページだけ）。 */
+	names: Record<string, string>;
 	/** 公開範囲があって、この人が見られないページ。 */
 	hidden: string[];
 }
@@ -102,6 +104,11 @@ export const api = {
 			fetchApi<DemoPageAccess>(`/api/boards/${boardId}/pages/${pageId}/access`, {
 				method: "PUT",
 				body: JSON.stringify(access),
+			}),
+		renamePrivatePage: (boardId: string, pageId: string, name: string) =>
+			fetchApi<{ pageId: string; name: string }>(`/api/boards/${boardId}/pages/${pageId}/name`, {
+				method: "PUT",
+				body: JSON.stringify({ name }),
 			}),
 		toggleShare: (id: string) =>
 			fetchApi<{ isPublic: boolean }>(`/api/boards/${id}/share`, {
