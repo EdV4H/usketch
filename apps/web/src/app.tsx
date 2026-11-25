@@ -144,6 +144,7 @@ export function App() {
 		host: {
 			pagesPanel: true,
 			pageView: permissions?.view,
+			pageAccess: permissions?.access,
 			navigate,
 			presentation: {
 				getMode: () => modeRef.current,
