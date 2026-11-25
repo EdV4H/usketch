@@ -1,7 +1,7 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { buildPagesSvg, exportPagesJson, scopeSatoriIds } from "./exporter.js";
+import { buildPagesSvg, exportCanvas, exportPagesJson, scopeSatoriIds } from "./exporter.js";
 import { buildRegionSvg } from "./region.js";
 
 describe("scopeSatoriIds", () => {
@@ -100,5 +100,52 @@ describe("全ページの書き出し", () => {
 		const data = JSON.parse(await exportPagesJson(pages).text());
 		expect(data.pages.map((p: { id: string }) => p.id)).toEqual(["p1", "p2", "p3"]);
 		expect(data.pages[2].shapes.b).toMatchObject({ id: "b", x: 500 });
+	});
+});
+
+describe("全体の書き出し（exportCanvas）", () => {
+	const registry = {
+		get: () => ({
+			renderTarget: "svg",
+			render: (s: ShapeData) => createElement("rect", { "data-id": s.id }),
+			renderForExport: (s: ShapeData) =>
+				createElement("rect", { "data-id": s.id, "data-export": "" }),
+		}),
+	} as unknown as ShapeRegistry;
+	const mk = (id: string, x: number, zIndex: string, extra: Partial<ShapeData> = {}): ShapeData =>
+		({ id, type: "t", x, y: 0, width: 10, height: 10, style: {}, zIndex, ...extra }) as ShapeData;
+	const svgOf = async (shapes: ShapeData[]) =>
+		(await exportCanvas(new Map(shapes.map((s) => [s.id, s])), registry, { format: "svg" })).text();
+
+	it("範囲の書き出しと同じく zIndex 順・回転・renderForExport で描き、hidden を除く", async () => {
+		const svg = await svgOf([
+			mk("a", 0, "b", { rotation: 45 }),
+			mk("b", 20, "a"),
+			mk("h", 40, "c", { hidden: true }),
+		]);
+		expect(svg.indexOf('data-id="b"')).toBeLessThan(svg.indexOf('data-id="a"'));
+		expect(svg).toContain("rotate(45 5 5)");
+		expect(svg).toContain("data-export");
+		expect(svg).not.toContain('data-id="h"');
+		// 外接矩形は hidden を含まない（x: 0〜30 + 余白 20）。回転した a は外接矩形で測る。
+		const half = Math.SQRT2 * 5;
+		expect(svg).toContain(`viewBox="${5 - half - 20} ${5 - half - 20} `);
+	});
+
+	it("すべて hidden なら例外", async () => {
+		await expect(svgOf([mk("h", 0, "a", { hidden: true })])).rejects.toThrow(/No shapes/);
+	});
+
+	it("全ページでも hidden だけのページは飛ばす", async () => {
+		const { svg } = await buildPagesSvg(
+			[
+				{ id: "p1", name: "見える", shapes: new Map([["a", mk("a", 0, "a")]]) },
+				{ id: "p2", name: "隠れ", shapes: new Map([["h", mk("h", 0, "a", { hidden: true })]]) },
+			],
+			registry,
+			{ useSatori: false },
+		);
+		expect(svg).toContain(">見える</text>");
+		expect(svg).not.toContain(">隠れ</text>");
 	});
 });

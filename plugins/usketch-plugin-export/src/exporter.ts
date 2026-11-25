@@ -1,20 +1,50 @@
-import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	getShapeAABB,
+	isShapeHidden,
+	type ShapeData,
+	type ShapeRegistry,
+} from "@edv4h/usketch-shared";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import satori, { type SatoriOptions } from "satori";
 
-/** シェイプ全体のバウンディングボックスを計算 */
-function computeBounds(shapes: Map<string, ShapeData>) {
+/**
+ * 書き出すシェイプを画面と同じ重なり順（zIndex 昇順）で返す。`hidden` のシェイプと、
+ * `include` が false を返すシェイプは除く。全体・全ページ・範囲の書き出しで共通。
+ */
+export function exportTargets(
+	shapes: ReadonlyMap<string, ShapeData>,
+	include?: (shape: ShapeData) => boolean,
+): ShapeData[] {
+	const targets: ShapeData[] = [];
+	for (const shape of shapes.values()) {
+		if (!isShapeHidden(shape) && (!include || include(shape))) targets.push(shape);
+	}
+	return targets.sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
+}
+
+/** シェイプの回転を、画面と同じく中心まわりの `<g transform="rotate(...)">` で付ける。 */
+export function withRotation(shape: ShapeData, markup: string): string {
+	const rotation = shape.rotation ?? 0;
+	return rotation
+		? `<g transform="rotate(${rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})">${markup}</g>`
+		: markup;
+}
+
+/** シェイプ全体のバウンディングボックスを計算（回転したシェイプは回転後の外接矩形） */
+function computeBounds(shapes: readonly ShapeData[]) {
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxY = Number.NEGATIVE_INFINITY;
 
-	for (const shape of shapes.values()) {
-		minX = Math.min(minX, shape.x);
-		minY = Math.min(minY, shape.y);
-		maxX = Math.max(maxX, shape.x + shape.width);
-		maxY = Math.max(maxY, shape.y + shape.height);
+	for (const shape of shapes) {
+		const box = getShapeAABB(shape);
+		minX = Math.min(minX, box.x);
+		minY = Math.min(minY, box.y);
+		maxX = Math.max(maxX, box.x + box.width);
+		maxY = Math.max(maxY, box.y + box.height);
 	}
 
 	if (!Number.isFinite(minX)) {
@@ -87,35 +117,33 @@ export function scopeSatoriIds(markup: string, scope: string): string {
 
 export type SatoriFont = SatoriOptions["fonts"][number];
 
-/** シェイプを SVG の要素（文字列）にする。HTML シェイプは PNG なら Satori、SVG なら foreignObject。 */
+/**
+ * シェイプを SVG の要素（文字列）にする。`shapes` は {@link exportTargets} の結果（描く順）。
+ * HTML シェイプは PNG なら Satori、SVG なら foreignObject。
+ */
 async function renderShapeElements(
-	shapes: Map<string, ShapeData>,
+	shapes: readonly ShapeData[],
 	shapeRegistry: ShapeRegistry,
 	useSatori: boolean,
 ): Promise<string[]> {
 	const shapeElements: string[] = [];
-	for (const shape of shapes.values()) {
+	for (const shape of shapes) {
 		const def = shapeRegistry.get(shape.type);
 		if (!def) continue;
 
-		const element = def.render(shape);
+		const element = (def.renderForExport ?? def.render)(shape);
 
+		let markup: string;
 		if (def.renderTarget === "html") {
-			if (useSatori) {
-				const svgMarkup = await htmlShapeToSvg(element, shape);
-				shapeElements.push(svgMarkup);
-			} else {
-				const markup = renderToStaticMarkup(element);
-				shapeElements.push(
-					`<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
-<div xmlns="http://www.w3.org/1999/xhtml">${markup}</div>
-</foreignObject>`,
-				);
-			}
+			markup = useSatori
+				? await htmlShapeToSvg(element, shape)
+				: `<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
+<div xmlns="http://www.w3.org/1999/xhtml">${renderToStaticMarkup(element)}</div>
+</foreignObject>`;
 		} else {
-			const markup = renderToStaticMarkup(element);
-			shapeElements.push(markup);
+			markup = renderToStaticMarkup(element);
 		}
+		shapeElements.push(withRotation(shape, markup));
 	}
 	return shapeElements;
 }
@@ -172,13 +200,14 @@ export async function exportCanvas(
 	shapeRegistry: ShapeRegistry,
 	options: ExportOptions,
 ): Promise<Blob> {
-	if (shapes.size === 0) {
+	const targets = exportTargets(shapes);
+	if (targets.length === 0) {
 		throw new Error("No shapes to export");
 	}
 
-	const bounds = computeBounds(shapes);
+	const bounds = computeBounds(targets);
 	const background = options.background ?? "#ffffff";
-	const shapeElements = await renderShapeElements(shapes, shapeRegistry, options.format === "png");
+	const shapeElements = await renderShapeElements(targets, shapeRegistry, options.format === "png");
 
 	const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
 <rect x="${bounds.minX}" y="${bounds.minY}" width="${bounds.width}" height="${bounds.height}" fill="${background}" />
@@ -219,26 +248,28 @@ export async function buildPagesSvg(
 	shapeRegistry: ShapeRegistry,
 	options: { useSatori: boolean; background?: string },
 ): Promise<{ svg: string; width: number; height: number }> {
-	const drawn = pages.filter((p) => p.shapes.size > 0);
+	const drawn = pages
+		.map((page) => ({ page, targets: exportTargets(page.shapes) }))
+		.filter((p) => p.targets.length > 0);
 	if (drawn.length === 0) throw new Error("No shapes to export");
 	const background = options.background ?? "#ffffff";
 
-	const width = Math.max(...drawn.map((p) => computeBounds(p.shapes).width));
+	const width = Math.max(...drawn.map((p) => computeBounds(p.targets).width));
 	const parts: string[] = [];
 	let y = 0;
-	for (const [index, page] of drawn.entries()) {
+	for (const [index, { page, targets }] of drawn.entries()) {
 		if (index > 0) {
 			parts.push(
 				`<line x1="0" y1="${y + PAGE_GAP / 2}" x2="${width}" y2="${y + PAGE_GAP / 2}" stroke="#d0d0d8" stroke-width="1" />`,
 			);
 			y += PAGE_GAP;
 		}
-		const bounds = computeBounds(page.shapes);
+		const bounds = computeBounds(targets);
 		parts.push(
 			`<text x="20" y="${y + 32}" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="#444">${escapeXml(page.name)}</text>`,
 		);
 		y += PAGE_HEADING;
-		const elements = await renderShapeElements(page.shapes, shapeRegistry, options.useSatori);
+		const elements = await renderShapeElements(targets, shapeRegistry, options.useSatori);
 		parts.push(
 			`<g data-page-id="${escapeXml(page.id)}" transform="translate(${-bounds.minX}, ${y - bounds.minY})">\n${elements.join("\n")}\n</g>`,
 		);
