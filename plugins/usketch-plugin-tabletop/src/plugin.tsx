@@ -156,6 +156,9 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				minSize: { width: 40, height: 40 },
 				container: {
 					selectableChildren: true,
+					// A zone usually sits on a board picture: a click on the zone must pick
+					// the zone, not the picture behind it.
+					winsOverBackdrop: true,
 					autoAttach: true,
 					attachHit: "center",
 					accepts: (child, zone) =>

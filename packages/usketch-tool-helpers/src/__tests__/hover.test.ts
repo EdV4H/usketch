@@ -86,6 +86,64 @@ describe("findShapeAtPoint", () => {
 		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("rect");
 	});
 
+	it("lets a frame on top give way to a shape drawn behind it (default)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+		ctx.store.addShape(
+			makeShape({ id: "frame", type: "frame", x: 50, y: 50, width: 100, height: 100 }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("picture");
+	});
+
+	describe("container.winsOverBackdrop", () => {
+		// A card slot on a board picture: a click on the slot must pick the slot.
+		const slotContext = () => {
+			const ctx = createTestToolContext();
+			const frame = ctx.shapes.get("frame") as ShapeDefinition;
+			ctx.shapes.register("slot", {
+				...frame,
+				type: "slot",
+				container: { selectableChildren: true, winsOverBackdrop: true },
+			} as ShapeDefinition);
+			return ctx;
+		};
+		const slot = () =>
+			makeShape({ id: "slot", type: "slot", x: 50, y: 50, width: 100, height: 100 });
+
+		it("wins over a shape behind it that wholly encloses it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+			ctx.store.addShape(slot());
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("slot");
+			// Outside the slot the picture is still picked.
+			expect(findShapeAtPoint(ctx, { x: 200, y: 200 })).toBe("picture");
+		});
+
+		it("still loses to a card lying under it that does not enclose it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(makeShape({ id: "card", x: 55, y: 55, width: 20, height: 20 }));
+			ctx.store.addShape(slot());
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("card");
+		});
+
+		it("still loses to a shape drawn on top of it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(slot());
+			ctx.store.addShape(makeShape({ id: "note", x: 0, y: 0, width: 300, height: 300 }));
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("note");
+		});
+
+		it("lets a frame drawn in front of it keep the click", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+			ctx.store.addShape(slot());
+			ctx.store.addShape(
+				makeShape({ id: "frame", type: "frame", x: 40, y: 40, width: 50, height: 50 }),
+			);
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("frame");
+		});
+	});
+
 	it("skips excluded ids and returns the shape below (drag-and-drop)", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(makeShape({ id: "target", x: 0, y: 0, width: 100, height: 100 }));
