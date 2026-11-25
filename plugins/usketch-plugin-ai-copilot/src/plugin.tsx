@@ -1,6 +1,6 @@
 import type { AiStatusEvent } from "@edv4h/usketch-plugin-ai-agent";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, screenCenterWorld } from "@edv4h/usketch-shared";
 
 import { GhostShape } from "./ghost-shape.js";
 import type { CopilotOptions, CopilotSuggestion } from "./types.js";
@@ -133,7 +133,6 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 
 				try {
 					const shapes = ctx.store.getShapes();
-					const viewport = ctx.store.getViewport();
 					const availableTypes = [...ctx.shapes.getAll().keys()];
 
 					const shapeList = [...shapes.values()].slice(-10).map((s) => {
@@ -152,10 +151,8 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 						};
 					});
 
-					const viewportCenter = {
-						x: Math.round(-viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom),
-						y: Math.round(-viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom),
-					};
+					const center = screenCenterWorld(ctx.store);
+					const viewportCenter = { x: Math.round(center.x), y: Math.round(center.y) };
 
 					const canvasContext = JSON.stringify({
 						viewportCenter,
