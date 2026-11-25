@@ -188,11 +188,12 @@ describe("setupArrange", () => {
 		shapes.set("frame", shape({ id: "frame", type: "frame", x: 0, y: 0, width: 100, height: 100 }));
 		shapes.set("a", shape({ id: "a", type: "rect", parentId: "frame", height: 20 }));
 
-		// The containment attacher listens first and reparents on a timer.
+		// An attacher reparents on a timer from its move-end listener. It may be
+		// registered after arrange (e.g. the attachable plugin), so register it after.
+		const stop = setupArrange(ctx);
 		ctx.events.on("shapes:move-end", () => {
 			setTimeout(() => ctx.store.updateShape("a", { parentId: undefined }), 0);
 		});
-		const stop = setupArrange(ctx);
 
 		// Like the select tool: pointer up, then the move command and move-end in a
 		// microtask.
