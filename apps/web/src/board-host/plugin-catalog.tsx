@@ -663,6 +663,15 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 				wsProvider: w.wsProvider,
 				userId,
 				userName: w.user().name ?? "Anonymous",
+				// ページごとのチャット。移行した 1 枚目は、ページを使う前のメッセージも出す。
+				...(w.pageId
+					? {
+							page: {
+								id: w.pageId,
+								includeUnpaged: getLegacyPageId(w.board.rootDoc) === w.pageId,
+							},
+						}
+					: {}),
 			});
 		},
 	},
