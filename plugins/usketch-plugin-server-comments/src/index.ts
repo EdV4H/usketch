@@ -1,2 +1,6 @@
-export type { CommentsPluginSchema } from "./plugin.js";
+export type {
+	CommentPageFilter,
+	CommentsPluginOptions,
+	CommentsPluginSchema,
+} from "./plugin.js";
 export { createCommentsPlugin } from "./plugin.js";

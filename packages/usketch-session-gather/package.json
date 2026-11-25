@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-session-gather",
-	"version": "0.5.5",
+	"version": "0.5.6",
 	"type": "module",
 	"exports": {
 		"./server": {

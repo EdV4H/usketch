@@ -2,7 +2,7 @@
  * ページの公開範囲の REST（デモの権限、R4b）。
  *
  * - GET    /api/boards/:boardId/page-access                    見ている人の役割と、見られるページの公開範囲・
- *                                                              非公開ページの本当の名前
+ *                                                              非公開ページの本当の名前・招いた人の名前
  * - PUT    /api/boards/:boardId/pages/:pageId/access            公開範囲・編集範囲を決める（page.manage）
  * - PUT    /api/boards/:boardId/pages/:pageId/name              非公開ページの名前を変える（page.manage）
  * - POST   /api/boards/:boardId/pages/:pageId/members           メールで招く（page.manage）
@@ -14,27 +14,17 @@
  * `page_access.title` に置いて見られる人にだけ返す。非公開にするとき BoardRoom が名前を伏せて
  * 元の名前を返し、やめるときに戻す。
  */
-import {
-	type DemoPageAccess,
-	defaultPageAccess,
-	defineDemoRules,
-	pageResource,
-} from "@edv4h/usketch-demo-permissions";
-import { createCaslSnapshot } from "@edv4h/usketch-permissions-casl";
+import { type DemoPageAccess, defaultPageAccess } from "@edv4h/usketch-demo-permissions";
 import type { HonoEnv, ServerPlugin } from "@edv4h/usketch-server-core";
-import { PERMISSIONS, type Permission } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { isValidDocId } from "@edv4h/usketch-sync";
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { pageAccess, pageMembers, users } from "../db/schema.js";
-import {
-	type BoardViewer,
-	loadBoardViewer,
-	loadPageAccess,
-	type StoredPageAccess,
-} from "./queries.js";
+import { judgePages as judge } from "./judge.js";
+import { loadBoardViewer, loadPageAccess, type StoredPageAccess } from "./queries.js";
 
 const accessSchema = z.object({
 	visibility: z.enum(["public", "members", "private"]),
@@ -47,16 +37,6 @@ const inviteSchema = z.object({
 	email: z.string().email(),
 	role: z.enum(["editor", "viewer"]).default("viewer"),
 });
-
-/** 見ている人の判定（デモのルール）。 */
-function judge(boardId: string, userId: string, viewer: BoardViewer) {
-	const { can } = createCaslSnapshot(defineDemoRules({ userId, boardRole: viewer.boardRole }));
-	return (permission: Permission, pageId: string, access: DemoPageAccess | undefined) =>
-		can(
-			permission,
-			pageResource({ boardId, pageId }, access ?? defaultPageAccess(viewer.boardPublic)),
-		);
-}
 
 /** BoardRoom に権限が変わったことを知らせる（失敗しても REST の結果は変えない）。 */
 async function notifyRoom(c: Context<HonoEnv>, boardId: string): Promise<void> {
@@ -127,6 +107,8 @@ export function createPageAccessPlugin(): ServerPlugin {
 				const pages: Record<string, DemoPageAccess> = {};
 				const names: Record<string, string> = {};
 				const hidden: string[] = [];
+				// 招いた人の名前（管理できるページに招いた人だけ）
+				const invited = new Set<string>();
 				for (const [pageId, { title, ...access }] of await loadPageAccess(db, boardId)) {
 					if (!can(PERMISSIONS.pageView, pageId, access)) {
 						hidden.push(pageId);
@@ -135,13 +117,23 @@ export function createPageAccessPlugin(): ServerPlugin {
 					if (access.visibility === "private" && title) names[pageId] = title;
 					// 招いた人の一覧は、そのページを管理できる人にだけ見せる
 					const { members, ...rest } = access;
-					pages[pageId] = can(PERMISSIONS.pageManage, pageId, access)
+					const manages = can(PERMISSIONS.pageManage, pageId, access);
+					if (manages) for (const id of Object.keys(members ?? {})) invited.add(id);
+					pages[pageId] = manages
 						? access
 						: members?.[userId]
 							? { ...rest, members: { [userId]: members[userId] } }
 							: rest;
 				}
-				return c.json({ viewer: { userId, ...viewer }, pages, names, hidden });
+				const people: Record<string, { name: string; email: string }> = {};
+				if (invited.size > 0) {
+					const rows = await db
+						.select({ id: users.id, name: users.name, email: users.email })
+						.from(users)
+						.where(inArray(users.id, [...invited]));
+					for (const row of rows) people[row.id] = { name: row.name, email: row.email };
+				}
+				return c.json({ viewer: { userId, ...viewer }, pages, names, hidden, people });
 			});
 
 			app.put("/:boardId/pages/:pageId/access", zValidator("json", accessSchema), async (c) => {

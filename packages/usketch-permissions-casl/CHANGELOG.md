@@ -1,5 +1,12 @@
 # @edv4h/usketch-permissions-casl
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+
 ## 0.1.0
 
 ### Minor Changes

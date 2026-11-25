@@ -70,8 +70,11 @@ async function waitPersisted(name: string, doc: Y.Doc, ids: string[]): Promise<v
 	throw new Error(`Page doc was not persisted: ${name}`);
 }
 
-/** ページ doc を IndexedDB で開き、`edit` で書いて保存されるまで待つ。 */
-async function writePageDoc(
+/**
+ * ページ doc を IndexedDB で開き、`edit` で書いて保存されるまで待つ（`edit` は書いたシェイプの
+ * id を返す）。返した doc は呼ぶ側が `destroy` する。
+ */
+export async function writePageDoc(
 	boardId: string,
 	pageId: string,
 	edit: (doc: Y.Doc) => string[],

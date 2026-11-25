@@ -43,7 +43,12 @@ describe("createTabletopPlugin", () => {
 	it("registers the zone as a snug auto-attach container, the tool, actions and the service", () => {
 		const { ctx } = harness();
 		const container = ctx.shapes.get(ZONE_TYPE)?.container;
-		expect(container).toMatchObject({ autoAttach: true, attachHit: "center" });
+		expect(container).toMatchObject({
+			autoAttach: true,
+			attachHit: "center",
+			// A zone over a board picture takes the click.
+			winsOverBackdrop: true,
+		});
 		expect(ctx.tools.get(ZONE_TOOL_ID)).toBeDefined();
 		const ids = ctx.actions.getOrdered().map((a) => a.id);
 		expect(ids).toEqual(

@@ -1,11 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
-import type { DemoPageAccess } from "@edv4h/usketch-demo-permissions";
+import { type DemoPageAccess, defaultPageAccess } from "@edv4h/usketch-demo-permissions";
 import { gatherServerType } from "@edv4h/usketch-session-gather/server";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { respondServerType } from "@edv4h/usketch-session-respond/server";
 import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
+	broadcastPageOf,
 	decodeDocFrame,
 	encodeDocFrame,
 	getLegacyPageId,
@@ -23,15 +24,17 @@ import {
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
+	parseAwarenessUpdate,
 } from "@edv4h/usketch-sync";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers, pageAccess } from "./db/schema.js";
-import { loadPageAccess } from "./page-access/queries.js";
+import { loadBoardViewer, loadPageAccess } from "./page-access/queries.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
+import { authorizeHttp, authorizeHttpPage, type HttpAccessDeps } from "./rooms/http-access.js";
 import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs, subscribedDocIds } from "./rooms/page-docs.js";
 import {
@@ -50,6 +53,8 @@ import {
 	canEditRoot,
 	canManagePage,
 	canViewPage,
+	getSocketAccess,
+	judgeSocket,
 	readAccessParams,
 	setSocketAccess,
 	socketBoardId,
@@ -270,20 +275,47 @@ export class BoardRoom extends DurableObject<Env> {
 			return new Response(null, { status: 204 });
 		}
 
+		// ボードの役割・公開ボードかが変わった（server-boards から呼ぶ）。接続の役割を読み直す。
+		if (url.pathname === "/access-changed" && request.method === "POST") {
+			await this.handleAccessChanged();
+			return new Response(null, { status: 204 });
+		}
+
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
+			// AI が書くページを、頼んだ人が書けるか
+			const denied = await this.authorizePage(url, await peekPageId(request), "edit");
+			if (denied) return denied;
 			return handleAiPlaceShapes(request, {
 				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
+			const denied = await this.authorizePage(url, await peekPageId(request), "edit");
+			if (denied) return denied;
 			return handleAiUpdateShapes(request, {
 				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/thumbnail") {
+			// 公開の URL から呼ばれるので、ログインしていない人が見られるページだけ描く
+			const denied = await this.authorizePage(url, url.searchParams.get("page"), "view");
+			if (denied) return denied;
 			return handleThumbnail(url, (pageId) => this.boardShapes.open(pageId));
+		}
+
+		if (url.pathname === "/history" || url.pathname.startsWith("/history/")) {
+			// 一覧・コミットはボードを見られる人、ページの中身（コミット時点・差分）はそのページを
+			// 見られる人だけ
+			const showsPage =
+				url.pathname.startsWith("/history/commits/") || url.pathname === "/history/diff";
+			const denied = showsPage
+				? await this.authorizePage(url, url.searchParams.get("page"), "view")
+				: await authorizeHttp(url, this.boardId, this.httpAccessDeps).then((r) =>
+						r instanceof Response ? r : null,
+					);
+			if (denied) return denied;
 		}
 
 		const historyResponse = await handleHistoryRequest(request, url, this.history);
@@ -360,9 +392,22 @@ export class BoardRoom extends DurableObject<Env> {
 				}
 				break;
 			}
-			case MSG_AWARENESS:
+			case MSG_AWARENESS: {
+				// 見られないページにいる人の状態は、見られない人には「いない」として送る
+				const parsed = parseAwarenessUpdate(payload);
+				if (!parsed) break;
+				await this.relayForPages(ws, data, parsed.pages, (canView) => {
+					const filtered = parsed.forViewer(canView);
+					return filtered === payload ? data : withType(MSG_AWARENESS, filtered);
+				});
+				break;
+			}
 			case MSG_BROADCAST: {
-				this.broadcast(ws, data);
+				// 見られないページで起きたこと（リアクションなど）は、見られない人へ送らない
+				const page = broadcastPageOf(payload);
+				await this.relayForPages(ws, data, page ? [page] : [], (canView) =>
+					page && !canView(page) ? null : data,
+				);
 				break;
 			}
 			case MSG_SESSION: {
@@ -500,7 +545,11 @@ export class BoardRoom extends DurableObject<Env> {
 	 */
 	private async pageAccessOf(ws: WebSocket): Promise<Map<string, DemoPageAccess> | null> {
 		const boardId = socketBoardId(ws);
-		if (!boardId) return null;
+		return boardId ? this.pageAccessFor(boardId) : null;
+	}
+
+	/** ボードのページの公開範囲（{@link pageAccessOf} と同じ読み方）。 */
+	private async pageAccessFor(boardId: string): Promise<Map<string, DemoPageAccess> | null> {
 		if (this.pageAccessCache?.boardId !== boardId) {
 			const map = loadPageAccess(drizzle(this.env.DB), boardId);
 			const cache = { boardId, map };
@@ -549,6 +598,11 @@ export class BoardRoom extends DurableObject<Env> {
 			canManage: (pageId) => !!access && canManagePage(ws, pageId, access.get(pageId)),
 			isMasked: (pageId) => access?.get(pageId)?.visibility === "private",
 		});
+		// 足せたページは、足した人をそのページの作った人にする
+		const added = changes
+			.filter((c) => c.action === "add" && !result.revert.has(c.pageId))
+			.map((c) => c.pageId);
+		if (added.length > 0) await this.recordPageOwners(ws, added);
 		if (result.revert.size === 0 && result.renamed.size === 0) return;
 		await this.writeRoot((doc) => applyPagesGuard(doc, result));
 		if (result.renamed.size === 0 || !boardId) return;
@@ -564,6 +618,37 @@ export class BoardRoom extends DurableObject<Env> {
 			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
 		} catch (e) {
 			console.error("[BoardRoom] Failed to store a masked page name:", e);
+		}
+	}
+
+	/**
+	 * ページを足した人を、そのページの作った人として D1 に置く（公開範囲は今の既定の扱い）。
+	 * 作った人はそのページの名前・削除・公開範囲を決められ、ほかの editor は変えられなくなる。
+	 * ログインしていない人・もう行のあるページは何もしない。
+	 */
+	private async recordPageOwners(ws: WebSocket, pageIds: string[]): Promise<void> {
+		const access = getSocketAccess(ws);
+		if (!access?.userId) return;
+		try {
+			const now = new Date().toISOString();
+			const db = drizzle(this.env.DB);
+			for (const pageId of pageIds) {
+				await db
+					.insert(pageAccess)
+					.values({
+						boardId: access.boardId,
+						pageId,
+						ownerId: access.userId,
+						...defaultPageAccess(access.boardPublic),
+						updatedAt: now,
+					})
+					.onConflictDoNothing();
+			}
+			this.pageAccessCache = null;
+			// 作った人が分かったので、ページの操作の権限を読み直してもらう
+			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		} catch (e) {
+			console.error("[BoardRoom] Failed to record the page owner:", e);
 		}
 	}
 
@@ -613,6 +698,101 @@ export class BoardRoom extends DurableObject<Env> {
 		this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
 	}
 
+	/** DO への HTTP の呼び出しで、呼んだ人を判定するための読み方。 */
+	private readonly httpAccessDeps: HttpAccessDeps = {
+		loadViewer: async (boardId, userId) => {
+			const viewer = await loadBoardViewer(drizzle(this.env.DB), boardId, userId ?? "anonymous");
+			// ログインしていない人はコミュニティボードでも役割を持たない（見るだけ）
+			return viewer && !userId ? { ...viewer, boardRole: null } : viewer;
+		},
+		loadPageAccess: (boardId) => this.pageAccessFor(boardId),
+		resolvePage: (pageId) => this.boardShapes.resolve(pageId),
+	};
+
+	/** {@link authorizeHttpPage}。よければ null。 */
+	private authorizePage(
+		url: URL,
+		pageId: string | null,
+		need: "view" | "edit",
+	): Promise<Response | null> {
+		return authorizeHttpPage(url, this.boardId, pageId, need, this.httpAccessDeps);
+	}
+
+	/**
+	 * ページに結びついたメッセージ（awareness・ブロードキャスト）を、送り主以外へ中継する。
+	 * 公開範囲を決めたページが `pages` に無ければそのまま全員へ。あれば受け取る人ごとに
+	 * `messageFor(canView)` で作り直す（null なら送らない）。公開範囲を読めなければ、
+	 * どのページも見られないとして扱う。
+	 */
+	private async relayForPages(
+		sender: WebSocket,
+		data: Uint8Array,
+		pages: readonly string[],
+		messageFor: (canView: (pageId: string) => boolean) => Uint8Array | null,
+	): Promise<void> {
+		if (pages.length === 0) {
+			this.broadcast(sender, data);
+			return;
+		}
+		const boardId = socketBoardId(sender);
+		const access = boardId ? await this.pageAccessFor(boardId) : null;
+		// 既定の扱いのページは、つながっている人なら誰でも見られる
+		if (access && !pages.some((page) => access.has(page))) {
+			this.broadcast(sender, data);
+			return;
+		}
+		for (const ws of this.ctx.getWebSockets()) {
+			if (ws === sender) continue;
+			const judge = judgeSocket(ws);
+			const message = messageFor(
+				(pageId) => !!access && !!judge && judge.canView(pageId, access.get(pageId)),
+			);
+			if (message) trySend(ws, message);
+		}
+	}
+
+	/**
+	 * ボードの役割・公開ボードかが変わった。つながっている人の役割を D1 から読み直し、ボードを
+	 * 見られなくなった人の接続は閉じる。そのあとページの購読を確かめ直す（{@link handlePermissionsChanged}）。
+	 */
+	private async handleAccessChanged(): Promise<void> {
+		const db = drizzle(this.env.DB);
+		const viewers = new Map<string, ReturnType<typeof loadBoardViewer>>();
+		for (const ws of this.ctx.getWebSockets()) {
+			const access = getSocketAccess(ws);
+			if (!access) continue;
+			const key = `${access.boardId}\u0000${access.userId ?? ""}`;
+			let viewer = viewers.get(key);
+			if (!viewer) {
+				viewer = loadBoardViewer(db, access.boardId, access.userId ?? "anonymous");
+				viewers.set(key, viewer);
+			}
+			let next: Awaited<typeof viewer>;
+			try {
+				next = await viewer;
+			} catch (e) {
+				// 読めなければ今のまま（あとで知らされたときに読み直す）
+				console.error("[BoardRoom] Failed to reload the board role:", e);
+				continue;
+			}
+			if (!next) {
+				this.pageDocs.handleClose(ws);
+				try {
+					ws.close(4403, "Board access revoked");
+				} catch {
+					// 閉じたソケットは無視
+				}
+				continue;
+			}
+			setSocketAccess(ws, {
+				...access,
+				boardRole: access.userId ? next.boardRole : null,
+				boardPublic: next.boardPublic,
+			});
+		}
+		await this.handlePermissionsChanged();
+	}
+
 	/** 送信元以外の全接続にメッセージを中継 */
 	private broadcast(sender: WebSocket, data: Uint8Array): void {
 		for (const ws of this.ctx.getWebSockets()) {
@@ -635,6 +815,24 @@ export class BoardRoom extends DurableObject<Env> {
 				// 切断済みソケットは無視
 			}
 		}
+	}
+}
+
+/** 種類のバイトを先頭に付けたメッセージ。 */
+function withType(type: number, payload: Uint8Array): Uint8Array {
+	const message = new Uint8Array(payload.length + 1);
+	message[0] = type;
+	message.set(payload, 1);
+	return message;
+}
+
+/** AI の書き込みの body の `pageId`（読めなければ null。body は読み残す）。 */
+async function peekPageId(request: Request): Promise<string | null> {
+	try {
+		const body = (await request.clone().json()) as { pageId?: unknown } | null;
+		return typeof body?.pageId === "string" && body.pageId ? body.pageId : null;
+	} catch {
+		return null;
 	}
 }
 
