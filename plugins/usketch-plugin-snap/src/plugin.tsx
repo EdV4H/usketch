@@ -11,10 +11,18 @@ import { getShapeWorldAABB, safeRotation, screenRectToWorldBounds } from "@edv4h
 import { useSyncExternalStore } from "react";
 import { effectiveSnapEnabled, isSnapToggleKey } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
+import {
+	buildSizeGuides,
+	findSizeSnap,
+	getResizeEdges,
+	resizeKeepingAnchor,
+	type SizeCandidate,
+} from "./engine/size-snap.js";
 import { calculateSnap, type SnapEdgeFilter } from "./engine/snap-engine.js";
 import type {
 	AltBehavior,
 	GuideStyle,
+	SizeGuide,
 	SnapEdge,
 	SnapLine,
 	SnapResult,
@@ -29,12 +37,14 @@ import { GuideLayer } from "./guide-layer.js";
 interface SnapGuideState {
 	lines: SnapLine[];
 	gaps: SpacingGuide[];
+	sizes: SizeGuide[];
 	guideStyle: GuideStyle;
 }
 
 let currentState: SnapGuideState = {
 	lines: [],
 	gaps: [],
+	sizes: [],
 	guideStyle: { ...DEFAULT_GUIDE_STYLE },
 };
 const stateListeners: Set<() => void> = new Set();
@@ -109,12 +119,32 @@ function toScreenGaps(
 	}));
 }
 
+function toScreenSizes(
+	sizes: SizeGuide[],
+	vp: { x: number; y: number; zoom: number },
+): SizeGuide[] {
+	return sizes.map((g) => {
+		if (g.kind === "square") {
+			return {
+				...g,
+				from: worldToScreen(g.from.x, g.from.y, vp),
+				to: worldToScreen(g.to.x, g.to.y, vp),
+			};
+		}
+		const [screen] = toScreenGaps([{ axis: g.axis, length: 0, segments: g.segments }], vp);
+		return { ...g, segments: screen.segments };
+	});
+}
+
 function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 	const state = useSyncExternalStore(subscribeState, getState, getState);
-	if (state.lines.length === 0 && state.gaps.length === 0) return null;
+	if (state.lines.length === 0 && state.gaps.length === 0 && state.sizes.length === 0) {
+		return null;
+	}
 
 	const screenLines = toScreenLines(state.lines, viewport);
 	const screenGaps = toScreenGaps(state.gaps, viewport);
+	const screenSizes = toScreenSizes(state.sizes, viewport);
 
 	return (
 		<svg
@@ -128,7 +158,12 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 				pointerEvents: "none",
 			}}
 		>
-			<GuideLayer lines={screenLines} gaps={screenGaps} style={state.guideStyle} />
+			<GuideLayer
+				lines={screenLines}
+				gaps={screenGaps}
+				sizes={screenSizes}
+				style={state.guideStyle}
+			/>
 		</svg>
 	);
 }
@@ -145,6 +180,11 @@ export interface SnapPluginOptions {
 	altBehavior?: AltBehavior;
 	/** 等間隔（distribution）スナップ＝gap 複製＋gap 中央（既定 true）。 */
 	distributeSnap?: boolean;
+	/**
+	 * 単体リサイズ（新規描画を含む）中のサイズスナップ（既定 true）。縦横が同じ長さ（正方形）と、
+	 * 近くの図形と同じ幅・高さに吸着する。回転した図形は正方形のみ。
+	 */
+	sizeSnap?: boolean;
 }
 
 export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin {
@@ -159,6 +199,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				edgeSnap: true,
 				centerSnap: true,
 				distributeSnap: options.distributeSnap ?? true,
+				sizeSnap: options.sizeSnap ?? true,
 				viewportOnly: true,
 				guideStyle: { ...DEFAULT_GUIDE_STYLE },
 				altBehavior: options.altBehavior ?? "suppress",
@@ -175,20 +216,25 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 			let frameCandidateBoxes: Map<string, BoundingBox> | null = null;
 			let frameId = 0;
 
+			// Whether each shape resized in this drag sizes its width and height
+			// independently (see resizesAxesIndependently); cleared per pointer-down.
+			const independentAxes = new Map<string, boolean>();
+
 			// ── Pointer tracking ──
 
 			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
 				pointerDown = true;
+				independentAxes.clear();
 				frameSnapResult = null;
 				frameCandidateBoxes = null;
-				setState({ lines: [], gaps: [] });
+				setState({ lines: [], gaps: [], sizes: [] });
 			});
 
 			const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 				pointerDown = false;
 				frameSnapResult = null;
 				frameCandidateBoxes = null;
-				setState({ lines: [], gaps: [] });
+				setState({ lines: [], gaps: [], sizes: [] });
 			});
 
 			// ── Toggle key tracking (Ctrl / Cmd) ──
@@ -246,7 +292,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					originalUpdateShape(id, updates);
 					// スナップしないドラッグ中はガイドを消す。
 					if (pointerDown) {
-						setState({ lines: [], gaps: [] });
+						setState({ lines: [], gaps: [], sizes: [] });
 					}
 					return;
 				}
@@ -268,7 +314,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				// Skip snap for connectors — they have their own anchor/snap logic
 				if (shape.type === "connector") {
 					originalUpdateShape(id, updates);
-					setState({ lines: [], gaps: [] });
+					setState({ lines: [], gaps: [], sizes: [] });
 					return;
 				}
 
@@ -298,10 +344,15 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				const isResize = isResizeUpdate(updates);
 
 				// A rotated shape is resized along its own (turned) axes, which the
-				// axis-aligned guides can't line up with: resize it without snapping.
-				if (isResize && safeRotation(shape.rotation) !== 0) {
-					originalUpdateShape(id, updates);
-					setState({ lines: [], gaps: [] });
+				// axis-aligned guides can't line up with: no alignment snap. Being a
+				// square doesn't depend on the turn, so it may still square up.
+				const rotation = safeRotation(shape.rotation);
+				if (isResize && rotation !== 0) {
+					const sized = isSingleResize(id)
+						? snapSize(shape, updates, updates, rotation, null, null)
+						: null;
+					originalUpdateShape(id, sized?.updates ?? updates);
+					setState({ lines: [], gaps: [], sizes: sized?.guides ?? [] });
 					return;
 				}
 
@@ -374,9 +425,110 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				const snapped = isResize
 					? applySnapToResize(updates, result, shape, movingBox)
 					: applySnapToUpdates(updates, result);
-				originalUpdateShape(id, snapped);
 
-				setState({ lines: result.lines, gaps: result.gaps ?? [] });
+				// Size snap (square / another shape's size) on the axes alignment left free.
+				const lock = { x: result.xEdge !== null, y: result.yEdge !== null };
+				const sized =
+					isResize && movingIds.size === 1
+						? snapSize(shape, updates, snapped, 0, lock, candidateBoxes)
+						: null;
+				if (!sized) {
+					originalUpdateShape(id, snapped);
+					setState({ lines: result.lines, gaps: result.gaps ?? [], sizes: [] });
+					return;
+				}
+				originalUpdateShape(id, sized.updates);
+				// The alignment guides were laid out on the box before its free axis
+				// changed size: lay them out again on the final box. Its aligned edges
+				// sit exactly on their lines now, so only those match again.
+				const lines =
+					lock.x || lock.y
+						? calculateSnap(
+								getResizedBoundingBox(shape, sized.updates),
+								movingIds,
+								candidateBoxes,
+								settings,
+								movingOverrides,
+								{
+									xEdges: result.xEdge ? [result.xEdge] : [],
+									yEdges: result.yEdge ? [result.yEdge] : [],
+								},
+							).lines
+						: [];
+				setState({ lines, gaps: [], sizes: sized.guides });
+			}
+
+			/** Not one shape of a multi-selection resize (those keep their relative sizes). */
+			function isSingleResize(id: string): boolean {
+				const sel = ctx.store.getSelection();
+				return !(sel.size > 1 && sel.has(id));
+			}
+
+			/**
+			 * Whether the shape's `resize` sizes width and height independently:
+			 * dragging its right edge leaves the height alone. An aspect-locked shape
+			 * (e.g. an image keeping its ratio) or a box fitting its height to its
+			 * text fails this and is never size-snapped (that would break its ratio).
+			 */
+			function resizesAxesIndependently(shape: ShapeData): boolean {
+				const cached = independentAxes.get(shape.id);
+				if (cached !== undefined) return cached;
+				const def = ctx.shapes.get(shape.type);
+				let independent = true;
+				if (def?.resize) {
+					// Probe on a roomy box so a min-size clamp (a 0×0 shape being
+					// drawn) can't move the height.
+					const base = {
+						...shape,
+						width: Math.max(shape.width, 100),
+						height: Math.max(shape.height, 100),
+					};
+					const probed = def.resize(base, "e", { x: 10, y: 0 });
+					independent = Math.abs(probed.height - base.height) < 1e-6;
+				}
+				independentAxes.set(shape.id, independent);
+				return independent;
+			}
+
+			/**
+			 * Size-snap a single resize. `raw` is the resize as the tool sent it (to
+			 * tell which edges move); `current` is it after any alignment snap.
+			 * `lock` names the axes alignment fixed; `candidateBoxes` are the shapes
+			 * whose size can be matched (`null`: square only, for a rotated shape).
+			 */
+			function snapSize(
+				shape: ShapeData,
+				raw: Partial<ShapeData>,
+				current: Partial<ShapeData>,
+				rotation: number,
+				lock: { x: boolean; y: boolean } | null,
+				candidateBoxes: ReadonlyMap<string, BoundingBox> | null,
+			): { updates: Partial<ShapeData>; guides: SizeGuide[] } | null {
+				if (settings.sizeSnap === false) return null;
+				if (!resizesAxesIndependently(shape)) return null;
+				const edges = getResizeEdges(shape, getResizedBoundingBox(shape, raw), rotation);
+				const box = getResizedBoundingBox(shape, current);
+				const candidates: SizeCandidate[] = [];
+				for (const [cid, b] of candidateBoxes ?? []) {
+					// A turned shape's bounds aren't its width and height.
+					if (safeRotation(ctx.store.getShape(cid)?.rotation) !== 0) continue;
+					candidates.push({ id: cid, width: b.width, height: b.height });
+				}
+				const match = findSizeSnap({
+					width: box.width,
+					height: box.height,
+					edges,
+					lockX: lock?.x,
+					lockY: lock?.y,
+					candidates,
+					threshold: settings.threshold,
+				});
+				if (!match) return null;
+				const next = resizeKeepingAnchor(box, edges, match.width, match.height, rotation);
+				return {
+					updates: { ...current, ...next },
+					guides: buildSizeGuides(next, edges, match, candidateBoxes ?? new Map(), rotation),
+				};
 			}
 
 			ctx.store.updateShape = patchedUpdateShape;
@@ -406,7 +558,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				window.removeEventListener("blur", onBlur);
 				ctx.store.updateShape = originalUpdateShape;
 				ctx.layers.unregister("snap-guides");
-				setState({ lines: [], gaps: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
+				setState({ lines: [], gaps: [], sizes: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
 				stateListeners.clear();
 			};
 		},

@@ -1,9 +1,17 @@
 import type { ReactNode } from "react";
-import type { GuideStyle, SnapIndicator, SnapLine, SpacingGuide } from "./engine/types.js";
+import type {
+	GuideStyle,
+	SizeGuide,
+	SnapIndicator,
+	SnapLine,
+	SpacingGuide,
+} from "./engine/types.js";
 
 interface GuideLayerProps {
 	lines: SnapLine[];
 	gaps: SpacingGuide[];
+	/** Size-snap guides (square diagonal / equal-size bars). */
+	sizes?: SizeGuide[];
 	style: GuideStyle;
 }
 
@@ -43,6 +51,29 @@ function renderSpacing(guide: SpacingGuide, keyBase: string, style: GuideStyle):
 	return els;
 }
 
+/** How far (screen px) outside its edge an equal-size bar is drawn, clear of the selection outline. */
+const DIMENSION_OFFSET = 10;
+
+function renderSize(guide: SizeGuide, keyBase: string, style: GuideStyle): ReactNode[] {
+	if (guide.kind === "square") {
+		return [
+			<line
+				key={`${keyBase}-diag`}
+				x1={guide.from.x}
+				y1={guide.from.y}
+				x2={guide.to.x}
+				y2={guide.to.y}
+				stroke={style.color}
+				strokeWidth={style.strokeWidth}
+				strokeDasharray={style.dash}
+			/>,
+		];
+	}
+	// Equal width bars go above each shape, equal height bars to its left.
+	const segments = guide.segments.map((s) => ({ ...s, cross: s.cross - DIMENSION_OFFSET }));
+	return renderSpacing({ axis: guide.axis, length: 0, segments }, keyBase, style);
+}
+
 function lineKey(line: SnapLine): string {
 	return `${line.axis}-${line.position}-${line.from}-${line.to}`;
 }
@@ -56,12 +87,13 @@ function renderIndicator(ind: SnapIndicator, key: string, style: GuideStyle) {
 	return <circle key={key} cx={ind.x} cy={ind.y} r={style.indicatorRadius} fill={style.color} />;
 }
 
-export function GuideLayer({ lines, gaps, style }: GuideLayerProps) {
-	if (lines.length === 0 && gaps.length === 0) return null;
+export function GuideLayer({ lines, gaps, sizes = [], style }: GuideLayerProps) {
+	if (lines.length === 0 && gaps.length === 0 && sizes.length === 0) return null;
 
 	return (
 		<g>
 			{gaps.map((guide, i) => renderSpacing(guide, `gap-${i}`, style))}
+			{sizes.map((guide, i) => renderSize(guide, `size-${i}`, style))}
 			{lines.map((line) => {
 				const key = lineKey(line);
 				const elements = [];
