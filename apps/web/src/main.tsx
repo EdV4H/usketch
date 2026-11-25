@@ -2,8 +2,9 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { App } from "./app.js";
+import { DEMO_BOARD_ID } from "./lib/demo-board.js";
 import { initTheme } from "./lib/theme.js";
-import { CommunityPage } from "./pages/community/index.js";
+import { CommunityRedirect } from "./pages/community-redirect.js";
 import { DevicePage } from "./pages/device.js";
 import { LoginPage } from "./pages/login.js";
 import { TryBoardPage } from "./pages/try-board.js";
@@ -14,9 +15,6 @@ initTheme();
 // 描画ベンチ（開発用）。本番のビルドには出さない。
 const BenchmarkPage = lazy(() =>
 	import("./pages/benchmark.js").then((m) => ({ default: m.BenchmarkPage })),
-);
-const WorldMapPage = lazy(() =>
-	import("./pages/world-map.js").then((m) => ({ default: m.WorldMapPage })),
 );
 
 const root = document.getElementById("root");
@@ -34,9 +32,10 @@ if (root) {
 						<Route path="/try" element={<TryBoardPage />} />
 						{/* Board 一覧は廃止（#1558）。古いリンクはトップへ。 */}
 						<Route path="/dashboard" element={<Navigate to="/" replace />} />
-						<Route path="/community/:slug" element={<CommunityPage />} />
-						<Route path="/community" element={<WorldMapPage />} />
-						<Route path="/" element={<Navigate to="/community" replace />} />
+						{/* 地域はデモボードのページになった（#1558 R6）。古いリンクはそのページへ。 */}
+						<Route path="/community/:slug" element={<CommunityRedirect />} />
+						<Route path="/community" element={<Navigate to="/" replace />} />
+						<Route path="/" element={<App boardId={DEMO_BOARD_ID} />} />
 					</Routes>
 				</Suspense>
 			</BrowserRouter>

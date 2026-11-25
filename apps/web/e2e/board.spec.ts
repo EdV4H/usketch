@@ -1,9 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Board", () => {
-	test("community page loads", async ({ page }) => {
+	test("the top opens the demo board", async ({ page }) => {
 		await page.goto("/");
-		await expect(page.locator("text=uSketch World")).toBeVisible();
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
+	});
+
+	test("an old region link goes to its page of the demo board", async ({ page }) => {
+		await page.goto("/community/workshop");
+		await page.waitForURL(/\/\?page=region-workshop$/);
+		await page.goto("/community");
+		await page.waitForURL((url) => url.pathname === "/" && url.search === "");
 	});
 
 	test("login page loads", async ({ page }) => {
@@ -24,7 +31,8 @@ test.describe("Board", () => {
 
 	test("the removed board list redirects to the top", async ({ page }) => {
 		await page.goto("/dashboard");
-		await expect(page.locator("text=uSketch World")).toBeVisible();
+		await page.waitForURL((url) => url.pathname === "/");
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
 	});
 
 	test("board: vim off by default; HUD discoverability hint visible", async ({ page }) => {

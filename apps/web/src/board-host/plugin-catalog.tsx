@@ -118,13 +118,13 @@ import {
 } from "../lib/character-renderer.js";
 import { getDevUser } from "../lib/dev-auth.js";
 import { loadViewportCull, loadViewportLod } from "../lib/render-settings.js";
-import { stockTerritoryStyle } from "../pages/community/map-territory-style.js";
 import { createBoardMetaPanelPlugin } from "../plugins/board-meta-panel.js";
 import { createMarkdownAdaptersPlugin } from "../plugins/markdown-adapters.js";
 import { createPresencePanelPlugin } from "../plugins/presence-panel.js";
 import { createSyncStatusPanelPlugin } from "../plugins/sync-status-panel.js";
 import { createViewportLodControlPlugin } from "../plugins/viewport-lod-control.js";
 import { type HostWiring, localUserId, localUserName } from "./host-wiring.js";
+import { stockTerritoryStyle } from "./map-territory-style.js";
 import { createPageAccessPlugin } from "./page-access-plugin.js";
 import { PAGE_PRESETS, PRESET_IDS, pagePlugins } from "./page-presets.js";
 
@@ -647,7 +647,11 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			createBoardInfoPanelPlugin({
 				apiUrl: w.apiUrl,
 				extraHeaders: Object.keys(w.extraHeaders).length > 0 ? w.extraHeaders : undefined,
-				onOpenBoard: (id: string) => w.host.navigate?.(`/boards/${id}`),
+				// このボードのページを指すゲート（取り込んだ地域など）はページを移る
+				onOpenBoard: (id, pageId) => {
+					if (pageId) w.switchPage(pageId);
+					else w.host.navigate?.(`/boards/${id}`);
+				},
 			}),
 	},
 	{

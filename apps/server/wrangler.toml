@@ -7,6 +7,9 @@ main = "src/index.ts"
 WEB_URL = "https://usketch-web.pages.dev"
 # マルチページ: 開いたボードをページ形式へ移す（2026-11-13 に開けた。戻せない）
 PAGES_MIGRATION = "true"
+# デモボード（community-lobby）を開いたら、地域（Workshop・Gallery・Playground）をページとして取り込む（#1558 R6）。
+# 1 回だけ。元の地域ボードは残す。
+DEMO_IMPORT = "true"
 
 [[d1_databases]]
 binding = "DB"

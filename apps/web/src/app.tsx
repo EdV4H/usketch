@@ -49,7 +49,6 @@ function readDesktopTemplate(search: string): boolean {
 	return new URLSearchParams(search).get("desktop") === "1";
 }
 
-/** `/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。プリセットは whiteboard。 */
 /** 見る権限の無いページを除く（開くページを選ぶとき）。 */
 function visibleOnly<T extends { id: string }>(
 	pages: T[],
@@ -59,11 +58,21 @@ function visibleOnly<T extends { id: string }>(
 	return isVisible ? pages.filter((p) => isVisible(p.id)) : pages;
 }
 
-export function App() {
-	const { boardId } = useParams<{ boardId: string }>();
+/**
+ * `/`（デモボード）、`/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。
+ * プリセットの無いページは whiteboard。
+ */
+export function App({
+	boardId: fixedBoardId,
+}: {
+	/** URL によらず開くボード（`/` のデモボード）。 */ boardId?: string;
+} = {}) {
+	const params = useParams<{ boardId: string }>();
+	const boardId = fixedBoardId ?? params.boardId;
 	const location = useLocation();
 	const navigate = useNavigate();
-	const isCloudBoard = location.pathname.startsWith("/boards/");
+	// デモボード（`/`）はクラウドのボード
+	const isCloudBoard = fixedBoardId !== undefined || location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
 	const { user: authUser } = useAuth();
 
@@ -149,7 +158,8 @@ export function App() {
 			presentation: {
 				getMode: () => modeRef.current,
 				navigateToBoard: () => {
-					if (boardId) navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
+					if (fixedBoardId) navigate("/");
+					else if (boardId) navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
 				},
 				getViewportSize: () => {
 					const stage = stageRectRef.current;

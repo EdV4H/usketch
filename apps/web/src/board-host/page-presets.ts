@@ -130,6 +130,8 @@ export const PAGE_PRESETS: Readonly<Record<PresetId, PagePreset>> = {
 		plugins: [
 			"shape-group",
 			"shape-board-portal",
+			// ゲートを選ぶと行き先を出し、開ける（ページを指すゲートはページを移る）
+			"board-info-panel",
 			"map",
 			"mode7",
 			"shape-3d",

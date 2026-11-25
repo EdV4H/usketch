@@ -7,7 +7,11 @@ import type { BoardPortalShapeData } from "./types.js";
 export interface BoardInfoPanelPluginOptions {
 	apiUrl: string;
 	extraHeaders?: Record<string, string>;
-	onOpenBoard: (boardId: string) => void;
+	/**
+	 * ゲートの「開く」。ゲートがボードのページを指していれば（`pageId`、取り込んだ地域など）
+	 * `pageId` も渡す。
+	 */
+	onOpenBoard: (boardId: string, pageId?: string) => void;
 }
 
 export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions): UsketchPlugin {
@@ -20,8 +24,14 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 		setup(ctx: PluginContext) {
 			const client = createBoardInfoClient({ apiUrl, extraHeaders });
 
-			// 選択中の board-portal の boardId を追跡
+			// 選択中の board-portal の boardId（と行き先のページ）を追跡
 			let currentPortalBoardId: string | null = null;
+			let currentPortalPageId: string | null = null;
+			const openBoard = (boardId: string) => {
+				const pageId = boardId === currentPortalBoardId ? currentPortalPageId : null;
+				if (pageId) onOpenBoard(boardId, pageId);
+				else onOpenBoard(boardId);
+			};
 
 			// サイドパネルにタブ登録
 			ctx.events.emit<SidePanelRegisterEvent>("side-panel:register-tab", {
@@ -35,7 +45,7 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 							client={client}
 							events={ctx.events}
 							store={ctx.store}
-							onOpenBoard={onOpenBoard}
+							onOpenBoard={openBoard}
 							getBoardId={() => currentPortalBoardId}
 						/>
 					),
@@ -59,6 +69,7 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 					const shape = ctx.store.getShape(shapeId) as BoardPortalShapeData | undefined;
 					if (shape && shape.type === "board-portal" && shape.boardId) {
 						const boardId = shape.boardId;
+						currentPortalPageId = shape.pageId ?? null;
 						ensureThumbnailUrl(shapeId, boardId);
 						if (boardId !== currentPortalBoardId) {
 							currentPortalBoardId = boardId;
@@ -70,6 +81,7 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 				}
 				if (currentPortalBoardId !== null) {
 					currentPortalBoardId = null;
+					currentPortalPageId = null;
 					ctx.events.emit("board-info:select", { boardId: null });
 				}
 			}

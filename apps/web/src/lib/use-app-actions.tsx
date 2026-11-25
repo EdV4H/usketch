@@ -152,11 +152,11 @@ export function useAppActions(
 		}
 
 		reg({
-			id: "nav:community",
+			id: "nav:demo",
 			group: "移動",
-			label: "コミュニティマップ",
+			label: "デモボード",
 			icon: () => <I.community size={14} />,
-			run: () => navigate("/community"),
+			run: () => navigate("/"),
 		});
 
 		return () => {
