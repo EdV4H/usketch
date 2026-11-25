@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-ai-copilot
 
+## 3.1.29
+
+### Patch Changes
+
+- b6a987f: 画面中央のワールド座標を共通の `screenCenterWorld` で求めるようにした。ビューポートが回転しているとき、map の拠点入場バナー・whistle の笛の位置と画面外インジケーター・ai-copilot に送る viewportCenter が画面中央からずれていたのを直す。
+
 ## 3.1.28
 
 ### Patch Changes
