@@ -9,7 +9,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import {
-	containerYieldsToShapes,
+	containerWinsOverBackdrop,
 	hasSelectableChildren,
 	isAttachable,
 	isReadOnly,
@@ -166,9 +166,8 @@ export interface TrackHoverOptions {
 
 /**
  * Top-most shape (by zIndex) under a world point, with the same precedence rules
- * tool-select uses: non-container shapes win over containers (a container
- * with `container.yieldToShapes: false` instead hides what is behind it, except
- * its own contents), group
+ * tool-select uses: non-container shapes win over containers (except a
+ * container's backdrop, see `container.winsOverBackdrop`), group
  * children resolve to the top-level group ancestor, frame children
  * stay selectable directly.
  *
@@ -195,17 +194,15 @@ export function findShapeAtPoint(
 	const sorted = ctx.store.getShapesSorted();
 
 	let containerHit: string | null = null;
-	// A container that does not give way (`container.yieldToShapes: false`) hides
-	// what is behind it, except its own contents: once it is hit, only its
-	// descendants below it can still win, and it is the answer otherwise.
-	let blockingContainer: string | null = null;
+	// Containers hit so far (all drawn in front of what comes next) that win over
+	// their backdrop (`container.winsOverBackdrop`).
+	const backdropOwners: ShapeData[] = [];
 	for (let i = sorted.length - 1; i >= 0; i--) {
 		const data = sorted[i];
 		const id = data.id;
 		// Skip excluded / filtered-out shapes before hit-testing.
 		if (excludeSet?.has(id)) continue;
 		if (filter && !filter(data)) continue;
-		if (blockingContainer && !isDescendantOf(ctx.store, data, blockingContainer)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
 		// Hidden or locked shapes (or those under a hidden/locked ancestor) are not
@@ -244,29 +241,47 @@ export function findShapeAtPoint(
 		}
 
 		if (hasSelectableChildren(def, data)) {
-			if (!containerYieldsToShapes(def, data)) {
-				if (!blockingContainer) blockingContainer = id;
-				continue;
-			}
 			if (!containerHit) containerHit = id;
+			if (containerWinsOverBackdrop(def, data)) backdropOwners.push(data);
 			continue;
 		}
 
+		// A shape behind such a container that wholly encloses it is its backdrop
+		// (a board picture under a card slot): the container wins there.
+		if (backdropOwners.length > 0 && isBackdropOf(ctx, data, backdropOwners)) continue;
+
 		return id;
 	}
-	return blockingContainer ?? containerHit;
+	return containerHit;
 }
 
-/** Whether `shape` sits (at any depth) inside the shape `ancestorId`. */
-function isDescendantOf(store: BoardStore, shape: ShapeData, ancestorId: string): boolean {
-	const seen = new Set<string>();
-	let parentId = shape.parentId;
-	while (typeof parentId === "string" && !seen.has(parentId)) {
-		if (parentId === ancestorId) return true;
-		seen.add(parentId);
-		parentId = store.getShape(parentId)?.parentId;
-	}
-	return false;
+/** Whether `shape`'s bounds wholly enclose one of `containers`. */
+function isBackdropOf(
+	ctx: ToolContext,
+	shape: ShapeData,
+	containers: readonly ShapeData[],
+): boolean {
+	const outer = boundsOf(ctx, shape);
+	return containers.some((c) => {
+		const inner = boundsOf(ctx, c);
+		return (
+			inner.x >= outer.x &&
+			inner.y >= outer.y &&
+			inner.x + inner.width <= outer.x + outer.width &&
+			inner.y + inner.height <= outer.y + outer.height
+		);
+	});
+}
+
+function boundsOf(ctx: ToolContext, shape: ShapeData) {
+	return (
+		ctx.shapes.get(shape.type)?.getBounds?.(shape) ?? {
+			x: shape.x,
+			y: shape.y,
+			width: shape.width,
+			height: shape.height,
+		}
+	);
 }
 
 // Internal re-export so consumers don't need to dig into `internal/`.

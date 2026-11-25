@@ -77,19 +77,19 @@ Option+drag copies get their parent by the same rules. The select tool's
 drop-target highlight skips containers whose `accepts` rejects what is dragged,
 but still picks the container under the pointer (not the dragged shape's center).
 
-### Clicking a container over other shapes (`yieldToShapes`)
+### Clicking a container laid on a picture (`winsOverBackdrop`)
 
-A container with `selectableChildren` gives way by default: a click picks it only
-where no other shape is hit, even a shape drawn behind it, so what sits on a frame
-stays easy to grab. A card slot laid over a board picture would then never get the
-click. Set `yieldToShapes: false` and the container hides what is behind it: the
-shape drawn on top wins, and the container's own contents still win even when they
-are drawn behind it.
+A container with `selectableChildren` (a frame) is picked only where no other
+shape is hit, so what sits on it stays easy to grab. A card slot laid on a board
+picture would then never get the click: the picture behind it wins. Set
+`winsOverBackdrop: true` and a click on the container picks it over its
+**backdrop** — a shape drawn behind it whose bounds wholly enclose it. Anything
+else (a card lying partly under it, a shape drawn on top) still wins as before.
 
 ```ts
 container: {
   selectableChildren: true,
-  yieldToShapes: false, // the slot, not the picture behind it, takes the click
+  winsOverBackdrop: true, // the slot, not the board picture behind it
   autoAttach: true,
   attachHit: "center",
 },

@@ -46,8 +46,8 @@ describe("createTabletopPlugin", () => {
 		expect(container).toMatchObject({
 			autoAttach: true,
 			attachHit: "center",
-			// Clicked by z-order: a zone over a board picture takes the click.
-			yieldToShapes: false,
+			// A zone over a board picture takes the click.
+			winsOverBackdrop: true,
 		});
 		expect(ctx.tools.get(ZONE_TOOL_ID)).toBeDefined();
 		const ids = ctx.actions.getOrdered().map((a) => a.id);

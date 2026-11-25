@@ -38,17 +38,17 @@ export function hasSelectableChildren(def: ShapeDefinition | undefined, shape: S
 }
 
 /**
- * Resolve whether a container gives way to other shapes under the pointer
- * (see {@link ShapeDefinition.container.yieldToShapes}). `true` unless the
- * definition sets it to `false` (or a predicate returns `false`).
+ * Resolve whether a click picks this container over a shape behind it that
+ * wholly encloses it (see {@link ShapeDefinition.container.winsOverBackdrop}).
+ * Always `false` for non-containers.
  */
-export function containerYieldsToShapes(
+export function containerWinsOverBackdrop(
 	def: ShapeDefinition | undefined,
 	shape: ShapeData,
 ): boolean {
-	const y = def?.container?.yieldToShapes;
-	if (y === undefined) return true;
-	return typeof y === "function" ? y(shape) : y;
+	if (!isShapeContainer(def, shape)) return false;
+	const w = def?.container?.winsOverBackdrop;
+	return typeof w === "function" ? w(shape) : w === true;
 }
 
 /**
