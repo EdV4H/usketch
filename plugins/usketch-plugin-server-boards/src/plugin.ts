@@ -15,6 +15,20 @@ export interface BoardsPluginSchema {
 	communityBoards: SQLiteTableWithColumns<any>;
 }
 
+/**
+ * BoardRoom（Durable Object）に、ボードの役割・公開ボードかが変わったことを知らせる。BoardRoom は
+ * つながっている人の役割を読み直し、見られなくなった人の接続を閉じる。失敗しても REST の結果は
+ * 変えない（次につなぎ直したときに正しい役割になる）。
+ */
+async function notifyAccessChanged(c: Context<HonoEnv>, boardId: string): Promise<void> {
+	try {
+		const room = c.env.BOARD_ROOM.get(c.env.BOARD_ROOM.idFromName(boardId));
+		await room.fetch("https://internal/access-changed", { method: "POST" });
+	} catch (e) {
+		console.error("[server-boards] Failed to notify the board room:", e);
+	}
+}
+
 export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 	const { users, boards, boardMembers, activityLog, communityBoards } = schema;
 
@@ -223,6 +237,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.where(eq(boards.id, boardId));
 
+				if (body.isPublic !== undefined) await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -257,6 +272,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 				await db.delete(boards).where(eq(boards.id, boardId));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -347,6 +363,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.onConflictDoNothing();
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true }, 201);
 			});
 
@@ -380,6 +397,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.delete(boardMembers)
 					.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, targetUserId)));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -409,6 +427,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.set({ isPublic: newIsPublic, updatedAt: new Date().toISOString() })
 					.where(eq(boards.id, boardId));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ isPublic: newIsPublic });
 			});
 
@@ -605,6 +624,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const url = new URL(c.req.url);
 				url.pathname = url.pathname.replace(`/api/boards/${boardId}`, "");
 				url.searchParams.set("userId", userId);
+				// DO がページごとに見られるかを確かめるため（クライアントの値は使わない）
+				url.searchParams.set("boardId", boardId);
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			}
 
@@ -798,6 +819,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				// ログインしていない人として、見られるページだけ描いてもらう
+				thumbnailUrl.searchParams.set("boardId", boardId);
 				// ページを使うボードは ?page= のページ（省略時は先頭ページ）
 				const page = c.req.query("page");
 				if (page) thumbnailUrl.searchParams.set("page", page);

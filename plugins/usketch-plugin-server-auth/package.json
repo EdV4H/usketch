@@ -21,7 +21,7 @@
 		"hono": "4.13.21"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261123.1",
+		"@cloudflare/workers-types": "5.20261124.1",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"
 	},
