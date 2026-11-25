@@ -28,7 +28,9 @@ export interface SizeSnapInput {
 	 */
 	lockX?: boolean;
 	lockY?: boolean;
-	/** Shapes to match the size of (empty: square snap only). */
+	/** Snap width and height to equal (default true). */
+	square?: boolean;
+	/** Shapes to match the size of (empty: no equal-size snap). */
 	candidates: readonly SizeCandidate[];
 	threshold: number;
 }
@@ -94,7 +96,9 @@ export function findSizeSnap(input: SizeSnapInput): SizeSnapMatch | null {
 	const freeY = edges.y !== null && !input.lockY;
 	if (!freeX && !freeY) return null;
 
-	const minSquare = threshold * MIN_SQUARE_FACTOR;
+	// With square snapping off, no size is big enough to square up.
+	const minSquare =
+		input.square === false ? Number.POSITIVE_INFINITY : threshold * MIN_SQUARE_FACTOR;
 	const canSquare = (size: number) => Math.abs(w - h) <= threshold && size >= minSquare;
 	const ex = freeX ? nearestSize(w, candidates, "width", threshold) : null;
 	const ey = freeY ? nearestSize(h, candidates, "height", threshold) : null;

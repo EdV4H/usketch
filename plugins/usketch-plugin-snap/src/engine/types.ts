@@ -101,11 +101,18 @@ export interface SnapSettings {
 	 */
 	distributeSnap?: boolean;
 	/**
-	 * Size snapping while resizing a single shape: to a square (width = height),
-	 * and to the width / height of a nearby shape. Optional for backward
-	 * compatibility — `undefined` is treated as **on** (only `false` disables it).
+	 * Square snapping while resizing a single shape (or drawing a new one):
+	 * width and height snap to equal when they come within `threshold`. Rotated
+	 * shapes too, along their own axes. Optional for backward compatibility —
+	 * `undefined` is treated as **on** (only an explicit `false` disables it).
 	 */
-	sizeSnap?: boolean;
+	squareSnap?: boolean;
+	/**
+	 * Same-size snapping while resizing a single shape (or drawing a new one):
+	 * the dragged side snaps to the width / height of a nearby unrotated shape.
+	 * Not for rotated shapes. `undefined` is treated as **on**.
+	 */
+	sameSizeSnap?: boolean;
 	viewportOnly: boolean;
 	guideStyle: GuideStyle;
 	/** スナップ一時切替キー（Ctrl / Cmd）の挙動（既定 `"suppress"`）。 */

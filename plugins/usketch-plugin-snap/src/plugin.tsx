@@ -181,10 +181,15 @@ export interface SnapPluginOptions {
 	/** 等間隔（distribution）スナップ＝gap 複製＋gap 中央（既定 true）。 */
 	distributeSnap?: boolean;
 	/**
-	 * 単体リサイズ（新規描画を含む）中のサイズスナップ（既定 true）。縦横が同じ長さ（正方形）と、
-	 * 近くの図形と同じ幅・高さに吸着する。回転した図形は正方形のみ。
+	 * 単体リサイズ（新規描画を含む）中、縦横が同じ長さになったら吸着する（既定 true）。
+	 * 回転した図形にも効く。HUD の「Square snap」で切替。
 	 */
-	sizeSnap?: boolean;
+	squareSnap?: boolean;
+	/**
+	 * 単体リサイズ（新規描画を含む）中、近くの図形と同じ幅・高さに吸着する（既定 true）。
+	 * 回転した図形には効かない。HUD の「Same-size snap」で切替。
+	 */
+	sameSizeSnap?: boolean;
 }
 
 export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin {
@@ -199,7 +204,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				edgeSnap: true,
 				centerSnap: true,
 				distributeSnap: options.distributeSnap ?? true,
-				sizeSnap: options.sizeSnap ?? true,
+				squareSnap: options.squareSnap ?? true,
+				sameSizeSnap: options.sameSizeSnap ?? true,
 				viewportOnly: true,
 				guideStyle: { ...DEFAULT_GUIDE_STYLE },
 				altBehavior: options.altBehavior ?? "suppress",
@@ -274,6 +280,22 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				group: "Snap",
 				isActive: () => settings.enabled,
 				run: () => ctx.events.emit("snap:configure", { enabled: !settings.enabled }),
+			});
+			// Size snaps while resizing, each on its own switch.
+			const offSquareAction = ctx.actions.register({
+				id: "snap:toggle-square",
+				label: "Square snap",
+				group: "Snap",
+				isActive: () => settings.squareSnap !== false,
+				run: () => ctx.events.emit("snap:configure", { squareSnap: settings.squareSnap === false }),
+			});
+			const offSameSizeAction = ctx.actions.register({
+				id: "snap:toggle-same-size",
+				label: "Same-size snap",
+				group: "Snap",
+				isActive: () => settings.sameSizeSnap !== false,
+				run: () =>
+					ctx.events.emit("snap:configure", { sameSizeSnap: settings.sameSizeSnap === false }),
 			});
 
 			// ── Monkey-patch store.updateShape ──
@@ -504,12 +526,14 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				lock: { x: boolean; y: boolean } | null,
 				candidateBoxes: ReadonlyMap<string, BoundingBox> | null,
 			): { updates: Partial<ShapeData>; guides: SizeGuide[] } | null {
-				if (settings.sizeSnap === false) return null;
+				const square = settings.squareSnap !== false;
+				const sameSize = settings.sameSizeSnap !== false;
+				if (!square && !sameSize) return null;
 				if (!resizesAxesIndependently(shape)) return null;
 				const edges = getResizeEdges(shape, getResizedBoundingBox(shape, raw), rotation);
 				const box = getResizedBoundingBox(shape, current);
 				const candidates: SizeCandidate[] = [];
-				for (const [cid, b] of candidateBoxes ?? []) {
+				for (const [cid, b] of sameSize && candidateBoxes ? candidateBoxes : []) {
 					// A turned shape's bounds aren't its width and height.
 					if (safeRotation(ctx.store.getShape(cid)?.rotation) !== 0) continue;
 					candidates.push({ id: cid, width: b.width, height: b.height });
@@ -520,6 +544,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					edges,
 					lockX: lock?.x,
 					lockY: lock?.y,
+					square,
 					candidates,
 					threshold: settings.threshold,
 				});
@@ -553,6 +578,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				offConfigure();
 				offGetSettings();
 				offSnapAction();
+				offSquareAction();
+				offSameSizeAction();
 				window.removeEventListener("keydown", onKeyDown);
 				window.removeEventListener("keyup", onKeyUp);
 				window.removeEventListener("blur", onBlur);

@@ -132,6 +132,30 @@ describe("findSizeSnap", () => {
 	});
 });
 
+describe("findSizeSnap with square off", () => {
+	it("never squares, but still matches sizes", () => {
+		expect(
+			findSizeSnap({
+				width: 100,
+				height: 104,
+				edges: corner,
+				square: false,
+				candidates: [],
+				threshold: 12,
+			}),
+		).toBeNull();
+		const m = findSizeSnap({
+			width: 100,
+			height: 95,
+			edges: corner,
+			square: false,
+			candidates: [{ id: "a", width: 101, height: 300 }],
+			threshold: 12,
+		});
+		expect(m).toMatchObject({ width: 101, height: 95, square: false, sameWidth: ["a"] });
+	});
+});
+
 describe("getResizeEdges", () => {
 	const box = { x: 0, y: 0, width: 100, height: 50 };
 

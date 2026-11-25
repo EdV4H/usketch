@@ -46,6 +46,7 @@ function aspectResize(data: ShapeData, _handle: ResizeHandle, delta: Point): Sha
 function setup(initial: ShapeData[], selected: string[]) {
 	const shapes = new Map(initial.map((s) => [s.id, s]));
 	const listeners = new Map<string, Set<Listener>>();
+	const actions = new Map<string, { run: () => void; isActive?: () => boolean }>();
 	const selection: ReadonlySet<string> = new Set(selected);
 	const store = {
 		getShape: (id: string) => shapes.get(id),
@@ -83,13 +84,21 @@ function setup(initial: ShapeData[], selected: string[]) {
 				for (const fn of listeners.get(name) ?? []) fn(p);
 			},
 		},
-		actions: { register: () => () => {} },
+		actions: {
+			register(a: { id: string; run: () => void; isActive?: () => boolean }) {
+				actions.set(a.id, a);
+				return () => actions.delete(a.id);
+			},
+		},
 		layers: { register() {}, unregister() {} },
 	};
 	teardowns.push(createSnapPlugin().setup(ctx as never) as () => void);
 	ctx.events.emit("canvas:pointerdown", {});
-	return { shapes, store, events: ctx.events };
+	return { shapes, store, actions };
 }
+
+/** Updates in one microtask share a snap result (a multi-shape drag frame): end the frame. */
+const nextFrame = () => Promise.resolve();
 
 const size = (s: ShapeData | undefined) => s && { width: s.width, height: s.height };
 
@@ -164,10 +173,44 @@ describe("size snap while resizing", () => {
 		expect(size(shapes.get("a"))).toEqual({ width: 103, height: 108 });
 	});
 
-	it("can be turned off", () => {
-		const { shapes, store, events } = setup([rect("a", 0, 0, 100, 80)], ["a"]);
-		events.emit("snap:configure", { sizeSnap: false });
+	it("turns square snapping off and on from its HUD action", async () => {
+		const { shapes, store, actions } = setup([rect("a", 0, 0, 100, 80)], ["a"]);
+		const toggle = actions.get("snap:toggle-square");
+		expect(toggle?.isActive?.()).toBe(true);
+		toggle?.run();
+		expect(toggle?.isActive?.()).toBe(false);
 		store.updateShape("a", { width: 103, height: 108 });
 		expect(size(shapes.get("a"))).toEqual({ width: 103, height: 108 });
+		toggle?.run();
+		await nextFrame();
+		store.updateShape("a", { width: 104, height: 110 });
+		expect(size(shapes.get("a"))).toEqual({ width: 107, height: 107 });
+	});
+
+	it("turns same-size snapping off separately, keeping the square", async () => {
+		const { shapes, store, actions } = setup(
+			[rect("a", 0, 0, 100, 80), rect("t", 400, 300, 150, 40)],
+			["a"],
+		);
+		actions.get("snap:toggle-same-size")?.run();
+		expect(actions.get("snap:toggle-same-size")?.isActive?.()).toBe(false);
+		store.updateShape("a", { width: 146 });
+		expect(size(shapes.get("a"))).toEqual({ width: 146, height: 80 });
+		await nextFrame();
+		store.updateShape("a", { width: 86 });
+		expect(size(shapes.get("a"))).toEqual({ width: 80, height: 80 });
+	});
+
+	it("with square snapping off, still matches another shape's size", async () => {
+		const { shapes, store, actions } = setup(
+			[rect("a", 0, 0, 100, 80), rect("t", 400, 300, 150, 40)],
+			["a"],
+		);
+		actions.get("snap:toggle-square")?.run();
+		store.updateShape("a", { width: 86 });
+		expect(size(shapes.get("a"))).toEqual({ width: 86, height: 80 });
+		await nextFrame();
+		store.updateShape("a", { width: 146 });
+		expect(size(shapes.get("a"))).toEqual({ width: 150, height: 80 });
 	});
 });
