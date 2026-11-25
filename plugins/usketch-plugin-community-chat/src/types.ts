@@ -4,6 +4,8 @@ export interface ChatMessage {
 	id: string;
 	boardId: string;
 	threadId: string;
+	/** 書いたページ（ページを使わないボード・ページを使う前のメッセージは無い）。 */
+	pageId?: string | null;
 	authorId: string;
 	authorName: string;
 	text: string;

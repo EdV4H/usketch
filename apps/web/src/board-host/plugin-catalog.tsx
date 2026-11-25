@@ -125,6 +125,7 @@ import { createPresencePanelPlugin } from "../plugins/presence-panel.js";
 import { createSyncStatusPanelPlugin } from "../plugins/sync-status-panel.js";
 import { createViewportLodControlPlugin } from "../plugins/viewport-lod-control.js";
 import { type HostWiring, localUserId, localUserName } from "./host-wiring.js";
+import { createPageAccessPlugin } from "./page-access-plugin.js";
 import { PAGE_PRESETS, PRESET_IDS, pagePlugins } from "./page-presets.js";
 
 type Created = UsketchPlugin | UsketchPlugin[] | null;
@@ -453,6 +454,16 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			});
 		},
 	},
+	// デモの権限: 今のページの公開範囲（見られる人・編集できる人・招いた人）
+	{
+		id: "page-access",
+		label: "公開範囲",
+		base: true,
+		create: (w) =>
+			w.pageId && w.host.pageAccess
+				? createPageAccessPlugin({ pageId: w.pageId, control: w.host.pageAccess })
+				: null,
+	},
 	{
 		id: "laser",
 		label: "レーザーポインター",
@@ -652,6 +663,15 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 				wsProvider: w.wsProvider,
 				userId,
 				userName: w.user().name ?? "Anonymous",
+				// ページごとのチャット。移行した 1 枚目は、ページを使う前のメッセージも出す。
+				...(w.pageId
+					? {
+							page: {
+								id: w.pageId,
+								includeUnpaged: getLegacyPageId(w.board.rootDoc) === w.pageId,
+							},
+						}
+					: {}),
 			});
 		},
 	},

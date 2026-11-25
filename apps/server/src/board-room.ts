@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { DemoPageAccess } from "@edv4h/usketch-demo-permissions";
+import { type DemoPageAccess, defaultPageAccess } from "@edv4h/usketch-demo-permissions";
 import { gatherServerType } from "@edv4h/usketch-session-gather/server";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { respondServerType } from "@edv4h/usketch-session-respond/server";
@@ -28,10 +28,11 @@ import {
 } from "@edv4h/usketch-sync";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { boardMembers, pageAccess } from "./db/schema.js";
+import { boardMembers, boards, communityBoards, pageAccess } from "./db/schema.js";
 import { loadBoardViewer, loadPageAccess } from "./page-access/queries.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
+import { DEMO_BOARD_ID, setupDemoPages } from "./rooms/demo-pages.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { authorizeHttp, authorizeHttpPage, type HttpAccessDeps } from "./rooms/http-access.js";
@@ -45,7 +46,7 @@ import {
 	startRecordingPages,
 	unmaskPageName,
 } from "./rooms/pages-guard.js";
-import { createPagesMigration } from "./rooms/pages-migration.js";
+import { captureUpdate, createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import {
 	canCreatePage,
@@ -331,6 +332,9 @@ export class BoardRoom extends DurableObject<Env> {
 			return new Response("Expected WebSocket", { status: 426 });
 		}
 
+		// デモボードなら、最初の接続で地域のページを作る（機能フラグ DEMO_PAGES）
+		if (this.boardId === DEMO_BOARD_ID) await this.ensureDemoPages();
+
 		const userId = url.searchParams.get("userId") ?? "anonymous";
 		const pair = new WebSocketPair();
 		this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
@@ -567,6 +571,61 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 	}
 
+	/** このインスタンスで走らせた、デモボードのページ作り。 */
+	private demoPages: Promise<void> | null = null;
+
+	/**
+	 * デモボードに地域のページを作る（1 回だけ。済んでいれば何もしない）。失敗しても接続は止めず、
+	 * 次の接続でやり直す。
+	 */
+	private async ensureDemoPages(): Promise<void> {
+		if (this.env.DEMO_PAGES !== "true") return;
+		this.demoPages ??= this.runDemoPages().catch((e) => {
+			console.error("[BoardRoom] Demo pages setup failed:", e);
+			this.demoPages = null;
+		});
+		await this.demoPages;
+	}
+
+	private async runDemoPages(): Promise<void> {
+		const db = drizzle(this.env.DB);
+		const created = await setupDemoPages({
+			storage: this.ctx.storage,
+			getRoot: async () => (await this.yjsSync.getOrCreateDoc()).doc,
+			writeRoot: async (write) => {
+				await this.writeRoot(write);
+				await this.yjsSync.save();
+			},
+			writePage: (pageId, edit) => this.writePageDoc(pageId, edit),
+			renameBoard: async (title) => {
+				await db.update(boards).set({ title }).where(eq(boards.id, DEMO_BOARD_ID));
+				await db
+					.update(communityBoards)
+					.set({ displayName: title })
+					.where(eq(communityBoards.boardId, DEMO_BOARD_ID));
+			},
+		});
+		console.info(`[BoardRoom] Demo pages ready (${created.join(", ") || "nothing new"})`);
+	}
+
+	/** サーバーとしてページ doc に書き、すぐ保存して購読者へ送る。 */
+	private async writePageDoc(
+		pageId: string,
+		edit: (doc: import("yjs").Doc) => void,
+	): Promise<void> {
+		const sync = await this.pageDocs.load(pageId);
+		try {
+			const { doc } = await sync.getOrCreateDoc();
+			const update = await captureUpdate(doc, () => edit(doc));
+			if (update) {
+				this.pageDocs.publish(pageId, update);
+				await sync.save();
+			}
+		} finally {
+			this.pageDocs.release(pageId);
+		}
+	}
+
 	/** サーバーとしてルート doc に書き、保存して全員に送る。 */
 	private async writeRoot(write: (root: import("yjs").Doc) => void): Promise<void> {
 		const { doc } = await this.yjsSync.getOrCreateDoc();
@@ -598,6 +657,11 @@ export class BoardRoom extends DurableObject<Env> {
 			canManage: (pageId) => !!access && canManagePage(ws, pageId, access.get(pageId)),
 			isMasked: (pageId) => access?.get(pageId)?.visibility === "private",
 		});
+		// 足せたページは、足した人をそのページの作った人にする
+		const added = changes
+			.filter((c) => c.action === "add" && !result.revert.has(c.pageId))
+			.map((c) => c.pageId);
+		if (added.length > 0) await this.recordPageOwners(ws, added);
 		if (result.revert.size === 0 && result.renamed.size === 0) return;
 		await this.writeRoot((doc) => applyPagesGuard(doc, result));
 		if (result.renamed.size === 0 || !boardId) return;
@@ -613,6 +677,37 @@ export class BoardRoom extends DurableObject<Env> {
 			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
 		} catch (e) {
 			console.error("[BoardRoom] Failed to store a masked page name:", e);
+		}
+	}
+
+	/**
+	 * ページを足した人を、そのページの作った人として D1 に置く（公開範囲は今の既定の扱い）。
+	 * 作った人はそのページの名前・削除・公開範囲を決められ、ほかの editor は変えられなくなる。
+	 * ログインしていない人・もう行のあるページは何もしない。
+	 */
+	private async recordPageOwners(ws: WebSocket, pageIds: string[]): Promise<void> {
+		const access = getSocketAccess(ws);
+		if (!access?.userId) return;
+		try {
+			const now = new Date().toISOString();
+			const db = drizzle(this.env.DB);
+			for (const pageId of pageIds) {
+				await db
+					.insert(pageAccess)
+					.values({
+						boardId: access.boardId,
+						pageId,
+						ownerId: access.userId,
+						...defaultPageAccess(access.boardPublic),
+						updatedAt: now,
+					})
+					.onConflictDoNothing();
+			}
+			this.pageAccessCache = null;
+			// 作った人が分かったので、ページの操作の権限を読み直してもらう
+			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		} catch (e) {
+			console.error("[BoardRoom] Failed to record the page owner:", e);
 		}
 	}
 

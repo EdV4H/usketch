@@ -53,7 +53,7 @@ export interface PagesMigrationDeps {
 }
 
 /** `edit` の中で doc に入った変更を 1 つの update にして返す（変更が無ければ null）。 */
-async function captureUpdate(doc: Y.Doc, edit: () => void): Promise<Uint8Array | null> {
+export async function captureUpdate(doc: Y.Doc, edit: () => void): Promise<Uint8Array | null> {
 	const Y = await import("yjs");
 	const updates: Uint8Array[] = [];
 	const onUpdate = (update: Uint8Array) => updates.push(update);
