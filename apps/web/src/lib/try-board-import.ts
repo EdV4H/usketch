@@ -42,7 +42,7 @@ export interface ImportedPage {
 	shapes: Record<string, unknown>;
 }
 
-function shapesOf(map: Y.Map<unknown>): Record<string, unknown> {
+export function shapesOf(map: Y.Map<unknown>): Record<string, unknown> {
 	const shapes: Record<string, unknown> = {};
 	for (const [id, value] of map.entries()) shapes[id] = structuredClone(value);
 	return shapes;
@@ -118,7 +118,8 @@ export function addImportedPages(
 	});
 }
 
-async function openDoc(name: string): Promise<{ doc: Y.Doc; close(): void }> {
+/** IndexedDB に保存した doc を開く。使い終わったら `close()` する。 */
+export async function openDoc(name: string): Promise<{ doc: Y.Doc; close(): void }> {
 	const doc = new Y.Doc();
 	const persistence = persistDocToIndexedDb(name, doc);
 	await persistence.whenSynced;
@@ -131,19 +132,29 @@ async function openDoc(name: string): Promise<{ doc: Y.Doc; close(): void }> {
 	};
 }
 
-/** ルート doc に `sourceIds` が取り込み済みとして保存されるまで待つ。読めなければ例外。 */
-async function waitImportsPersisted(name: string, sourceIds: string[]): Promise<void> {
+/** IndexedDB に保存されたルート doc が `done` を満たすまで待つ。満たさなければ例外。 */
+export async function waitRootPersisted(
+	name: string,
+	done: (doc: Y.Doc) => boolean,
+): Promise<void> {
 	for (let attempt = 0; attempt < 10; attempt++) {
 		const probe = await openDoc(name);
 		try {
-			const saved = importedBoardIds(probe.doc);
-			if (sourceIds.every((id) => saved.has(id))) return;
+			if (done(probe.doc)) return;
 		} finally {
 			probe.close();
 		}
 		await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
 	}
-	throw new Error(`Imported pages were not persisted: ${name}`);
+	throw new Error(`Root doc was not persisted: ${name}`);
+}
+
+/** ルート doc に `sourceIds` が取り込み済みとして保存されるまで待つ。読めなければ例外。 */
+function waitImportsPersisted(name: string, sourceIds: string[]): Promise<void> {
+	return waitRootPersisted(name, (doc) => {
+		const saved = importedBoardIds(doc);
+		return sourceIds.every((id) => saved.has(id));
+	});
 }
 
 export interface TryImportResult {
