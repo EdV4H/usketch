@@ -9,6 +9,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import {
+	containerWinsOverBackdrop,
 	hasSelectableChildren,
 	isAttachable,
 	isReadOnly,
@@ -165,7 +166,8 @@ export interface TrackHoverOptions {
 
 /**
  * Top-most shape (by zIndex) under a world point, with the same precedence rules
- * tool-select uses: non-container shapes win over containers, group
+ * tool-select uses: non-container shapes win over containers (except a
+ * container's backdrop, see `container.winsOverBackdrop`), group
  * children resolve to the top-level group ancestor, frame children
  * stay selectable directly.
  *
@@ -192,6 +194,9 @@ export function findShapeAtPoint(
 	const sorted = ctx.store.getShapesSorted();
 
 	let containerHit: string | null = null;
+	// Containers hit so far (all drawn in front of what comes next) that win over
+	// their backdrop (`container.winsOverBackdrop`).
+	const backdropOwners: ShapeData[] = [];
 	for (let i = sorted.length - 1; i >= 0; i--) {
 		const data = sorted[i];
 		const id = data.id;
@@ -237,12 +242,46 @@ export function findShapeAtPoint(
 
 		if (hasSelectableChildren(def, data)) {
 			if (!containerHit) containerHit = id;
+			if (containerWinsOverBackdrop(def, data)) backdropOwners.push(data);
 			continue;
 		}
+
+		// A shape behind such a container that wholly encloses it is its backdrop
+		// (a board picture under a card slot): the container wins there.
+		if (backdropOwners.length > 0 && isBackdropOf(ctx, data, backdropOwners)) continue;
 
 		return id;
 	}
 	return containerHit;
+}
+
+/** Whether `shape`'s bounds wholly enclose one of `containers`. */
+function isBackdropOf(
+	ctx: ToolContext,
+	shape: ShapeData,
+	containers: readonly ShapeData[],
+): boolean {
+	const outer = boundsOf(ctx, shape);
+	return containers.some((c) => {
+		const inner = boundsOf(ctx, c);
+		return (
+			inner.x >= outer.x &&
+			inner.y >= outer.y &&
+			inner.x + inner.width <= outer.x + outer.width &&
+			inner.y + inner.height <= outer.y + outer.height
+		);
+	});
+}
+
+function boundsOf(ctx: ToolContext, shape: ShapeData) {
+	return (
+		ctx.shapes.get(shape.type)?.getBounds?.(shape) ?? {
+			x: shape.x,
+			y: shape.y,
+			width: shape.width,
+			height: shape.height,
+		}
+	);
 }
 
 // Internal re-export so consumers don't need to dig into `internal/`.

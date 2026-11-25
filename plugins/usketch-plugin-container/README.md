@@ -77,6 +77,24 @@ Option+drag copies get their parent by the same rules. The select tool's
 drop-target highlight skips containers whose `accepts` rejects what is dragged,
 but still picks the container under the pointer (not the dragged shape's center).
 
+### Clicking a container laid on a picture (`winsOverBackdrop`)
+
+A container with `selectableChildren` (a frame) is picked only where no other
+shape is hit, so what sits on it stays easy to grab. A card slot laid on a board
+picture would then never get the click: the picture behind it wins. Set
+`winsOverBackdrop: true` and a click on the container picks it over its
+**backdrop** — a shape drawn behind it whose bounds wholly enclose it. Anything
+else (a card lying partly under it, a shape drawn on top) still wins as before.
+
+```ts
+container: {
+  selectableChildren: true,
+  winsOverBackdrop: true, // the slot, not the board picture behind it
+  autoAttach: true,
+  attachHit: "center",
+},
+```
+
 ## Attachable child shapes (`createAttachablePlugin`)
 
 The **child-side counterpart**. Whereas `container` opts a *parent* in to holding
