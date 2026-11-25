@@ -57,6 +57,13 @@
 			"when": 1795440164990,
 			"tag": "0007_page_title",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1795599716882,
+			"tag": "0008_chat_page",
+			"breakpoints": true
 		}
 	]
 }

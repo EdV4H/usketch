@@ -248,6 +248,8 @@ export const chatMessages = sqliteTable(
 			.notNull()
 			.references(() => boards.id, { onDelete: "cascade" }),
 		threadId: text("thread_id").notNull().default("default"),
+		/** 書いたページ（ページを使う前のメッセージは null）。 */
+		pageId: text("page_id"),
 		authorId: text("author_id").notNull(),
 		authorName: text("author_name").notNull(),
 		text: text("text").notNull(),
@@ -256,5 +258,11 @@ export const chatMessages = sqliteTable(
 	(table) => [
 		index("idx_chat_messages_board").on(table.boardId),
 		index("idx_chat_messages_thread").on(table.boardId, table.threadId, table.createdAt),
+		index("idx_chat_messages_page").on(
+			table.boardId,
+			table.pageId,
+			table.threadId,
+			table.createdAt,
+		),
 	],
 );

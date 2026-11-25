@@ -13,7 +13,7 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
-import { createChatClient } from "./chat-client.js";
+import { type ChatPageScope, createChatClient } from "./chat-client.js";
 import type { ChatNewMessageEvent, ChatWidgetShapeData } from "./types.js";
 
 export interface CommunityChatOptions {
@@ -22,6 +22,11 @@ export interface CommunityChatOptions {
 	wsProvider: WsProviderHandle | null;
 	userId: string;
 	userName: string;
+	/**
+	 * ページを使うボードで、今のページ。チャットはページごとに分かれる（指定しなければボードで 1 つ）。
+	 * `includeUnpaged` はページを使う前に書かれたメッセージもこのページに出す（移行した 1 枚目）。
+	 */
+	page?: ChatPageScope;
 }
 
 // ── ピン定数 ──
@@ -383,6 +388,7 @@ function ChatIcon() {
 export function createCommunityChatPlugin(options: CommunityChatOptions): UsketchPlugin {
 	const client = createChatClient({
 		apiUrl: options.apiUrl,
+		page: options.page,
 		extraHeaders: options.extraHeaders,
 	});
 

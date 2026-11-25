@@ -38,11 +38,15 @@ const app = await createServerApp({
 			// デモの権限: 見られないページのコメントは見せない
 			{ pageFilter: ({ db, boardId, userId }) => loadPageViewFilter(db, boardId, userId) },
 		),
-		createChatPlugin({
-			boards: schema.boards,
-			boardMembers: schema.boardMembers,
-			chatMessages: schema.chatMessages,
-		}),
+		createChatPlugin(
+			{
+				boards: schema.boards,
+				boardMembers: schema.boardMembers,
+				chatMessages: schema.chatMessages,
+			},
+			// デモの権限: 見られないページのチャットは読めない・書けない
+			{ pageFilter: ({ db, boardId, userId }) => loadPageViewFilter(db, boardId, userId) },
+		),
 		createAiPlugin({
 			boards: schema.boards,
 			boardMembers: schema.boardMembers,
