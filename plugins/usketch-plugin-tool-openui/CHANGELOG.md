@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-tool-openui
 
+## 1.1.36
+
+### Patch Changes
+
+- Updated dependencies [5e48452]
+  - @edv4h/usketch-plugin-export@2.4.9
+
 ## 1.1.35
 
 ### Patch Changes

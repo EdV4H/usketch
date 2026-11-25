@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-container
 
+## 0.4.6
+
+### Patch Changes
+
+- e151e8e: A child dragged out of a container with a `layout` (for example a card taken off a tabletop pile) now leaves it. The re-layout after a drop waited only for pointer up, so it ran before the drop's reparent and pulled the child back in. It now waits for the move to commit and the reparent after `shapes:move-end`.
+
 ## 0.4.5
 
 ### Patch Changes
