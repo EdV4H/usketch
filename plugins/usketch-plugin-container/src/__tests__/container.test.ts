@@ -180,4 +180,58 @@ describe("setupArrange", () => {
 		stop();
 		vi.useRealTimers();
 	});
+
+	it("lets a child dragged out leave: waits for the reparent after move-end", async () => {
+		vi.useFakeTimers();
+		const layout = vi.fn(stackLayout({ padding: 0, gap: 0, direction: "vertical" }));
+		const { ctx, shapes } = makeCtx({ frame: { selectableChildren: true, layout } });
+		shapes.set("frame", shape({ id: "frame", type: "frame", x: 0, y: 0, width: 100, height: 100 }));
+		shapes.set("a", shape({ id: "a", type: "rect", parentId: "frame", height: 20 }));
+
+		// The containment attacher listens first and reparents on a timer.
+		ctx.events.on("shapes:move-end", () => {
+			setTimeout(() => ctx.store.updateShape("a", { parentId: undefined }), 0);
+		});
+		const stop = setupArrange(ctx);
+
+		// Like the select tool: pointer up, then the move command and move-end in a
+		// microtask.
+		ctx.events.emit("canvas:pointerdown", {});
+		ctx.events.emit("canvas:pointerup", {});
+		queueMicrotask(() => {
+			ctx.store.updateShape("a", { x: 300, y: 300 });
+			ctx.events.emit("shapes:move-end", { shapeIds: ["a"] });
+		});
+		await vi.runAllTimersAsync();
+
+		// Left where it was dropped, out of the container.
+		expect(shapes.get("a")).toMatchObject({ x: 300, y: 300, parentId: undefined });
+		expect(layout).not.toHaveBeenCalled();
+
+		stop();
+		vi.useRealTimers();
+	});
+
+	it("still pulls a child moved inside its container back into the layout", async () => {
+		vi.useFakeTimers();
+		const layout = vi.fn(stackLayout({ padding: 0, gap: 0, direction: "vertical" }));
+		const { ctx, shapes } = makeCtx({ frame: { selectableChildren: true, layout } });
+		shapes.set("frame", shape({ id: "frame", type: "frame", x: 0, y: 0, width: 100, height: 100 }));
+		shapes.set("a", shape({ id: "a", type: "rect", parentId: "frame", height: 20 }));
+		const stop = setupArrange(ctx);
+
+		ctx.events.emit("canvas:pointerdown", {});
+		ctx.events.emit("canvas:pointerup", {});
+		queueMicrotask(() => {
+			ctx.store.updateShape("a", { x: 10, y: 30 });
+			ctx.events.emit("shapes:move-end", { shapeIds: ["a"] });
+		});
+		await vi.runAllTimersAsync();
+
+		expect(shapes.get("a")).toMatchObject({ x: 0, y: 0, parentId: "frame" });
+		expect(layout).toHaveBeenCalledTimes(1);
+
+		stop();
+		vi.useRealTimers();
+	});
 });
