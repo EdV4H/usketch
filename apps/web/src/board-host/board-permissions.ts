@@ -2,6 +2,7 @@ import {
 	type DemoPageAccess,
 	defaultPageAccess,
 	defineDemoRules,
+	type PageMemberRole,
 	pageResource,
 } from "@edv4h/usketch-demo-permissions";
 import {
@@ -21,7 +22,32 @@ import { api } from "../lib/api.js";
 export type PagePermissions = ((pageId: string | null) => PermissionProvider) & {
 	refresh(): void;
 	view: PageView;
+	access: PageAccessControl;
 };
+
+/** 招いた人の名前とメール。 */
+export interface PagePerson {
+	name: string;
+	email: string;
+}
+
+/**
+ * ページの公開範囲を読む・変える（公開範囲の HUD が使う）。変えるとサーバーから読み直す。
+ * 変えられるのは、そのページを管理できる人だけ（サーバーが確かめる）。
+ */
+export interface PageAccessControl {
+	/** ページの公開範囲。決めていないページは既定の扱いで、`isDefault` が true。 */
+	get(pageId: string): { access: DemoPageAccess; isDefault: boolean };
+	/** ボードが公開されているか（公開ページをログインしていない人も見られるか）。 */
+	boardPublic(): boolean;
+	/** 招いた人の名前とメール（分からなければ undefined）。 */
+	person(userId: string): PagePerson | undefined;
+	set(pageId: string, access: Pick<DemoPageAccess, "visibility" | "edit">): Promise<void>;
+	invite(pageId: string, email: string, role: PageMemberRole): Promise<void>;
+	remove(pageId: string, userId: string): Promise<void>;
+	/** 読み直して変わったら知らせる。 */
+	subscribe(listener: () => void): () => void;
+}
 
 /** 役割が分かるまでの答え: 今までどおり何でもできる（書き込みを止めるのはサーバー）。 */
 const UNTIL_KNOWN = [{ action: "manage", subject: "all" }];
@@ -31,6 +57,7 @@ interface KnownAccess {
 	pages: Record<string, DemoPageAccess>;
 	names: Record<string, string>;
 	hidden: ReadonlySet<string>;
+	people: Record<string, PagePerson>;
 }
 
 /**
@@ -54,6 +81,7 @@ export function useBoardPermissions(options: {
 		pages: {},
 		names: {},
 		hidden: new Set(),
+		people: {},
 	});
 	// 読み直すたびに増やす（effect をもう一度走らせる）。
 	const [generation, setGeneration] = useState(0);
@@ -76,6 +104,7 @@ export function useBoardPermissions(options: {
 					pages: result.pages,
 					names: result.names ?? {},
 					hidden: new Set(result.hidden),
+					people: result.people ?? {},
 				};
 				// ルールが同じでも update はリスナーに知らせるので、公開範囲の変化も届く
 				provider.update(defineDemoRules({ userId, boardRole: result.viewer.boardRole }));
@@ -95,6 +124,12 @@ export function useBoardPermissions(options: {
 	return useMemo(() => {
 		if (!provider || !boardId) return null;
 		const refresh = () => setGeneration((g) => g + 1);
+		const subscribe = (listener: () => void) => {
+			viewListeners.current.add(listener);
+			return () => {
+				viewListeners.current.delete(listener);
+			};
+		};
 		const view: PageView = {
 			isVisible: (pageId) => !known.current.hidden.has(pageId),
 			displayName: (page) => known.current.names[page.id],
@@ -111,12 +146,27 @@ export function useBoardPermissions(options: {
 					.finally(refresh);
 				return true;
 			},
-			subscribe(listener) {
-				viewListeners.current.add(listener);
-				return () => {
-					viewListeners.current.delete(listener);
-				};
+			subscribe,
+		};
+		const access: PageAccessControl = {
+			get(pageId) {
+				const stored = known.current.pages[pageId];
+				return stored
+					? { access: stored, isDefault: false }
+					: { access: defaultPageAccess(known.current.boardPublic), isDefault: true };
 			},
+			boardPublic: () => known.current.boardPublic,
+			person: (userId) => known.current.people[userId],
+			async set(pageId, next) {
+				await api.boards.setPageAccess(boardId, pageId, next).finally(refresh);
+			},
+			async invite(pageId, email, role) {
+				await api.boards.invitePageMember(boardId, pageId, { email, role }).finally(refresh);
+			},
+			async remove(pageId, userId) {
+				await api.boards.removePageMember(boardId, pageId, userId).finally(refresh);
+			},
+			subscribe,
 		};
 		const forPage = (pageId: string | null) =>
 			scopePermissions(provider, () =>
@@ -126,6 +176,6 @@ export function useBoardPermissions(options: {
 						defaultPageAccess(known.current.boardPublic),
 				),
 			);
-		return Object.assign(forPage, { refresh, view });
+		return Object.assign(forPage, { refresh, view, access });
 	}, [provider, boardId, loaded]);
 }

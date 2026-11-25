@@ -3,6 +3,7 @@ import type { BoardStore } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import type { BoardRuntime } from "../lib/board-pages.js";
 import { getDevUser } from "../lib/dev-auth.js";
+import type { PageAccessControl } from "./board-permissions.js";
 import type { PresetId } from "./page-presets.js";
 
 /** 発表（presentation プラグイン）を使うホストが渡すもの。 */
@@ -24,6 +25,8 @@ export interface HostOptions {
 	navigate?: (path: string) => void;
 	/** ページの見え方（権限で見られないページを隠す・非公開ページの本当の名前）。 */
 	pageView?: PageView;
+	/** ページの公開範囲を読む・変える（渡すと HUD に「公開範囲」パネルを出す）。 */
+	pageAccess?: PageAccessControl;
 }
 
 /** ログインしている人（していなければ id は null）。 */

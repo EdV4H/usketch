@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { DemoPageAccess } from "@edv4h/usketch-demo-permissions";
+import { type DemoPageAccess, defaultPageAccess } from "@edv4h/usketch-demo-permissions";
 import { gatherServerType } from "@edv4h/usketch-session-gather/server";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { respondServerType } from "@edv4h/usketch-session-respond/server";
@@ -598,6 +598,11 @@ export class BoardRoom extends DurableObject<Env> {
 			canManage: (pageId) => !!access && canManagePage(ws, pageId, access.get(pageId)),
 			isMasked: (pageId) => access?.get(pageId)?.visibility === "private",
 		});
+		// 足せたページは、足した人をそのページの作った人にする
+		const added = changes
+			.filter((c) => c.action === "add" && !result.revert.has(c.pageId))
+			.map((c) => c.pageId);
+		if (added.length > 0) await this.recordPageOwners(ws, added);
 		if (result.revert.size === 0 && result.renamed.size === 0) return;
 		await this.writeRoot((doc) => applyPagesGuard(doc, result));
 		if (result.renamed.size === 0 || !boardId) return;
@@ -613,6 +618,37 @@ export class BoardRoom extends DurableObject<Env> {
 			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
 		} catch (e) {
 			console.error("[BoardRoom] Failed to store a masked page name:", e);
+		}
+	}
+
+	/**
+	 * ページを足した人を、そのページの作った人として D1 に置く（公開範囲は今の既定の扱い）。
+	 * 作った人はそのページの名前・削除・公開範囲を決められ、ほかの editor は変えられなくなる。
+	 * ログインしていない人・もう行のあるページは何もしない。
+	 */
+	private async recordPageOwners(ws: WebSocket, pageIds: string[]): Promise<void> {
+		const access = getSocketAccess(ws);
+		if (!access?.userId) return;
+		try {
+			const now = new Date().toISOString();
+			const db = drizzle(this.env.DB);
+			for (const pageId of pageIds) {
+				await db
+					.insert(pageAccess)
+					.values({
+						boardId: access.boardId,
+						pageId,
+						ownerId: access.userId,
+						...defaultPageAccess(access.boardPublic),
+						updatedAt: now,
+					})
+					.onConflictDoNothing();
+			}
+			this.pageAccessCache = null;
+			// 作った人が分かったので、ページの操作の権限を読み直してもらう
+			this.broadcastAll(new Uint8Array([MSG_PERMISSIONS_CHANGED]));
+		} catch (e) {
+			console.error("[BoardRoom] Failed to record the page owner:", e);
 		}
 	}
 
