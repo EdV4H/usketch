@@ -1,5 +1,20 @@
 # @edv4h/usketch-tool-helpers
 
+## 0.10.0
+
+### Minor Changes
+
+- 1b665c3: Let a container be clicked when it is laid on a picture.
+  
+  - `container.winsOverBackdrop` (default `false`): a container with selectable children (a frame) is picked only where no other shape is hit, so a card slot laid on a board picture could never be clicked. With `true`, a click on the container picks it over its backdrop: a shape drawn behind it whose bounds wholly enclose it. Other shapes (a card lying partly under it, a shape drawn on top) still win as before. `containerWinsOverBackdrop(def, shape)` reads it.
+  - Tabletop zones set `winsOverBackdrop: true`, so a zone laid on a board picture can be clicked and selected.
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-store@3.15.1
+
 ## 0.9.1
 
 ### Patch Changes
