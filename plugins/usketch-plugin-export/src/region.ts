@@ -1,5 +1,4 @@
 import {
-	compareZIndex,
 	getShapeAABB,
 	type Layer,
 	type LayerManager,
@@ -10,7 +9,7 @@ import {
 } from "@edv4h/usketch-shared";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { htmlShapeToSvg, type SatoriFont } from "./exporter.js";
+import { exportTargets, htmlShapeToSvg, type SatoriFont, withRotation } from "./exporter.js";
 
 export interface RegionRect {
 	x: number;
@@ -97,11 +96,10 @@ export async function buildRegionSvg(
 
 	const backgroundLayers = renderBackgroundLayers(options);
 
-	const targets = [...shapes.values()]
-		.filter(
-			(s) => !s.hidden && rectsIntersect(getShapeAABB(s), rect) && (filter ? filter(s) : true),
-		)
-		.sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
+	const targets = exportTargets(
+		shapes,
+		(s) => rectsIntersect(getShapeAABB(s), rect) && (filter ? filter(s) : true),
+	);
 
 	const elements: string[] = [];
 	for (const shape of targets) {
@@ -118,12 +116,7 @@ export async function buildRegionSvg(
 			if ((onShapeError?.(shape, error) ?? "placeholder") === "skip") continue;
 			markup = `<rect x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}" fill="none" stroke="#999" stroke-dasharray="4 2" />`;
 		}
-		const rotation = shape.rotation ?? 0;
-		elements.push(
-			rotation
-				? `<g transform="rotate(${rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})">${markup}</g>`
-				: markup,
-		);
+		elements.push(withRotation(shape, markup));
 	}
 
 	const bg = background
