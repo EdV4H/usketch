@@ -1,4 +1,8 @@
-import type { DemoBoardRole, DemoPageAccess } from "@edv4h/usketch-demo-permissions";
+import type {
+	DemoBoardRole,
+	DemoPageAccess,
+	PageMemberRole,
+} from "@edv4h/usketch-demo-permissions";
 import { getDevUser, isDevMode } from "./dev-auth.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
@@ -50,6 +54,8 @@ export interface BoardPageAccess {
 	names: Record<string, string>;
 	/** 公開範囲があって、この人が見られないページ。 */
 	hidden: string[];
+	/** 招いた人の名前とメール（管理できるページに招いた人だけ）。 */
+	people?: Record<string, { name: string; email: string }>;
 }
 
 export interface DiscoverBoard {
@@ -105,6 +111,20 @@ export const api = {
 				method: "PUT",
 				body: JSON.stringify(access),
 			}),
+		invitePageMember: (
+			boardId: string,
+			pageId: string,
+			invite: { email: string; role: PageMemberRole },
+		) =>
+			fetchApi<{ userId: string; role: PageMemberRole }>(
+				`/api/boards/${boardId}/pages/${pageId}/members`,
+				{ method: "POST", body: JSON.stringify(invite) },
+			),
+		removePageMember: (boardId: string, pageId: string, userId: string) =>
+			fetchApi<{ ok: true }>(
+				`/api/boards/${boardId}/pages/${pageId}/members/${encodeURIComponent(userId)}`,
+				{ method: "DELETE" },
+			),
 		renamePrivatePage: (boardId: string, pageId: string, name: string) =>
 			fetchApi<{ pageId: string; name: string }>(`/api/boards/${boardId}/pages/${pageId}/name`, {
 				method: "PUT",
