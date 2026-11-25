@@ -147,4 +147,21 @@ describe("Canvas wheel / gesture listeners", () => {
 			| undefined;
 		expect(wheel?.worldPoint).toEqual({ x: 100, y: 100 });
 	});
+
+	it("converts line-mode deltas to pixels and passes deltaMode on", () => {
+		const stub = stubApp();
+		const container = mount(stub.app);
+
+		act(() => {
+			container.dispatchEvent(
+				new WheelEvent("wheel", { deltaY: 3, deltaMode: 1, cancelable: true }),
+			);
+		});
+
+		const wheel = stub.emitted.find((e) => e.event === "canvas:wheel")?.data as
+			| { deltaY: number; deltaMode?: number }
+			| undefined;
+		expect(wheel?.deltaY).toBe(120);
+		expect(wheel?.deltaMode).toBe(1);
+	});
 });
