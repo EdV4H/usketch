@@ -1,10 +1,10 @@
 /**
  * デモボード（`/` で開くボード）。もとは Lobby のボードで、地域（Workshop・Gallery・Playground）は
- * このボードのページになった（#1558 R6。サーバーの `rooms/demo-import.ts`）。
+ * このボードのページになった（#1558 R6。サーバーの `rooms/demo-pages.ts`）。
  */
 export const DEMO_BOARD_ID = "community-lobby";
 
-/** 地域を取り込んだページの id（サーバーの `regionPageId` と同じ）。 */
+/** 地域のページの id（サーバーの `regionPageId` と同じ）。 */
 export function regionPageId(slug: string): string {
 	return `region-${slug}`;
 }

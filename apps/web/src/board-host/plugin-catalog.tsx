@@ -647,7 +647,7 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			createBoardInfoPanelPlugin({
 				apiUrl: w.apiUrl,
 				extraHeaders: Object.keys(w.extraHeaders).length > 0 ? w.extraHeaders : undefined,
-				// このボードのページを指すゲート（取り込んだ地域など）はページを移る
+				// このボードのページを指すゲート（地域のページなど）はページを移る
 				onOpenBoard: (id, pageId) => {
 					if (pageId) w.switchPage(pageId);
 					else w.host.navigate?.(`/boards/${id}`);
