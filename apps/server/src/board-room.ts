@@ -28,10 +28,11 @@ import {
 } from "@edv4h/usketch-sync";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { boardMembers, pageAccess } from "./db/schema.js";
+import { boardMembers, boards, communityBoards, pageAccess } from "./db/schema.js";
 import { loadBoardViewer, loadPageAccess } from "./page-access/queries.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
+import { DEMO_BOARD_ID, setupDemoPages } from "./rooms/demo-pages.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { authorizeHttp, authorizeHttpPage, type HttpAccessDeps } from "./rooms/http-access.js";
@@ -45,7 +46,7 @@ import {
 	startRecordingPages,
 	unmaskPageName,
 } from "./rooms/pages-guard.js";
-import { createPagesMigration } from "./rooms/pages-migration.js";
+import { captureUpdate, createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import {
 	canCreatePage,
@@ -331,6 +332,9 @@ export class BoardRoom extends DurableObject<Env> {
 			return new Response("Expected WebSocket", { status: 426 });
 		}
 
+		// デモボードなら、最初の接続で地域のページを作る（機能フラグ DEMO_PAGES）
+		if (this.boardId === DEMO_BOARD_ID) await this.ensureDemoPages();
+
 		const userId = url.searchParams.get("userId") ?? "anonymous";
 		const pair = new WebSocketPair();
 		this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
@@ -564,6 +568,61 @@ export class BoardRoom extends DurableObject<Env> {
 		} catch (e) {
 			console.error("[BoardRoom] Failed to load page access:", e);
 			return null;
+		}
+	}
+
+	/** このインスタンスで走らせた、デモボードのページ作り。 */
+	private demoPages: Promise<void> | null = null;
+
+	/**
+	 * デモボードに地域のページを作る（1 回だけ。済んでいれば何もしない）。失敗しても接続は止めず、
+	 * 次の接続でやり直す。
+	 */
+	private async ensureDemoPages(): Promise<void> {
+		if (this.env.DEMO_PAGES !== "true") return;
+		this.demoPages ??= this.runDemoPages().catch((e) => {
+			console.error("[BoardRoom] Demo pages setup failed:", e);
+			this.demoPages = null;
+		});
+		await this.demoPages;
+	}
+
+	private async runDemoPages(): Promise<void> {
+		const db = drizzle(this.env.DB);
+		const created = await setupDemoPages({
+			storage: this.ctx.storage,
+			getRoot: async () => (await this.yjsSync.getOrCreateDoc()).doc,
+			writeRoot: async (write) => {
+				await this.writeRoot(write);
+				await this.yjsSync.save();
+			},
+			writePage: (pageId, edit) => this.writePageDoc(pageId, edit),
+			renameBoard: async (title) => {
+				await db.update(boards).set({ title }).where(eq(boards.id, DEMO_BOARD_ID));
+				await db
+					.update(communityBoards)
+					.set({ displayName: title })
+					.where(eq(communityBoards.boardId, DEMO_BOARD_ID));
+			},
+		});
+		console.info(`[BoardRoom] Demo pages ready (${created.join(", ") || "nothing new"})`);
+	}
+
+	/** サーバーとしてページ doc に書き、すぐ保存して購読者へ送る。 */
+	private async writePageDoc(
+		pageId: string,
+		edit: (doc: import("yjs").Doc) => void,
+	): Promise<void> {
+		const sync = await this.pageDocs.load(pageId);
+		try {
+			const { doc } = await sync.getOrCreateDoc();
+			const update = await captureUpdate(doc, () => edit(doc));
+			if (update) {
+				this.pageDocs.publish(pageId, update);
+				await sync.save();
+			}
+		} finally {
+			this.pageDocs.release(pageId);
 		}
 	}
 
