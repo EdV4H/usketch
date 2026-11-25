@@ -86,6 +86,60 @@ describe("findShapeAtPoint", () => {
 		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("rect");
 	});
 
+	it("lets a frame on top give way to a shape drawn behind it (default)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+		ctx.store.addShape(
+			makeShape({ id: "frame", type: "frame", x: 50, y: 50, width: 100, height: 100 }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("picture");
+	});
+
+	describe("container.yieldToShapes: false", () => {
+		// A card slot on a board picture: the slot is drawn on top and must take the click.
+		const slotContext = () => {
+			const ctx = createTestToolContext();
+			const frame = ctx.shapes.get("frame") as ShapeDefinition;
+			ctx.shapes.register("slot", {
+				...frame,
+				type: "slot",
+				container: { selectableChildren: true, yieldToShapes: false },
+			} as ShapeDefinition);
+			return ctx;
+		};
+
+		it("wins over a shape drawn behind it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+			ctx.store.addShape(
+				makeShape({ id: "slot", type: "slot", x: 50, y: 50, width: 100, height: 100 }),
+			);
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("slot");
+		});
+
+		it("still loses to a shape drawn on top of it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(
+				makeShape({ id: "slot", type: "slot", x: 50, y: 50, width: 100, height: 100 }),
+			);
+			ctx.store.addShape(makeShape({ id: "note", x: 55, y: 55, width: 20, height: 20 }));
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("note");
+		});
+
+		it("lets its own contents win even when they are drawn behind it", () => {
+			const ctx = slotContext();
+			ctx.store.addShape(makeShape({ id: "picture", x: 0, y: 0, width: 300, height: 300 }));
+			ctx.store.addShape(
+				makeShape({ id: "card", x: 55, y: 55, width: 20, height: 20, parentId: "slot" }),
+			);
+			ctx.store.addShape(
+				makeShape({ id: "slot", type: "slot", x: 50, y: 50, width: 100, height: 100 }),
+			);
+			expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("card");
+			expect(findShapeAtPoint(ctx, { x: 120, y: 120 })).toBe("slot");
+		});
+	});
+
 	it("skips excluded ids and returns the shape below (drag-and-drop)", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(makeShape({ id: "target", x: 0, y: 0, width: 100, height: 100 }));

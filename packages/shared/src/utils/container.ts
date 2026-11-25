@@ -38,6 +38,20 @@ export function hasSelectableChildren(def: ShapeDefinition | undefined, shape: S
 }
 
 /**
+ * Resolve whether a container gives way to other shapes under the pointer
+ * (see {@link ShapeDefinition.container.yieldToShapes}). `true` unless the
+ * definition sets it to `false` (or a predicate returns `false`).
+ */
+export function containerYieldsToShapes(
+	def: ShapeDefinition | undefined,
+	shape: ShapeData,
+): boolean {
+	const y = def?.container?.yieldToShapes;
+	if (y === undefined) return true;
+	return typeof y === "function" ? y(shape) : y;
+}
+
+/**
  * Resolve whether a container auto-attaches shapes dropped inside it as
  * children (frame-style), versus managing membership itself (group).
  * Always `false` for non-containers.

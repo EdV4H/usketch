@@ -304,6 +304,7 @@ export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
 // Container
 export {
 	containerAccepts,
+	containerYieldsToShapes,
 	getContainerAttachHit,
 	getContainerLayout,
 	hasSelectableChildren,

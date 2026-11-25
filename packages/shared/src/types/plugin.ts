@@ -528,6 +528,16 @@ export interface ShapeDefinition {
 		 */
 		selectableChildren?: boolean | ((data: ShapeData) => boolean);
 		/**
+		 * Whether a container with {@link selectableChildren} gives way to other
+		 * shapes under the pointer. Default: `true` — a frame is picked only where no
+		 * other shape is hit, even one drawn behind it, so what sits on a frame stays
+		 * easy to grab. `false` makes it compete by z-order like a plain shape: the
+		 * one drawn on top wins, so a container laid over a background (a card slot on
+		 * a board picture) can still be clicked. Evaluate via
+		 * {@link containerYieldsToShapes}.
+		 */
+		yieldToShapes?: boolean | ((data: ShapeData) => boolean);
+		/**
 		 * Whether a shape dropped/dragged fully inside this container is
 		 * automatically attached as its child (`parentId` set), and detached when
 		 * moved out. Default: `false` — containers like `group` (explicit) and
