@@ -46,6 +46,18 @@ export interface SpacingGuide {
 	segments: GapSegment[];
 }
 
+/**
+ * A size-snap guide (resize only).
+ * - `square`: the resized shape is a square; a dashed diagonal `from` → `to`
+ *   (world corners, so it follows a rotated shape).
+ * - `dimension`: equal width (`axis: "x"`) / height (`axis: "y"`); one bar per
+ *   shape of that size, along the edge at `cross` (top edge for x, left edge for
+ *   y), drawn just outside it.
+ */
+export type SizeGuide =
+	| { kind: "square"; from: { x: number; y: number }; to: { x: number; y: number } }
+	| { kind: "dimension"; axis: "x" | "y"; segments: GapSegment[] };
+
 export interface SnapResult {
 	dx: number;
 	dy: number;
@@ -88,6 +100,19 @@ export interface SnapSettings {
 	 * (only an explicit `false` disables it), matching the plugin default.
 	 */
 	distributeSnap?: boolean;
+	/**
+	 * Square snapping while resizing a single shape (or drawing a new one):
+	 * width and height snap to equal when they come within `threshold`. Rotated
+	 * shapes too, along their own axes. Optional for backward compatibility —
+	 * `undefined` is treated as **on** (only an explicit `false` disables it).
+	 */
+	squareSnap?: boolean;
+	/**
+	 * Same-size snapping while resizing a single shape (or drawing a new one):
+	 * the dragged side snaps to the width / height of a nearby unrotated shape.
+	 * Not for rotated shapes. `undefined` is treated as **on**.
+	 */
+	sameSizeSnap?: boolean;
 	viewportOnly: boolean;
 	guideStyle: GuideStyle;
 	/** スナップ一時切替キー（Ctrl / Cmd）の挙動（既定 `"suppress"`）。 */
