@@ -7,6 +7,7 @@
  * - PUT    /api/boards/:boardId/pages/:pageId/name              非公開ページの名前を変える（page.manage）
  * - POST   /api/boards/:boardId/pages/:pageId/members           メールで招く（page.manage）
  * - DELETE /api/boards/:boardId/pages/:pageId/members/:userId   招待を外す（page.manage）
+ * - GET    /public/boards/:boardId/page-access                 ログインしていない人の分（公開ボードだけ）
  *
  * 変えたら BoardRoom に知らせ、見られなくなったページの購読を外してもらう。
  *
@@ -20,11 +21,17 @@ import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { isValidDocId } from "@edv4h/usketch-sync";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
-import { pageAccess, pageMembers, users } from "../db/schema.js";
+import { boards, pageAccess, pageMembers, users } from "../db/schema.js";
 import { judgePages as judge } from "./judge.js";
-import { loadBoardViewer, loadPageAccess, type StoredPageAccess } from "./queries.js";
+import {
+	type BoardViewer,
+	loadBoardViewer,
+	loadPageAccess,
+	type StoredPageAccess,
+} from "./queries.js";
 
 const accessSchema = z.object({
 	visibility: z.enum(["public", "members", "private"]),
@@ -88,6 +95,46 @@ async function authorizeManage(c: Context<HonoEnv>) {
 	return { db, userId, boardId, pageId, current, viewer } as const;
 }
 
+type Db = Parameters<typeof loadPageAccess>[0];
+
+/**
+ * 見ている人（ログインしていなければ `userId` が null）の役割と、見られるページの公開範囲・
+ * 非公開ページの本当の名前・招いた人の名前。
+ */
+async function pageAccessView(db: Db, boardId: string, userId: string | null, viewer: BoardViewer) {
+	const can = judge(boardId, userId, viewer);
+	const pages: Record<string, DemoPageAccess> = {};
+	const names: Record<string, string> = {};
+	const hidden: string[] = [];
+	// 招いた人の名前（管理できるページに招いた人だけ）
+	const invited = new Set<string>();
+	for (const [pageId, { title, ...access }] of await loadPageAccess(db, boardId)) {
+		if (!can(PERMISSIONS.pageView, pageId, access)) {
+			hidden.push(pageId);
+			continue;
+		}
+		if (access.visibility === "private" && title) names[pageId] = title;
+		// 招いた人の一覧は、そのページを管理できる人にだけ見せる
+		const { members, ...rest } = access;
+		const manages = can(PERMISSIONS.pageManage, pageId, access);
+		if (manages) for (const id of Object.keys(members ?? {})) invited.add(id);
+		pages[pageId] = manages
+			? access
+			: userId && members?.[userId]
+				? { ...rest, members: { [userId]: members[userId] } }
+				: rest;
+	}
+	const people: Record<string, { name: string; email: string }> = {};
+	if (invited.size > 0) {
+		const rows = await db
+			.select({ id: users.id, name: users.name, email: users.email })
+			.from(users)
+			.where(inArray(users.id, [...invited]));
+		for (const row of rows) people[row.id] = { name: row.name, email: row.email };
+	}
+	return { viewer: { userId, ...viewer }, pages, names, hidden, people };
+}
+
 export function createPageAccessPlugin(): ServerPlugin {
 	return {
 		id: "demo-page-access",
@@ -103,37 +150,7 @@ export function createPageAccessPlugin(): ServerPlugin {
 				const boardId = c.req.param("boardId");
 				const viewer = await loadBoardViewer(db, boardId, userId);
 				if (!viewer) return c.json({ error: "Board not found" }, 404);
-				const can = judge(boardId, userId, viewer);
-				const pages: Record<string, DemoPageAccess> = {};
-				const names: Record<string, string> = {};
-				const hidden: string[] = [];
-				// 招いた人の名前（管理できるページに招いた人だけ）
-				const invited = new Set<string>();
-				for (const [pageId, { title, ...access }] of await loadPageAccess(db, boardId)) {
-					if (!can(PERMISSIONS.pageView, pageId, access)) {
-						hidden.push(pageId);
-						continue;
-					}
-					if (access.visibility === "private" && title) names[pageId] = title;
-					// 招いた人の一覧は、そのページを管理できる人にだけ見せる
-					const { members, ...rest } = access;
-					const manages = can(PERMISSIONS.pageManage, pageId, access);
-					if (manages) for (const id of Object.keys(members ?? {})) invited.add(id);
-					pages[pageId] = manages
-						? access
-						: members?.[userId]
-							? { ...rest, members: { [userId]: members[userId] } }
-							: rest;
-				}
-				const people: Record<string, { name: string; email: string }> = {};
-				if (invited.size > 0) {
-					const rows = await db
-						.select({ id: users.id, name: users.name, email: users.email })
-						.from(users)
-						.where(inArray(users.id, [...invited]));
-					for (const row of rows) people[row.id] = { name: row.name, email: row.email };
-				}
-				return c.json({ viewer: { userId, ...viewer }, pages, names, hidden, people });
+				return c.json(await pageAccessView(db, boardId, userId, viewer));
 			});
 
 			app.put("/:boardId/pages/:pageId/access", zValidator("json", accessSchema), async (c) => {
@@ -240,6 +257,24 @@ export function createPageAccessPlugin(): ServerPlugin {
 			});
 
 			ctx.routes.register({ path: "/api/boards", app });
+
+			// ログインしていない人: 公開ボードで、見られるページの公開範囲（公開ページだけ見られる）
+			const guestApp = new Hono<HonoEnv>();
+			guestApp.get("/:boardId/page-access", async (c) => {
+				const db = c.get("db") ?? (c.env.DB ? drizzle(c.env.DB) : null);
+				if (!db) return c.json({ error: "Internal error" }, 500);
+				const boardId = c.req.param("boardId");
+				const [board] = await db
+					.select({ isPublic: boards.isPublic })
+					.from(boards)
+					.where(eq(boards.id, boardId))
+					.limit(1);
+				if (!board?.isPublic) return c.json({ error: "Board not found" }, 404);
+				return c.json(
+					await pageAccessView(db, boardId, null, { boardRole: null, boardPublic: true }),
+				);
+			});
+			ctx.routes.register({ path: "/public/boards", app: guestApp, public: true });
 		},
 	};
 }

@@ -102,6 +102,8 @@ export const api = {
 				method: "DELETE",
 			}),
 		pageAccess: (id: string) => fetchApi<BoardPageAccess>(`/api/boards/${id}/page-access`),
+		/** ログインしていない人の分（公開ボードだけ）。 */
+		guestPageAccess: (id: string) => fetchApi<BoardPageAccess>(`/public/boards/${id}/page-access`),
 		setPageAccess: (
 			boardId: string,
 			pageId: string,
