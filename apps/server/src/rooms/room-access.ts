@@ -132,6 +132,18 @@ export function canEditPage(ws: AccessSocket, pageId: string, page?: PageAccessL
 	return !!s && s.can(PERMISSIONS.pageEdit, pageOf(s.access, pageId, page));
 }
 
+/** ページを足せるか。 */
+export function canCreatePage(ws: AccessSocket): boolean {
+	const s = snapshotOf(ws);
+	return !!s && s.can(PERMISSIONS.pageCreate, { boardId: s.access.boardId });
+}
+
+/** ページの名前・並び・削除・プラグインを変えられるか。`page` はそのページの公開範囲。 */
+export function canManagePage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
+	const s = snapshotOf(ws);
+	return !!s && s.can(PERMISSIONS.pageManage, pageOf(s.access, pageId, page));
+}
+
 /**
  * ルート doc に書けるか。ルート doc はページの一覧と、ページを使わないボードの shapes を持つので、
  * 「既定の公開範囲のページを編集できる」人（ボードの editor 以上）だけが書ける。

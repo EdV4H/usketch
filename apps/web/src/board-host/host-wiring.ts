@@ -1,3 +1,4 @@
+import type { PageView } from "@edv4h/usketch-plugin-pages";
 import type { BoardStore } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import type { BoardRuntime } from "../lib/board-pages.js";
@@ -21,6 +22,8 @@ export interface HostOptions {
 	presentation?: PresentationWiring;
 	/** 画面を移る（ボードポータル・ボード情報パネルから別のボードへ）。 */
 	navigate?: (path: string) => void;
+	/** ページの見え方（権限で見られないページを隠す・非公開ページの本当の名前）。 */
+	pageView?: PageView;
 }
 
 /** ログインしている人（していなければ id は null）。 */
