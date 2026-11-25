@@ -69,8 +69,10 @@ export function useBoardPermissions(options: {
 	boardId: string | null;
 	cloud: boolean;
 	userId: string | null;
+	/** ログインしていない人として見る（セッションを読み終えてログインしていなかった）。 */
+	guest?: boolean;
 }): PagePermissions | null {
-	const { boardId, cloud, userId } = options;
+	const { boardId, cloud, userId, guest = false } = options;
 	const provider = useMemo<CaslPermissionProvider | null>(
 		() => (boardId && cloud ? createCaslPermissionProvider({ rules: UNTIL_KNOWN }) : null),
 		[boardId, cloud],
@@ -91,12 +93,11 @@ export function useBoardPermissions(options: {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: generation は読み直しの合図
 	useEffect(() => {
-		// ログインする前（セッションを読んでいる間も）は今のまま。未ログインの人はボードに
-		// つながらないので、書いても手元だけ。
-		if (!provider || !boardId || !userId) return;
+		// セッションを読んでいる間は今のまま。ログインしていない人（`guest`）は公開ボードの
+		// 公開ページだけを見る。
+		if (!provider || !boardId || (!userId && !guest)) return;
 		let cancelled = false;
-		api.boards
-			.pageAccess(boardId)
+		(userId ? api.boards.pageAccess(boardId) : api.boards.guestPageAccess(boardId))
 			.then((result) => {
 				if (cancelled) return;
 				known.current = {
@@ -118,7 +119,7 @@ export function useBoardPermissions(options: {
 		return () => {
 			cancelled = true;
 		};
-	}, [provider, boardId, userId, generation]);
+	}, [provider, boardId, userId, guest, generation]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: loaded は読み終えた合図（新しいオブジェクトにする）
 	return useMemo(() => {

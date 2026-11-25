@@ -679,6 +679,34 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				});
 			});
 
+			// WebSocket（ログインしていない人）: 公開ボードを見るだけ。DO は役割の無い閲覧者として
+			// 扱い、公開ページだけを見せて書き込みは戻す。
+			thumbnailApp.get("/:boardId/ws", async (c) => {
+				let db = c.get("db");
+				if (!db && c.env.DB) {
+					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
+					db = makeDrizzle(c.env.DB);
+				}
+				if (!db) return c.json({ error: "Internal error" }, 500);
+				const boardId = c.req.param("boardId");
+				const [board] = await db
+					.select({ isPublic: boards.isPublic })
+					.from(boards)
+					.where(eq(boards.id, boardId))
+					.limit(1);
+				if (!board?.isPublic) return c.json({ error: "Board not found" }, 404);
+
+				const room = c.env.BOARD_ROOM.get(c.env.BOARD_ROOM.idFromName(boardId));
+				const url = new URL(c.req.url);
+				url.pathname = "/ws";
+				// クライアントが付けた値は使わない（必ず付け直す・消す）
+				url.searchParams.set("userId", "anonymous");
+				url.searchParams.set("boardId", boardId);
+				url.searchParams.delete("role");
+				url.searchParams.set("boardPublic", "1");
+				return room.fetch(new Request(url.toString(), c.req.raw));
+			});
+
 			ctx.routes.register({ path: "/public/boards", app: thumbnailApp, public: true });
 		},
 	};

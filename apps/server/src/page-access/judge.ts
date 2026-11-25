@@ -15,7 +15,7 @@ import { type BoardViewer, loadBoardViewer, loadPageAccess } from "./queries.js"
 type Db = Parameters<typeof loadPageAccess>[0];
 
 /** 見ている人の判定。`access` を省いたページは既定の扱い。 */
-export function judgePages(boardId: string, userId: string, viewer: BoardViewer) {
+export function judgePages(boardId: string, userId: string | null, viewer: BoardViewer) {
 	const { can } = createCaslSnapshot(defineDemoRules({ userId, boardRole: viewer.boardRole }));
 	return (permission: Permission, pageId: string, access: DemoPageAccess | undefined) =>
 		can(

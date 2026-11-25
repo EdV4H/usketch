@@ -74,7 +74,10 @@ export function App({
 	// デモボード（`/`）はクラウドのボード
 	const isCloudBoard = fixedBoardId !== undefined || location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
-	const { user: authUser } = useAuth();
+	const { user: authUser, isPending: authPending } = useAuth();
+	// ログインしていない人はクラウドのボードを見るだけ（公開ボードの公開ページ）。セッションを
+	// 読み終えるまでは、どちらでつなぐか決めない。
+	const guest = isCloudBoard && !authPending && !authUser;
 
 	// 最新の presentation mode を App の外から読むための ref。App を作る effect の依存に
 	// 入れると ?present=1 の切替のたびに App が作り直され、undo 履歴や接続が消える。
@@ -111,17 +114,19 @@ export function App({
 			: null,
 	);
 
+	const waitingForAuth = isCloudBoard && authPending && !authUser;
 	const source = useMemo<BoardSource | null>(
 		() =>
-			boardId
+			boardId && !waitingForAuth
 				? {
 						boardId,
 						persistName: `usketch-board-${boardId}`,
 						connect: isCloudBoard,
+						guest,
 						migrateLocal: !isCloudBoard,
 					}
 				: null,
-		[boardId, isCloudBoard],
+		[boardId, isCloudBoard, guest, waitingForAuth],
 	);
 
 	// クラウドのボードはボードの役割でできることを決める（デモのルール）。手元のボードは何でもできる。
@@ -129,6 +134,7 @@ export function App({
 		boardId: boardId ?? null,
 		cloud: isCloudBoard,
 		userId: authUser?.id ?? null,
+		guest,
 	});
 
 	const {
@@ -253,7 +259,8 @@ export function App({
 	// ページを離れるときに視点を保存する（不在の人のアバター用）
 	const wsProvider = board?.wsProvider ?? null;
 	useEffect(() => {
-		if (!wsProvider || !boardId) return;
+		// ログインしていない人は残さない（見るだけ）
+		if (!wsProvider || !boardId || guest) return;
 		const saveViewport = () => {
 			const local = wsProvider.awareness.getLocalState();
 			const vc = local?.viewportCenter as { x: number; y: number } | undefined;
@@ -268,7 +275,7 @@ export function App({
 		};
 		window.addEventListener("beforeunload", saveViewport);
 		return () => window.removeEventListener("beforeunload", saveViewport);
-	}, [wsProvider, boardId]);
+	}, [wsProvider, boardId, guest]);
 
 	// ログインが分かったら awareness の名前を入れる
 	const authUserId = authUser?.id;
@@ -303,7 +310,7 @@ export function App({
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
-		if (!app || !isCloudBoard || !boardId) return;
+		if (!app || !isCloudBoard || !boardId || guest) return;
 		const apiUrl = API_URL;
 		app.events.emit("side-panel:register-tab", {
 			tab: {
@@ -332,7 +339,7 @@ export function App({
 		return () => {
 			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
 		};
-	}, [app, boardId, isCloudBoard]);
+	}, [app, boardId, isCloudBoard, guest]);
 
 	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
 	stageRectRef.current = stageRect;
