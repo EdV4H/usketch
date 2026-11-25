@@ -22,8 +22,59 @@ type CommentsEnv = {
 	};
 };
 
-export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin {
+/** ページを見られるか（`pageId` が null のスレッドはページを持たない）。 */
+export type CommentPageFilter = (pageId: string | null) => boolean;
+
+export interface CommentsPluginOptions {
+	/**
+	 * ページごとに見られる人を絞るボードで、見ている人が見られるページを返す。見られないページの
+	 * スレッドは一覧に出さず、作る・返信する・解決する・消すこともできない（404）。省略すると
+	 * ボードを見られる人は全部のスレッドを見られる。
+	 */
+	pageFilter?: (args: {
+		db: CommentsEnv["Variables"]["db"];
+		boardId: string;
+		userId: string;
+	}) => Promise<CommentPageFilter>;
+}
+
+export function createCommentsPlugin(
+	schema: CommentsPluginSchema,
+	options: CommentsPluginOptions = {},
+): ServerPlugin {
 	const { boards, boardMembers, comments, commentMessages } = schema;
+	// マルチページ: comments テーブルに page_id 列があるときだけ記録する（無いスキーマも動く）
+	const hasPageColumn = "pageId" in comments;
+
+	/** 見ている人が見られるページ（絞らないボードは全部）。 */
+	async function pageFilterOf(
+		db: CommentsEnv["Variables"]["db"],
+		boardId: string,
+		userId: string,
+	): Promise<CommentPageFilter> {
+		if (!options.pageFilter || !hasPageColumn) return () => true;
+		return options.pageFilter({ db, boardId, userId });
+	}
+
+	/** スレッドがあり、そのページを見られるか。 */
+	async function findVisibleThread(
+		db: CommentsEnv["Variables"]["db"],
+		boardId: string,
+		userId: string,
+		commentId: string,
+	): Promise<{ createdBy: string } | null> {
+		const [thread] = await db
+			.select({
+				createdBy: comments.createdBy,
+				...(hasPageColumn ? { pageId: comments.pageId } : {}),
+			})
+			.from(comments)
+			.where(and(eq(comments.id, commentId), eq(comments.boardId, boardId)))
+			.limit(1);
+		if (!thread) return null;
+		const canView = await pageFilterOf(db, boardId, userId);
+		return canView((thread as { pageId?: string | null }).pageId ?? null) ? thread : null;
+	}
 
 	/** ボードのメンバーかパブリックボードであればアクセス許可 */
 	async function assertBoardAccess(db: any, boardId: string, userId: string): Promise<boolean> {
@@ -70,11 +121,13 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 					.where(eq(comments.boardId, boardId))
 					.orderBy(desc(comments.createdAt));
 
-				if (threads.length === 0) return c.json([]);
+				const canView = await pageFilterOf(db, boardId, userId);
+				const visible = threads.filter((t: any) => canView(t.pageId ?? null));
+				if (visible.length === 0) return c.json([]);
 
 				// D1ではIN句が制限されるため、スレッドごとにメッセージを並列取得
 				const messageResults = await Promise.all(
-					threads.map((t: any) =>
+					visible.map((t: any) =>
 						db
 							.select()
 							.from(commentMessages)
@@ -92,7 +145,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 				}
 
 				return c.json(
-					threads.map((t: any) => ({
+					visible.map((t: any) => ({
 						...t,
 						messages: messagesByThread.get(t.id) ?? [],
 					})),
@@ -110,8 +163,6 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 					.regex(/^[A-Za-z0-9_-]{1,64}$/)
 					.optional(),
 			});
-			// マルチページ: comments テーブルに page_id 列があるときだけ記録する（無いスキーマも動く）
-			const hasPageColumn = "pageId" in comments;
 
 			// POST /api/boards/:boardId/comments — スレッド作成（初期メッセージ付き）
 			commentsApp.post("/", zValidator("json", createThreadSchema), async (c) => {
@@ -122,6 +173,9 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 				if (!(await assertBoardAccess(db, boardId, userId))) {
 					return c.json({ error: "Board not found" }, 404);
+				}
+				if (!(await pageFilterOf(db, boardId, userId))(body.pageId ?? null)) {
+					return c.json({ error: "Page not found" }, 404);
 				}
 
 				const threadId = crypto.randomUUID();
@@ -191,14 +245,8 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 					return c.json({ error: "Board not found" }, 404);
 				}
 
-				// スレッドの存在確認
-				const thread = await db
-					.select({ id: comments.id })
-					.from(comments)
-					.where(and(eq(comments.id, commentId), eq(comments.boardId, boardId)))
-					.limit(1);
-
-				if (thread.length === 0) {
+				// スレッドの存在確認（見られないページのスレッドは無いものとする）
+				if (!(await findVisibleThread(db, boardId, userId, commentId))) {
 					return c.json({ error: "Comment thread not found" }, 404);
 				}
 
@@ -244,13 +292,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 					return c.json({ error: "Board not found" }, 404);
 				}
 
-				const thread = await db
-					.select({ id: comments.id })
-					.from(comments)
-					.where(and(eq(comments.id, commentId), eq(comments.boardId, boardId)))
-					.limit(1);
-
-				if (thread.length === 0) {
+				if (!(await findVisibleThread(db, boardId, userId, commentId))) {
 					return c.json({ error: "Comment thread not found" }, 404);
 				}
 
@@ -274,17 +316,12 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 				}
 
 				// 作成者のみ削除可能
-				const thread = await db
-					.select({ createdBy: comments.createdBy })
-					.from(comments)
-					.where(and(eq(comments.id, commentId), eq(comments.boardId, boardId)))
-					.limit(1);
-
-				if (thread.length === 0) {
+				const thread = await findVisibleThread(db, boardId, userId, commentId);
+				if (!thread) {
 					return c.json({ error: "Comment thread not found" }, 404);
 				}
 
-				if (thread[0].createdBy !== userId) {
+				if (thread.createdBy !== userId) {
 					return c.json({ error: "Forbidden" }, 403);
 				}
 

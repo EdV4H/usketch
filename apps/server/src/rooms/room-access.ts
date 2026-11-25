@@ -15,7 +15,7 @@ import {
 	pageResource,
 } from "@edv4h/usketch-demo-permissions";
 import { createCaslSnapshot } from "@edv4h/usketch-permissions-casl";
-import { PERMISSIONS, type PermissionSnapshot } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 
 /** Worker が DO への URL に付けるパラメーターの名前。 */
 export const ACCESS_PARAMS = {
@@ -82,73 +82,88 @@ export function getSocketAccess(ws: AccessSocket): SocketAccess | null {
 	};
 }
 
-interface AccessSnapshot {
-	access: SocketAccess;
-	can: PermissionSnapshot["can"];
-}
-
-// 接続ごとの判定（ルールを作り直さないため）。休眠から戻ると空になり、attachment から作り直す。
-const snapshots = new WeakMap<AccessSocket, AccessSnapshot | null>();
-
-function snapshotOf(ws: AccessSocket): AccessSnapshot | null {
-	if (snapshots.has(ws)) return snapshots.get(ws) ?? null;
-	const access = getSocketAccess(ws);
-	const snapshot = access
-		? {
-				access,
-				can: createCaslSnapshot(
-					defineDemoRules({ userId: access.userId, boardRole: access.boardRole }),
-				).can,
-			}
-		: null;
-	snapshots.set(ws, snapshot);
-	return snapshot;
-}
-
 /** ページの公開範囲（`page_access` の行。無ければ null）。 */
 export type PageAccessLookup = DemoPageAccess | null | undefined;
 
-function pageOf(access: SocketAccess, pageId: string | null, page?: PageAccessLookup) {
-	return pageResource(
-		{ boardId: access.boardId, pageId },
-		page ?? defaultPageAccess(access.boardPublic),
+/** ある人の判定（WebSocket の接続にも、DO への HTTP の呼び出しにも使う）。 */
+export interface AccessJudge {
+	readonly access: SocketAccess;
+	/**
+	 * ページを見られるか。`page` はそのページの公開範囲。`pageId` が null はページを使わない
+	 * ボード（既定の公開範囲で聞く）。
+	 */
+	canView(pageId: string | null, page?: PageAccessLookup): boolean;
+	/** ページに書けるか。 */
+	canEdit(pageId: string | null, page?: PageAccessLookup): boolean;
+	/** ページの名前・並び・削除・プラグインを変えられるか。 */
+	canManage(pageId: string | null, page?: PageAccessLookup): boolean;
+	/** ページを足せるか。 */
+	canCreate(): boolean;
+	/**
+	 * ルート doc に書けるか。ルート doc はページの一覧と、ページを使わないボードの shapes を持つので、
+	 * 「既定の公開範囲のページを編集できる」人（ボードの editor 以上）だけが書ける。
+	 */
+	canEditRoot(): boolean;
+}
+
+/** 人とボードの関係から判定を作る。 */
+export function judgeAccess(access: SocketAccess): AccessJudge {
+	const { can } = createCaslSnapshot(
+		defineDemoRules({ userId: access.userId, boardRole: access.boardRole }),
 	);
+	const pageOf = (pageId: string | null, page?: PageAccessLookup) =>
+		pageResource(
+			{ boardId: access.boardId, pageId },
+			page ?? defaultPageAccess(access.boardPublic),
+		);
+	return {
+		access,
+		canView: (pageId, page) => can(PERMISSIONS.pageView, pageOf(pageId, page)),
+		canEdit: (pageId, page) => can(PERMISSIONS.pageEdit, pageOf(pageId, page)),
+		canManage: (pageId, page) => can(PERMISSIONS.pageManage, pageOf(pageId, page)),
+		canCreate: () => can(PERMISSIONS.pageCreate, { boardId: access.boardId }),
+		canEditRoot: () => can(PERMISSIONS.pageEdit, pageOf(null)),
+	};
+}
+
+// 接続ごとの判定（ルールを作り直さないため）。休眠から戻ると空になり、attachment から作り直す。
+const snapshots = new WeakMap<AccessSocket, AccessJudge | null>();
+
+/** 接続の判定。記録が無い接続は null（何もできない）。 */
+export function judgeSocket(ws: AccessSocket): AccessJudge | null {
+	if (snapshots.has(ws)) return snapshots.get(ws) ?? null;
+	const access = getSocketAccess(ws);
+	const judge = access ? judgeAccess(access) : null;
+	snapshots.set(ws, judge);
+	return judge;
 }
 
 /** 接続がつながっているボード（記録が無ければ null）。 */
 export function socketBoardId(ws: AccessSocket): string | null {
-	return snapshotOf(ws)?.access.boardId ?? null;
+	return judgeSocket(ws)?.access.boardId ?? null;
 }
 
 /** ページ doc を購読できるか（見る権限）。`page` はそのページの公開範囲。 */
 export function canViewPage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageView, pageOf(s.access, pageId, page));
+	return judgeSocket(ws)?.canView(pageId, page) ?? false;
 }
 
 /** ページ doc に書けるか（編集の権限）。`page` はそのページの公開範囲。 */
 export function canEditPage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageEdit, pageOf(s.access, pageId, page));
+	return judgeSocket(ws)?.canEdit(pageId, page) ?? false;
 }
 
 /** ページを足せるか。 */
 export function canCreatePage(ws: AccessSocket): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageCreate, { boardId: s.access.boardId });
+	return judgeSocket(ws)?.canCreate() ?? false;
 }
 
 /** ページの名前・並び・削除・プラグインを変えられるか。`page` はそのページの公開範囲。 */
 export function canManagePage(ws: AccessSocket, pageId: string, page?: PageAccessLookup): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageManage, pageOf(s.access, pageId, page));
+	return judgeSocket(ws)?.canManage(pageId, page) ?? false;
 }
 
-/**
- * ルート doc に書けるか。ルート doc はページの一覧と、ページを使わないボードの shapes を持つので、
- * 「既定の公開範囲のページを編集できる」人（ボードの editor 以上）だけが書ける。
- */
+/** ルート doc に書けるか（{@link AccessJudge.canEditRoot}）。 */
 export function canEditRoot(ws: AccessSocket): boolean {
-	const s = snapshotOf(ws);
-	return !!s && s.can(PERMISSIONS.pageEdit, pageOf(s.access, null));
+	return judgeSocket(ws)?.canEditRoot() ?? false;
 }

@@ -38,6 +38,20 @@ export function hasSelectableChildren(def: ShapeDefinition | undefined, shape: S
 }
 
 /**
+ * Resolve whether a click picks this container over a shape behind it that
+ * wholly encloses it (see {@link ShapeDefinition.container.winsOverBackdrop}).
+ * Always `false` for non-containers.
+ */
+export function containerWinsOverBackdrop(
+	def: ShapeDefinition | undefined,
+	shape: ShapeData,
+): boolean {
+	if (!isShapeContainer(def, shape)) return false;
+	const w = def?.container?.winsOverBackdrop;
+	return typeof w === "function" ? w(shape) : w === true;
+}
+
+/**
  * Resolve whether a container auto-attaches shapes dropped inside it as
  * children (frame-style), versus managing membership itself (group).
  * Always `false` for non-containers.

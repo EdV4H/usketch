@@ -493,6 +493,8 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 
 						const doId = c.env.BOARD_ROOM.idFromName(boardId);
 						const room = c.env.BOARD_ROOM.get(doId);
+						// 頼んだ人（BoardRoom がページに書けるかを確かめる）
+						const caller = new URLSearchParams({ boardId, userId: userId ?? "anonymous" });
 
 						// 全tool_callの結果を集約してから1回のresultイベントで送信
 						const allPlacedShapes: Array<{
@@ -526,7 +528,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 								});
 
 								const placeResponse = await room.fetch(
-									new Request("http://do/ai-place-shapes", {
+									new Request(`http://do/ai-place-shapes?${caller}`, {
 										method: "POST",
 										headers: { "Content-Type": "application/json" },
 										body: JSON.stringify({ shapes, pageId }),
@@ -573,7 +575,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 								});
 
 								const updateResponse = await room.fetch(
-									new Request("http://do/ai-update-shapes", {
+									new Request(`http://do/ai-update-shapes?${caller}`, {
 										method: "POST",
 										headers: { "Content-Type": "application/json" },
 										body: JSON.stringify({ updates, pageId }),

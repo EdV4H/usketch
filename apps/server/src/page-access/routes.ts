@@ -14,27 +14,17 @@
  * `page_access.title` に置いて見られる人にだけ返す。非公開にするとき BoardRoom が名前を伏せて
  * 元の名前を返し、やめるときに戻す。
  */
-import {
-	type DemoPageAccess,
-	defaultPageAccess,
-	defineDemoRules,
-	pageResource,
-} from "@edv4h/usketch-demo-permissions";
-import { createCaslSnapshot } from "@edv4h/usketch-permissions-casl";
+import { type DemoPageAccess, defaultPageAccess } from "@edv4h/usketch-demo-permissions";
 import type { HonoEnv, ServerPlugin } from "@edv4h/usketch-server-core";
-import { PERMISSIONS, type Permission } from "@edv4h/usketch-shared";
+import { PERMISSIONS } from "@edv4h/usketch-shared";
 import { isValidDocId } from "@edv4h/usketch-sync";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { pageAccess, pageMembers, users } from "../db/schema.js";
-import {
-	type BoardViewer,
-	loadBoardViewer,
-	loadPageAccess,
-	type StoredPageAccess,
-} from "./queries.js";
+import { judgePages as judge } from "./judge.js";
+import { loadBoardViewer, loadPageAccess, type StoredPageAccess } from "./queries.js";
 
 const accessSchema = z.object({
 	visibility: z.enum(["public", "members", "private"]),
@@ -47,16 +37,6 @@ const inviteSchema = z.object({
 	email: z.string().email(),
 	role: z.enum(["editor", "viewer"]).default("viewer"),
 });
-
-/** 見ている人の判定（デモのルール）。 */
-function judge(boardId: string, userId: string, viewer: BoardViewer) {
-	const { can } = createCaslSnapshot(defineDemoRules({ userId, boardRole: viewer.boardRole }));
-	return (permission: Permission, pageId: string, access: DemoPageAccess | undefined) =>
-		can(
-			permission,
-			pageResource({ boardId, pageId }, access ?? defaultPageAccess(viewer.boardPublic)),
-		);
-}
 
 /** BoardRoom に権限が変わったことを知らせる（失敗しても REST の結果は変えない）。 */
 async function notifyRoom(c: Context<HonoEnv>, boardId: string): Promise<void> {

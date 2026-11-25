@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-character
 
+## 0.12.8
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+
 ## 0.12.7
 
 ### Patch Changes
