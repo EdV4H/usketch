@@ -19,6 +19,25 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
+      # The release PR ("Version Packages") must be created/updated with a token
+      # other than GITHUB_TOKEN. GitHub puts `pull_request` runs from a PR that
+      # GITHUB_TOKEN created or pushed into an approval-required state, so CI and
+      # Check Filename Convention sat on "Approve and run" for every release PR.
+      # A GitHub App installation token is treated like any other actor (same as
+      # Renovate), so CI starts on its own.
+      # Needs the repo variable RELEASE_APP_CLIENT_ID and secret
+      # RELEASE_APP_PRIVATE_KEY (see docs/release-app-token.md). Until they are
+      # set, this step is skipped and the action falls back to GITHUB_TOKEN.
+      - name: Create GitHub App token for the release PR
+        id: app-token
+        if: ${{ vars.RELEASE_APP_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -61,8 +80,12 @@ jobs:
           publish-script: pnpm release
           pr-title: "🎉 release: Version Packages"
           commit-message: "🎉 release: version packages"
+          # The action reads its token from this input only (an env GITHUB_TOKEN
+          # does not configure it). It pushes the release branch and opens the PR
+          # through the GitHub API, so the PR events are attributed to the app.
+          github-token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           # No NODE_AUTH_TOKEN / NPM_TOKEN — npm authenticates via GitHub OIDC
           # (trusted publishing). A stale token here would be tried before OIDC.
 
