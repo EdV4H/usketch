@@ -3,6 +3,13 @@
  * board-room.ts のプロトコルに準拠
  */
 
+import {
+	buildMotion,
+	type MotionPoint,
+	type MotionStop,
+	motionDuration,
+	motionFinalCursor,
+} from "@edv4h/usketch-presence-motion";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
 	Awareness,
@@ -25,13 +32,6 @@ import {
 import WebSocket from "ws";
 import * as Y from "yjs";
 import type { McpConfig } from "../config.js";
-import {
-	aiMotionDuration,
-	buildAiMotion,
-	finalCursor,
-	type MotionStop,
-	type Point,
-} from "./ai-motion.js";
 import { PageSubscriptions } from "./page-subscriptions.js";
 
 /** Identity the AI participant presents as on the board (a normal presence `user`). */
@@ -95,7 +95,7 @@ export class BoardConnection {
 	private aiUserSet = false;
 	private activityTimer: ReturnType<typeof setTimeout> | null = null;
 	/** Where the AI cursor last came to rest on each page (`""` = no pages) — the start of its next motion. */
-	private readonly aiCursors = new Map<string, Point>();
+	private readonly aiCursors = new Map<string, MotionPoint>();
 	/** 開いたページ doc。 */
 	private readonly pages = new PageSubscriptions({
 		send: (frame) => {
@@ -148,7 +148,7 @@ export class BoardConnection {
 	 */
 	showAiActivity(opts: {
 		shapeIds?: string[];
-		cursor?: Point;
+		cursor?: MotionPoint;
 		action?: "select" | "edit";
 		holdMs?: number;
 		stops?: MotionStop[];
@@ -164,14 +164,14 @@ export class BoardConnection {
 		if (opts.pageId) this.awareness.setLocalStateField(PAGE_AWARENESS_FIELD, opts.pageId);
 		const action = opts.action ?? "edit";
 		const motion = opts.stops
-			? buildAiMotion({
+			? buildMotion({
 					id: crypto.randomUUID(),
 					stops: opts.stops,
 					from: this.aiCursors.get(pageKey),
 					action,
 				})
 			: null;
-		const endCursor = motion ? finalCursor(motion) : opts.cursor;
+		const endCursor = motion ? motionFinalCursor(motion) : opts.cursor;
 		if (motion) this.awareness.setLocalStateField("cursor", null);
 		else if (opts.cursor) this.awareness.setLocalStateField("cursor", opts.cursor);
 		if (endCursor) this.aiCursors.set(pageKey, endCursor);
@@ -184,7 +184,7 @@ export class BoardConnection {
 				: null,
 		);
 		if (this.activityTimer) clearTimeout(this.activityTimer);
-		const playMs = motion ? aiMotionDuration(motion) : 0;
+		const playMs = motion ? motionDuration(motion) : 0;
 		this.activityTimer = setTimeout(
 			() => {
 				this.awareness.setLocalStateField("activity", null);

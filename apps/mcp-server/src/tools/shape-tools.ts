@@ -5,10 +5,10 @@
  * Y.Doc を直接操作し、WebSocket 経由でリアルタイム同期する
  */
 
-import { DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
+import { visitShapes } from "@edv4h/usketch-presence-motion";
+import { type BoundingBox, DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { type Box, visitShapes } from "../client/ai-motion.js";
 import type { ConnectionManager } from "../client/connection-manager.js";
 import { pageIdSchema, withShapes } from "./page-target.js";
 
@@ -154,7 +154,7 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			withShapes(connections, boardId, pageId, (conn, view) => {
 				const shapesMap = view.map;
 				const placedShapes: Array<{ id: string; type: string }> = [];
-				const placedBoxes: Array<{ id: string; box: Box }> = [];
+				const placedBoxes: Array<{ id: string; box: BoundingBox }> = [];
 
 				view.doc.transact(() => {
 					for (const shape of shapes) {
@@ -241,7 +241,7 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				const updatedIds: string[] = [];
 				const notFound: string[] = [];
 				// Bounds BEFORE the update, so a move/resize can be replayed as a drag.
-				const beforeBoxes = new Map<string, Box>();
+				const beforeBoxes = new Map<string, BoundingBox>();
 				for (const { id } of updates) {
 					const s = view.get(id);
 					if (s) beforeBoxes.set(id, { x: s.x, y: s.y, width: s.width, height: s.height });
