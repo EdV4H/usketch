@@ -3,7 +3,11 @@ import { decodeDeepLink, encodeDeepLink } from "../url-state.js";
 
 describe("decodeDeepLink", () => {
 	it("parses a single shape id", () => {
-		expect(decodeDeepLink("?shape=abc")).toEqual({ shapeIds: ["abc"], camera: null });
+		expect(decodeDeepLink("?shape=abc")).toEqual({
+			shapeIds: ["abc"],
+			camera: null,
+			view: null,
+		});
 	});
 
 	it("parses multiple comma-separated shape ids", () => {
@@ -28,14 +32,28 @@ describe("decodeDeepLink", () => {
 	});
 
 	it("returns empty state for an empty query", () => {
-		expect(decodeDeepLink("")).toEqual({ shapeIds: [], camera: null });
+		expect(decodeDeepLink("")).toEqual({ shapeIds: [], camera: null, view: null });
 	});
 
 	it("parses shape and camera together", () => {
 		expect(decodeDeepLink("?shape=a,b&x=10&y=20&zoom=2")).toEqual({
 			shapeIds: ["a", "b"],
 			camera: { x: 10, y: 20, zoom: 2 },
+			view: null,
 		});
+	});
+
+	it("parses a centre-anchored view from cx/cy/zoom", () => {
+		expect(decodeDeepLink("?cx=500&cy=-250&zoom=0.5")).toEqual({
+			shapeIds: [],
+			camera: null,
+			view: { x: 500, y: -250, zoom: 0.5 },
+		});
+	});
+
+	it("ignores a partial or invalid view", () => {
+		expect(decodeDeepLink("?cx=500&zoom=1").view).toBeNull();
+		expect(decodeDeepLink("?cx=1&cy=2&zoom=-1").view).toBeNull();
 	});
 });
 
@@ -84,6 +102,41 @@ describe("encodeDeepLink", () => {
 		expect(decodeDeepLink(search)).toEqual({
 			shapeIds: ["a", "b"],
 			camera: { x: 100, y: 200, zoom: 1.5 },
+			view: null,
 		});
+	});
+
+	it("writes a centre-anchored view (cx/cy integer, zoom 3dp)", () => {
+		expect(encodeDeepLink("?page=p1", { view: { x: 10.7, y: -3.2, zoom: 1.23456 } })).toBe(
+			"?page=p1&cx=10.7&cy=-3.2&zoom=1.235",
+		);
+	});
+
+	it("removes view params when view is null", () => {
+		expect(encodeDeepLink("?cx=1&cy=2&zoom=3&page=p1", { view: null })).toBe("?page=p1");
+	});
+
+	it("keeps the shared zoom while the other anchor remains", () => {
+		expect(encodeDeepLink("?x=1&y=2&cx=3&cy=4&zoom=2", { view: null })).toBe("?x=1&y=2&zoom=2");
+		expect(encodeDeepLink("?x=1&y=2&cx=3&cy=4&zoom=2", { camera: null })).toBe("?cx=3&cy=4&zoom=2");
+	});
+
+	it("drops a stale exact camera when only a view is set", () => {
+		const search = encodeDeepLink("?x=1&y=2&zoom=3", { view: { x: 5, y: 6, zoom: 0.5 } });
+		expect(decodeDeepLink(search)).toEqual({
+			shapeIds: [],
+			camera: null,
+			view: { x: 5, y: 6, zoom: 0.5 },
+		});
+	});
+
+	it("replaces an exact camera with a view", () => {
+		expect(
+			encodeDeepLink("?shape=a&x=1&y=2&zoom=3", {
+				shapeIds: [],
+				camera: null,
+				view: { x: 5, y: 6, zoom: 2 },
+			}),
+		).toBe("?zoom=2&cx=5&cy=6");
 	});
 });
