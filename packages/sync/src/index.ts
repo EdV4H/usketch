@@ -68,6 +68,12 @@ export {
 	toPageMeta,
 } from "./pages.js";
 export {
+	type BindPermanentRemovalsOptions,
+	bindPermanentRemovals,
+	DEFAULT_PERMANENT_REMOVALS_MAP_KEY,
+	PERMANENT_REMOVAL_ORIGIN,
+} from "./permanent-removals.js";
+export {
 	type DocFrame,
 	decodeDocFrame,
 	encodeDocFrame,

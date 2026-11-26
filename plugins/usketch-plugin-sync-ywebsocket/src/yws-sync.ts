@@ -1,5 +1,9 @@
 import { applyExternal, type BoardStore, type ShapeData } from "@edv4h/usketch-shared";
-import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
+import {
+	bindPermanentRemovals,
+	type WsConnectionStatus,
+	type WsProviderHandle,
+} from "@edv4h/usketch-sync";
 import { Awareness } from "y-protocols/awareness";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
@@ -138,6 +142,11 @@ export function createYwebsocketSync(
 	// These observers are set up once; they keep working across provider reconnects
 	// because they bind to `doc` / `shapesMap` rather than the provider.
 
+	// Permanent removals (`store.removeShapePermanently`) are shared through their own
+	// Y.Map. Bound before the shapes observer and the initial load, so a recorded id
+	// never reaches the store.
+	const unbindPermanentRemovals = bindPermanentRemovals(store, doc, { shapesMapKey });
+
 	const unsubMutation = store.onMutation((event) => {
 		if (isSyncing || destroyed) return;
 
@@ -188,6 +197,10 @@ export function createYwebsocketSync(
 						break;
 					}
 					case "shape:removed": {
+						// `bindPermanentRemovals` deletes permanent removals from the
+						// shared doc with its own origin; deleting here too would give a
+						// host's Yjs UndoManager an undo step that does nothing.
+						if (event.payload.permanent) break;
 						// With a filter in play, only forward removals for shapes
 						// actually present in the Y.Map. Without this guard, a host
 						// bridging in foreign shapes (and removing them locally
@@ -599,6 +612,7 @@ export function createYwebsocketSync(
 		tearDownProvider();
 		shapesMap.unobserve(shapesObserver);
 		unsubMutation();
+		unbindPermanentRemovals();
 		statusListeners.clear();
 		broadcastListeners.clear();
 		sharedAwareness.destroy();

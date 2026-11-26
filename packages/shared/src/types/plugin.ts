@@ -1292,7 +1292,21 @@ export interface ShapeChange {
  */
 export type StoreEvent =
 	| { type: "shape:added"; payload: { id: string; ids: string[] } }
-	| { type: "shape:removed"; payload: { id: string; ids: string[] } }
+	| {
+			type: "shape:removed";
+			payload: {
+				id: string;
+				ids: string[];
+				/**
+				 * `true` when the shape was removed for good ({@link BoardStore.removeShapePermanently}):
+				 * the id is recorded and the shape won't come back. Fired the same way on the client that
+				 * removed it and on the ones that hear of it through sync.
+				 */
+				permanent?: true;
+				/** The shape just before it went. Set on permanent removals when it was on the board. */
+				shape?: ShapeData;
+			};
+	  }
 	| { type: "shape:updated"; payload: ShapeChange & { ids: string[] } }
 	| { type: "selection:changed"; payload?: { ids: string[] } }
 	| { type: "tool:changed"; payload: { id: string } }
@@ -1455,6 +1469,26 @@ export interface BoardStore {
 	 * Call it through `applyExternal(store, fn)`.
 	 */
 	applyExternal?<T>(fn: () => T): T;
+	/**
+	 * Remove a shape for good and record its id, so it never comes back: later
+	 * {@link addShape} / {@link updateShape} calls for that id do nothing — an old command's
+	 * `undo()`, a restored version, another plugin's write, or the same shape arriving
+	 * through sync. Not a command, so it isn't added to undo.
+	 *
+	 * With `expectedType`, a shape of another type is left alone and `false` is returned
+	 * (so an ordinary shape isn't removed by mistake). The id is recorded even when no
+	 * such shape is on the board (sync may bring the record before the shape).
+	 * Returns `true` when the id was newly recorded; `false` when read-only, the type
+	 * doesn't match, or the id was already recorded.
+	 *
+	 * Fires `shape:removed` with `permanent: true` and the removed `shape`. Optional
+	 * until the next major; call it through `removeShapePermanently(store, id)`.
+	 */
+	removeShapePermanently?(id: string, opts?: { expectedType?: string }): boolean;
+	/** Whether {@link removeShapePermanently} recorded this id. Read it through `isPermanentlyRemoved(store, id)`. */
+	isPermanentlyRemoved?(id: string): boolean;
+	/** Every id {@link removeShapePermanently} recorded. */
+	getPermanentlyRemovedIds?(): ReadonlySet<string>;
 	/** Change the 3D view (camera fields merged and clamped, amount clamped to 0…1). */
 	setView3d?(patch: View3dPatch): void;
 	/**
