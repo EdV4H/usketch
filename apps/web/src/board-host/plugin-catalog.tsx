@@ -855,7 +855,13 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 		create: () => createStartPositionPlugin(),
 	},
 	// URL ⇄ 選択・視点（Figma の ?node-id 相当）。最後のほうに置く。
-	{ id: "deep-link", label: "URL で場所を共有", base: true, create: () => createDeepLinkPlugin() },
+	{
+		id: "deep-link",
+		label: "URL で場所を共有",
+		base: true,
+		// 発表の編集モードでは Canvas が stage に縮むので、その大きさで ?cx&cy を中心に合わせる。
+		create: (w) => createDeepLinkPlugin({ getViewportSize: w.host.presentation?.getViewportSize }),
+	},
 	// Control HUD（プラグインの操作をまとめる画面）。分割読み込みのまま、最後に足す。
 	{
 		id: "debug-hud",

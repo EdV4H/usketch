@@ -1,6 +1,9 @@
 import type { PluginContext, StoreEvent, UsketchPlugin } from "@edv4h/usketch-shared";
 import { applyDeepLink } from "./apply.js";
 import { decodeDeepLink, encodeDeepLink } from "./url-state.js";
+import type { ViewOptions } from "./view.js";
+
+export type CreateDeepLinkPluginOptions = ViewOptions;
 
 /** Coalesce rapid selection changes (e.g. marquee) into a single URL write. */
 const WRITE_DEBOUNCE_MS = 150;
@@ -11,10 +14,13 @@ const WRITE_DEBOUNCE_MS = 150;
  *
  * Framework-agnostic: it reads `window.location` and writes via
  * `history.replaceState`, so it needs no router. Selection is synced live;
- * an exact camera (`?x&y&zoom`) is only produced by an explicit "copy view
- * link" action, not on every pan.
+ * an exact camera (`?x&y&zoom`) or a centre-anchored view (`?cx&cy&zoom`) is
+ * only produced by an explicit "copy view link" action, not on every pan.
+ *
+ * `getViewportSize` gives the canvas size used to centre a `?cx&cy` view, for
+ * hosts whose canvas isn't the whole window (defaults to the window size).
  */
-export function createDeepLinkPlugin(): UsketchPlugin {
+export function createDeepLinkPlugin(options: CreateDeepLinkPluginOptions = {}): UsketchPlugin {
 	return {
 		id: "usketch-plugin-deep-link",
 		name: "ディープリンク",
@@ -46,17 +52,23 @@ export function createDeepLinkPlugin(): UsketchPlugin {
 			// start-position) defer to an explicit deep link. Loosely coupled: we emit
 			// a plain `viewport:claimed` event — no dependency on any other plugin. On a
 			// microtask so every plugin's listener is subscribed first, regardless of
-			// registration order. Only claim when the URL actually pins a camera.
-			if (decodeDeepLink(window.location.search).camera) {
+			// registration order. Only claim when the URL actually pins a camera/view.
+			const initial = decodeDeepLink(window.location.search);
+			if (initial.camera || initial.view) {
 				queueMicrotask(() =>
 					ctx.events.emit("viewport:claimed", { source: "deep-link", priority: 100 }),
 				);
 			}
 
 			// Restore selection/viewport from the URL (waits for CRDT sync if needed).
-			const disposeApply = applyDeepLink(store, window.location.search, () => {
-				applying = false;
-			});
+			const disposeApply = applyDeepLink(
+				store,
+				window.location.search,
+				() => {
+					applying = false;
+				},
+				options,
+			);
 
 			// Live selection → URL.
 			const offMutation = store.onMutation((e: StoreEvent) => {
