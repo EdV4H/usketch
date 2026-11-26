@@ -118,11 +118,19 @@ function BasicShapeIcon() {
 	);
 }
 
+/** Screen pixels the pointer may travel and still count as a click. */
+const CLICK_SLOP_PX = 4;
+
+function exceedsClickSlop(start: { x: number; y: number }, event: CanvasPointerEvent): boolean {
+	return Math.hypot(event.screenPoint.x - start.x, event.screenPoint.y - start.y) >= CLICK_SLOP_PX;
+}
+
 export interface BasicShapePluginOptions {
 	/**
-	 * When true, a click without a drag places the selected subtype at its
-	 * default size, centered on the click point. Default false: a click
-	 * without a drag creates nothing (only a drag creates a shape).
+	 * When true, a click without a drag (the pointer moves less than a few
+	 * screen pixels, at any zoom) places the selected subtype at its default
+	 * size, centered on the click point, and selects it. Default false: a
+	 * click without a drag creates nothing (only a drag creates a shape).
 	 */
 	clickToPlace?: boolean;
 }
@@ -178,8 +186,15 @@ export function createBasicShapePlugin(options: BasicShapePluginOptions = {}): U
 
 			// Tool state
 			let currentSubtype = BASIC_SHAPE_SUBTYPES[0].type;
-			let drawState: { startX: number; startY: number; shapeId: string; type: string } | null =
-				null;
+			let drawState: {
+				startX: number;
+				startY: number;
+				shapeId: string;
+				type: string;
+				startScreen: { x: number; y: number };
+				/** Pointer travelled at least CLICK_SLOP_PX on screen (i.e. not a click). */
+				moved: boolean;
+			} | null = null;
 
 			// Listen for subtype changes from the toolbar picker
 			const offSubtype = ctx.events.on<{ type: string }>("basic-shape:select-subtype", (data) => {
@@ -213,6 +228,8 @@ export function createBasicShapePlugin(options: BasicShapePluginOptions = {}): U
 					startY: event.worldPoint.y,
 					shapeId: id,
 					type: subtype.type,
+					startScreen: { ...event.screenPoint },
+					moved: false,
 				};
 				const shape = subtype.createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
 				shape.width = 0;
@@ -223,6 +240,7 @@ export function createBasicShapePlugin(options: BasicShapePluginOptions = {}): U
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
+				if (exceedsClickSlop(drawState.startScreen, event)) drawState.moved = true;
 				const start = { x: drawState.startX, y: drawState.startY };
 				toolCtx.store.updateShape(
 					drawState.shapeId,
@@ -230,32 +248,31 @@ export function createBasicShapePlugin(options: BasicShapePluginOptions = {}): U
 				);
 			}
 
-			function onPointerUp(toolCtx: ToolContext) {
+			function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
 				const draw = drawState;
+				if (exceedsClickSlop(draw.startScreen, event)) draw.moved = true;
 				const shape = toolCtx.store.getShape(draw.shapeId);
-				if (shape && shape.width > 2 && shape.height > 2) {
+				const subtype = BASIC_SHAPE_SUBTYPES.find((s) => s.type === draw.type);
+				if (clickToPlace && !draw.moved && shape && subtype) {
+					// A click (the pointer barely moved on screen, at any zoom) places
+					// the default size with the click point at its center.
+					toolCtx.store.deleteShape(draw.shapeId);
+					const placed = subtype.createDefault({
+						id: draw.shapeId,
+						x: draw.startX,
+						y: draw.startY,
+					});
+					placed.x -= placed.width / 2;
+					placed.y -= placed.height / 2;
+					placed.style = { ...toolCtx.store.getStyleSettings() };
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
+					toolCtx.store.setSelection([placed.id]);
+				} else if (shape && shape.width > 2 && shape.height > 2) {
 					toolCtx.store.deleteShape(draw.shapeId);
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				} else {
 					toolCtx.store.deleteShape(draw.shapeId);
-					const subtype = BASIC_SHAPE_SUBTYPES.find((s) => s.type === draw.type);
-					// A click (no real drag on either axis) places the default size.
-					// A thin drag (e.g. along one axis) still creates nothing.
-					const isClick = !shape || (shape.width <= 2 && shape.height <= 2);
-					if (clickToPlace && isClick && subtype) {
-						// Click point = center of the default-size shape.
-						const placed = subtype.createDefault({
-							id: draw.shapeId,
-							x: draw.startX,
-							y: draw.startY,
-						});
-						placed.x -= placed.width / 2;
-						placed.y -= placed.height / 2;
-						placed.style = { ...toolCtx.store.getStyleSettings() };
-						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
-						toolCtx.store.setSelection([placed.id]);
-					}
 				}
 				drawState = null;
 				toolCtx.store.resetToDefaultTool();

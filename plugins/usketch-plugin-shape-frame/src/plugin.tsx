@@ -70,11 +70,19 @@ function FrameIcon() {
 	);
 }
 
+/** Screen pixels the pointer may travel and still count as a click. */
+const CLICK_SLOP_PX = 4;
+
+function exceedsClickSlop(start: { x: number; y: number }, event: CanvasPointerEvent): boolean {
+	return Math.hypot(event.screenPoint.x - start.x, event.screenPoint.y - start.y) >= CLICK_SLOP_PX;
+}
+
 export interface FramePluginOptions {
 	/**
-	 * When true, a click without a drag places a default-size frame centered
-	 * on the click point. Default false: a click without a drag creates
-	 * nothing (only a drag creates a frame).
+	 * When true, a click without a drag (the pointer moves less than a few
+	 * screen pixels, at any zoom) places a default-size frame centered on the
+	 * click point, and selects it. Default false: a click without a drag
+	 * creates nothing (only a drag creates a frame).
 	 */
 	clickToPlace?: boolean;
 }
@@ -104,11 +112,24 @@ export function createFramePlugin(options: FramePluginOptions = {}): UsketchPlug
 			});
 
 			// Drawing tool state
-			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+			let drawState: {
+				startX: number;
+				startY: number;
+				shapeId: string;
+				startScreen: { x: number; y: number };
+				/** Pointer travelled at least CLICK_SLOP_PX on screen (i.e. not a click). */
+				moved: boolean;
+			} | null = null;
 
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				const id = generateId();
-				drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+				drawState = {
+					startX: event.worldPoint.x,
+					startY: event.worldPoint.y,
+					shapeId: id,
+					startScreen: { ...event.screenPoint },
+					moved: false,
+				};
 				const shape = createDefaultFrame({ id, x: event.worldPoint.x, y: event.worldPoint.y });
 				shape.width = 0;
 				shape.height = 0;
@@ -121,6 +142,7 @@ export function createFramePlugin(options: FramePluginOptions = {}): UsketchPlug
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
+				if (exceedsClickSlop(drawState.startScreen, event)) drawState.moved = true;
 				const x = Math.min(drawState.startX, event.worldPoint.x);
 				const y = Math.min(drawState.startY, event.worldPoint.y);
 				const width = Math.abs(event.worldPoint.x - drawState.startX);
@@ -128,33 +150,33 @@ export function createFramePlugin(options: FramePluginOptions = {}): UsketchPlug
 				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
 			}
 
-			function onPointerUp(toolCtx: ToolContext) {
+			function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
-				const shape = toolCtx.store.getShape(drawState.shapeId);
-				if (shape && shape.width > 10 && shape.height > 10) {
-					toolCtx.store.deleteShape(drawState.shapeId);
+				const draw = drawState;
+				if (exceedsClickSlop(draw.startScreen, event)) draw.moved = true;
+				const shape = toolCtx.store.getShape(draw.shapeId);
+				if (clickToPlace && !draw.moved && shape) {
+					// A click (the pointer barely moved on screen, at any zoom) places
+					// a default-size frame with the click point at its center.
+					toolCtx.store.deleteShape(draw.shapeId);
+					const placed = createDefaultFrame({
+						id: draw.shapeId,
+						x: draw.startX,
+						y: draw.startY,
+					});
+					placed.x -= placed.width / 2;
+					placed.y -= placed.height / 2;
+					placed.style = {
+						...placed.style,
+						stroke: toolCtx.store.getStyleSettings().stroke,
+					};
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
+					toolCtx.store.setSelection([placed.id]);
+				} else if (shape && shape.width > 10 && shape.height > 10) {
+					toolCtx.store.deleteShape(draw.shapeId);
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				} else {
-					toolCtx.store.deleteShape(drawState.shapeId);
-					// A click (no real drag on either axis) places the default size.
-					// A thin drag (e.g. along one axis) still creates nothing.
-					const isClick = !shape || (shape.width <= 10 && shape.height <= 10);
-					if (clickToPlace && isClick) {
-						// Click point = center of the default-size frame.
-						const placed = createDefaultFrame({
-							id: drawState.shapeId,
-							x: drawState.startX,
-							y: drawState.startY,
-						});
-						placed.x -= placed.width / 2;
-						placed.y -= placed.height / 2;
-						placed.style = {
-							...placed.style,
-							stroke: toolCtx.store.getStyleSettings().stroke,
-						};
-						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
-						toolCtx.store.setSelection([placed.id]);
-					}
+					toolCtx.store.deleteShape(draw.shapeId);
 				}
 				drawState = null;
 				toolCtx.store.resetToDefaultTool();

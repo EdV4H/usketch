@@ -25,7 +25,9 @@ function harness(opts?: FramePluginOptions) {
 	const tool = ctx.tools.get("frame-draw");
 	if (!tool) throw new Error("tool not registered");
 	const toolCtx = ctx as unknown as ToolContext;
-	const at = (x: number, y: number) => ({ worldPoint: { x, y } }) as unknown as CanvasPointerEvent;
+	// screen = world unless given (zoom 1).
+	const at = (x: number, y: number, screen = { x, y }) =>
+		({ worldPoint: { x, y }, screenPoint: screen }) as unknown as CanvasPointerEvent;
 	const shapes = () => [...store.getShapes().values()];
 	return { ctx, store, tool, toolCtx, at, shapes };
 }
@@ -41,7 +43,7 @@ describe("frame-draw clickToPlace", () => {
 	it("places a default-size frame centered on the click point when enabled", () => {
 		const { store, tool, toolCtx, at, shapes } = harness({ clickToPlace: true });
 		tool.onPointerDown?.(toolCtx, at(100, 100));
-		tool.onPointerUp?.(toolCtx, at(105, 105));
+		tool.onPointerUp?.(toolCtx, at(102, 102));
 		const [shape] = shapes();
 		expect(shape).toMatchObject({ type: "frame", width: 300, height: 200 });
 		expect(shape.x + shape.width / 2).toBe(100);
@@ -63,5 +65,22 @@ describe("frame-draw clickToPlace", () => {
 		tool.onPointerMove?.(toolCtx, at(160, 140));
 		tool.onPointerUp?.(toolCtx, at(160, 140));
 		expect(shapes()[0]).toMatchObject({ x: 100, y: 100, width: 60, height: 40 });
+	});
+	it("keeps a real drag when zoomed in, even if the world box is small", () => {
+		const { tool, toolCtx, at, shapes } = harness({ clickToPlace: true });
+		// zoom 4: a 40 px drag is 10 world units, below the frame's size check.
+		tool.onPointerDown?.(toolCtx, at(100, 100, { x: 0, y: 0 }));
+		tool.onPointerMove?.(toolCtx, at(110, 110, { x: 40, y: 40 }));
+		tool.onPointerUp?.(toolCtx, at(110, 110, { x: 40, y: 40 }));
+		// Not a click, so no default-size frame replaces the drawn box.
+		expect(shapes()).toEqual([]);
+	});
+
+	it("creates nothing when the draft is gone by pointer-up", () => {
+		const { store, tool, toolCtx, at, shapes } = harness({ clickToPlace: true });
+		tool.onPointerDown?.(toolCtx, at(100, 100));
+		for (const id of store.getShapes().keys()) store.deleteShape(id);
+		tool.onPointerUp?.(toolCtx, at(100, 100));
+		expect(shapes()).toEqual([]);
 	});
 });

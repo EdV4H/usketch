@@ -25,7 +25,9 @@ function harness(opts?: BasicShapePluginOptions) {
 	const tool = ctx.tools.get("basic-shape-draw");
 	if (!tool) throw new Error("tool not registered");
 	const toolCtx = ctx as unknown as ToolContext;
-	const at = (x: number, y: number) => ({ worldPoint: { x, y } }) as unknown as CanvasPointerEvent;
+	// screen = world unless given (zoom 1).
+	const at = (x: number, y: number, screen = { x, y }) =>
+		({ worldPoint: { x, y }, screenPoint: screen }) as unknown as CanvasPointerEvent;
 	const shapes = () => [...store.getShapes().values()];
 	return { ctx, store, tool, toolCtx, at, shapes };
 }
@@ -73,5 +75,23 @@ describe("basic-shape-draw clickToPlace", () => {
 		tool.onPointerMove?.(toolCtx, at(160, 140));
 		tool.onPointerUp?.(toolCtx, at(160, 140));
 		expect(shapes()[0]).toMatchObject({ x: 100, y: 100, width: 60, height: 40 });
+	});
+	it("treats a tiny screen move as a click even when zoomed out", () => {
+		const { tool, toolCtx, at, shapes } = harness({ clickToPlace: true });
+		// zoom 0.25: 1 screen px = 4 world units, so the world box would be 8×8.
+		tool.onPointerDown?.(toolCtx, at(100, 100, { x: 10, y: 10 }));
+		tool.onPointerMove?.(toolCtx, at(108, 108, { x: 12, y: 12 }));
+		tool.onPointerUp?.(toolCtx, at(108, 108, { x: 12, y: 12 }));
+		const [shape] = shapes();
+		expect(shape.width).toBeGreaterThan(8);
+		expect(shape.x + shape.width / 2).toBe(100);
+	});
+
+	it("creates nothing when the draft is gone by pointer-up", () => {
+		const { store, tool, toolCtx, at, shapes } = harness({ clickToPlace: true });
+		tool.onPointerDown?.(toolCtx, at(100, 100));
+		for (const id of store.getShapes().keys()) store.deleteShape(id);
+		tool.onPointerUp?.(toolCtx, at(100, 100));
+		expect(shapes()).toEqual([]);
 	});
 });
