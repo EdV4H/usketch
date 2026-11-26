@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { motionDuration, sampleMotion } from "../motion.js";
+import { MAX_MOTION_MS, motionDuration, sampleMotion } from "../motion.js";
 import {
 	buildMotion,
 	DEFAULT_MOTION_TOUR_MS,
@@ -97,6 +97,28 @@ describe("buildMotion", () => {
 	it("takes custom hop and tour lengths", () => {
 		const m = buildMotion({ id: "m", stops, from: { x: 0, y: 0 }, hopMs: 100, maxDurationMs: 150 });
 		expect(m?.keyframes.map((k) => k.at)).toEqual([0, 75, 150]);
+	});
+
+	it("falls back to the defaults for bad lengths and never exceeds the receivers' limit", () => {
+		const bad = buildMotion({
+			id: "m",
+			stops,
+			from: { x: 0, y: 0 },
+			hopMs: Number.NaN,
+			maxDurationMs: -1,
+		});
+		expect(bad?.keyframes.map((k) => k.at)).toEqual([0, HOP_MS, HOP_MS * 2]);
+		const long = visitShapes(
+			Array.from({ length: 200 }, (_, i) => ({ id: `s${i}`, box: box(i, 0) })),
+		);
+		const m = buildMotion({ id: "m", stops: long, hopMs: 1000, maxDurationMs: 300_000 });
+		expect(m && motionDuration(m)).toBeLessThanOrEqual(MAX_MOTION_MS);
+	});
+
+	it("treats a null starting cursor like a missing one", () => {
+		const m = buildMotion({ id: "m", stops, from: null });
+		expect(m?.keyframes.map((k) => k.at)).toEqual([0, HOP_MS]);
+		expect(motionStopTimes(stops, { from: null })).toEqual([0, HOP_MS]);
 	});
 
 	it("plays back through sampleMotion to the last stop", () => {

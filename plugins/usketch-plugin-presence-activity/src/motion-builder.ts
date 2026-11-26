@@ -1,5 +1,10 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
-import type { ActivityKeyframe, ActivityMotion, MotionPoint } from "./motion.js";
+import {
+	type ActivityKeyframe,
+	type ActivityMotion,
+	MAX_MOTION_MS,
+	type MotionPoint,
+} from "./motion.js";
 
 /**
  * Sender side of {@link ActivityMotion}: build "the cursor glides from shape to
@@ -23,13 +28,20 @@ export interface MotionStop {
 
 /** Default time for one cursor hop between stops. */
 export const DEFAULT_MOTION_HOP_MS = 420;
-/** Default cap on a whole tour, so many stops speed up instead of dragging on. */
+/**
+ * Default cap on a whole tour, so many stops speed up instead of dragging on. (The
+ * MCP server's old builder called this `MAX_MOTION_MS`; that name here is the
+ * receiver's hard limit, 60 s.)
+ */
 export const DEFAULT_MOTION_TOUR_MS = 2400;
 
 export interface MotionTiming {
 	/** Time for one hop (default {@link DEFAULT_MOTION_HOP_MS}). */
 	hopMs?: number;
-	/** Cap on the whole tour; hops shrink to fit (default {@link DEFAULT_MOTION_TOUR_MS}). */
+	/**
+	 * Cap on the whole tour; hops shrink to fit (default {@link DEFAULT_MOTION_TOUR_MS}).
+	 * Never more than the receivers' `MAX_MOTION_MS`, which they clamp times to.
+	 */
 	maxDurationMs?: number;
 }
 
@@ -37,8 +49,8 @@ export interface BuildMotionOptions extends MotionTiming {
 	/** Unique per motion; a new id restarts playback on receivers. */
 	id: string;
 	stops: readonly MotionStop[];
-	/** Where the cursor rests now. Omitted: the tour starts at the first stop. */
-	from?: MotionPoint;
+	/** Where the cursor rests now. Omitted (or null): the tour starts at the first stop. */
+	from?: MotionPoint | null;
 	/** Action shown with each stop's outline (default `"edit"`). */
 	action?: "select" | "edit";
 }
@@ -52,10 +64,19 @@ export const boxCenter = (b: BoundingBox): MotionPoint => ({
 const pointCount = (stops: readonly MotionStop[]) =>
 	stops.reduce((n, s) => n + (s.move ? 2 : 1), 0);
 
-function hopLength(stops: readonly MotionStop[], hasFrom: boolean, timing: MotionTiming): number {
-	const { hopMs = DEFAULT_MOTION_HOP_MS, maxDurationMs = DEFAULT_MOTION_TOUR_MS } = timing;
-	const hops = pointCount(stops) - (hasFrom ? 0 : 1);
-	return hops > 0 ? Math.min(hopMs, maxDurationMs / hops) : 0;
+/** A non-negative finite length, else `fallback` (callers may be plain JS). */
+const lengthOr = (v: number | undefined, fallback: number) =>
+	typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : fallback;
+
+function hopLength(
+	stops: readonly MotionStop[],
+	from: MotionPoint | null | undefined,
+	timing: MotionTiming,
+): number {
+	const hopMs = lengthOr(timing.hopMs, DEFAULT_MOTION_HOP_MS);
+	const tourMs = Math.min(lengthOr(timing.maxDurationMs, DEFAULT_MOTION_TOUR_MS), MAX_MOTION_MS);
+	const hops = pointCount(stops) - (from ? 0 : 1);
+	return hops > 0 ? Math.min(hopMs, tourMs / hops) : 0;
 }
 
 /**
@@ -66,9 +87,9 @@ function hopLength(stops: readonly MotionStop[], hasFrom: boolean, timing: Motio
  */
 export function motionStopTimes(
 	stops: readonly MotionStop[],
-	opts: MotionTiming & { from?: MotionPoint } = {},
+	opts: MotionTiming & { from?: MotionPoint | null } = {},
 ): number[] {
-	const hop = hopLength(stops, opts.from !== undefined, opts);
+	const hop = hopLength(stops, opts.from, opts);
 	let step = opts.from ? 1 : 0;
 	return stops.map((s) => {
 		step += s.move ? 1 : 0;
@@ -85,7 +106,7 @@ export function buildMotion(opts: BuildMotionOptions): ActivityMotion | null {
 	const { id, stops, from, action = "edit" } = opts;
 	if (stops.length === 0) return null;
 
-	const hop = hopLength(stops, from !== undefined, opts);
+	const hop = hopLength(stops, from, opts);
 	const keyframes: ActivityKeyframe[] = [];
 	let step = 0;
 	const at = () => Math.round(step++ * hop);
