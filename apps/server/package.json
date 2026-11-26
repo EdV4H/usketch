@@ -31,7 +31,7 @@
 		"@hono/zod-validator": "0.9.1",
 		"better-auth": "1.6.29",
 		"drizzle-orm": "0.45.4",
-		"hono": "4.13.21",
+		"hono": "4.13.22",
 		"yjs": "^13.6.0",
 		"zod": "4.6.7"
 	},
