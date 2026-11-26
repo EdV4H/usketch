@@ -26,7 +26,7 @@
 	"devDependencies": {
 		"@edv4h/usketch-store": "workspace:*",
 		"typescript": "7.0.2",
-		"vitest": "5.1.1"
+		"vitest": "5.1.2"
 	},
 	"publishConfig": {
 		"access": "public"
