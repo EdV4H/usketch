@@ -22,6 +22,7 @@ import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
+import { useGuestTry } from "./lib/use-guest-try.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createCompare3dPlugin, readCompare3dScene } from "./plugins/compare-3d.js";
 
@@ -296,6 +297,9 @@ export function App({
 	// アプリ横断の操作を共有アクションレジストリへ登録。Control HUD の Controls／
 	// 検索が単一ソースとして参照する。
 	useAppActions(app, boardId, isCloudBoard, openShare);
+
+	// ログインしていない人には「見るだけ」と「手元で試す」（今のページをお試しボードへ写す）を出す。
+	useGuestTry({ app, guest, board, pageId: activePageId, navigate });
 
 	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
 	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
