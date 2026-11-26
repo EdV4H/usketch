@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-presence-activity
 
+## 0.4.18
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-sync@1.8.0
+
 ## 0.4.17
 
 ### Patch Changes

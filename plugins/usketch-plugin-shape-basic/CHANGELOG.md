@@ -1,5 +1,19 @@
 # @edv4h/usketch-plugin-shape-basic
 
+## 2.4.0
+
+### Minor Changes
+
+- aab0792: クリックだけで図形・枠を置けるオプション `clickToPlace` を足した。`createBasicShapePlugin({ clickToPlace: true })` / `createFramePlugin({ clickToPlace: true })` にすると、ドラッグせずにクリックしたとき、既定サイズの図形（選んでいる種類）・枠をクリック点が中心になるように置いて選ぶ。クリックかどうかは画面上でポインタが動いた量（4px 未満）で決めるので、ズームに左右されない。既定は `false` で、今まで通りドラッグでだけ作る。
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-store@3.16.0
+  - @edv4h/usketch-core@2.9.2
+  - @edv4h/usketch-shape-utils@2.4.15
+
 ## 2.3.16
 
 ### Patch Changes

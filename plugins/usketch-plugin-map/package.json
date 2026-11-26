@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-map",
-	"version": "0.17.9",
+	"version": "0.17.10",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

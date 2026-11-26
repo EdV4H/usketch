@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-viewport-nav
 
+## 2.2.24
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-store@3.16.0
+  - @edv4h/usketch-core@2.9.2
+
 ## 2.2.23
 
 ### Patch Changes
