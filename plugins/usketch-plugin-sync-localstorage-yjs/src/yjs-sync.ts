@@ -1,4 +1,5 @@
 import { applyExternal, type BoardStore, type ShapeData } from "@edv4h/usketch-shared";
+import { bindPermanentRemovals } from "@edv4h/usketch-sync";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 import { SyncStatusTracker } from "./sync-status-tracker.js";
@@ -92,6 +93,10 @@ export function createYjsSync(
 	let isSyncing = false;
 	let destroyed = false;
 
+	// 永久削除の記録を Y.Doc で共有する。observer と最初の読み込みより前に張り、記録済みの図形を
+	// 一度も store に入れない。
+	const unbindPermanentRemovals = bindPermanentRemovals(store, doc, { shapesMapKey: "shapes" });
+
 	// Store → Yjs: listen to store mutations and push to Y.Map
 	const unsubMutation = store.onMutation((event) => {
 		if (isSyncing || destroyed) return;
@@ -111,6 +116,9 @@ export function createYjsSync(
 					break;
 				}
 				case "shape:removed": {
+					// 永久削除は bindPermanentRemovals が専用の origin で消す（ここで消すと、Yjs の
+					// UndoManager を使うホストで何もしない Undo が 1 回入る）。
+					if (event.payload.permanent) break;
 					shapesMap.delete(payload.id);
 					break;
 				}
@@ -324,6 +332,7 @@ export function createYjsSync(
 		if (destroyed) return;
 		destroyed = true;
 		unsubMutation();
+		unbindPermanentRemovals();
 		shapesMap.unobserve(observer);
 		// Clean up partition observers
 		for (const [, entry] of loadedPartitions) {
