@@ -156,8 +156,9 @@ everything, with two players), `tabletop-table:add-seat`, `tabletop-table:spread
 `tabletop-table:camera`, `tabletop-seat:label`.
 
 The pieces are exported as plain functions: `tableOutline`, `isOnTable`,
-`nearestOnOutline`, `seatPlacement`, `spreadPlacements`, `layoutTable` (the
-table's container layout), `seatsAtTable` (clockwise from the bottom),
+`nearestOnOutline`, `seatPlacement`, `isSeated`, `spreadPlacements`,
+`layoutTable` (the table's container layout; seated seats stay put),
+`createTableWithSeats`, `roomiestSeatPlacement` (where a new player goes), `seatsAtTable` (clockwise from the bottom),
 `listSeats`, `findSeat`, `spreadSeatUpdates`, `tableViewRect`, `seatViewRect`.
 
 ## Plugin options
