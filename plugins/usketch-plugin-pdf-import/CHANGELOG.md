@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-pdf-import
 
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-store@3.16.0
+  - @edv4h/usketch-canvas-engine@1.8.8
+  - @edv4h/usketch-plugin-asset-store@0.2.17
+
 ## 0.1.20
 
 ### Patch Changes

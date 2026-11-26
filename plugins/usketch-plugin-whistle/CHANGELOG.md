@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-whistle
 
+## 2.0.38
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-sync@1.8.0
+
 ## 2.0.37
 
 ### Patch Changes

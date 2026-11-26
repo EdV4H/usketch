@@ -1,5 +1,19 @@
 # @edv4h/usketch-plugin-server-boards
 
+## 2.0.0
+
+### Major Changes
+
+- 4f0260c: デモの地域（ワールドマップ）をデモボードのページにした（#1558 R6）。
+  
+  - server-boards: **破壊的変更**。ワールドマップの地域の API（`GET /api/community-boards`・`GET /api/community-boards/:slug`）と、地域のボードを作る処理を削除した。`community_boards` 表（ログインした人を編集者にするボードの印）はこれまでどおり使う。
+  - shape-board-portal: ゲートのデータに `pageId`（このボードのページへ行くゲート）を足した。
+  - board-info-panel: 選んだゲートに `pageId` があれば、`onOpenBoard(boardId, pageId)` で渡す。
+
+### Minor Changes
+
+- 0691f98: ログインしていない人が公開ボードを見るための WebSocket `GET /public/boards/:boardId/ws` を足した。公開ボードだけにつなぎ、役割の無い閲覧者（`userId=anonymous`）として DO へ渡す。
+
 ## 1.2.0
 
 ### Minor Changes

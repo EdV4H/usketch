@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-window-system
 
+## 0.3.10
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-store@3.16.0
+
 ## 0.3.9
 
 ### Patch Changes

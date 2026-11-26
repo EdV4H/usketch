@@ -1,5 +1,13 @@
 # @edv4h/usketch-gpu-renderer
 
+## 2.1.28
+
+### Patch Changes
+
+- b263985: どこからも使われていない矩形専用の描画パイプライン（`pipelines/rect-pipeline.ts`）と、そのシェーダー（`shaders/rect.ts`・`shaders/rect.wgsl`）を削除した。矩形と楕円は以前から `shape-sdf` パイプラインで描いており、描画は変わらない。パッケージから公開している API も変わらない。
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+
 ## 2.1.27
 
 ### Patch Changes
