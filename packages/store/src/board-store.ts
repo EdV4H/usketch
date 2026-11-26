@@ -149,6 +149,31 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		return readOnly && externalDepth === 0;
 	}
 
+	// Ids removed for good (`removeShapePermanently`). Writes for them are dropped even
+	// inside `applyExternal`, so nothing (undo, restore, sync) brings them back.
+	const permanentlyRemoved = new Set<string>();
+
+	/** Take `id` out of the shapes (and the selection). Returns the shape that was there. */
+	function dropShape(id: string): { removed: ShapeData | undefined; wasSelected: boolean } {
+		const removed = state.shapes.get(id);
+		const wasSelected = state.selection.has(id);
+		if (removed) {
+			state.shapes = new Map(state.shapes);
+			state.shapes.delete(id);
+			spatialIndex.remove(id);
+			// If we just deleted the shape holding the tracked max, recompute
+			if (removed.zIndex === maxZIndex) {
+				recomputeMaxZIndex();
+			}
+			invalidateSort();
+		}
+		if (wasSelected) {
+			state.selection = new Set(state.selection);
+			state.selection.delete(id);
+		}
+		return { removed, wasSelected };
+	}
+
 	function notify() {
 		for (const listener of listeners) {
 			listener();
@@ -347,7 +372,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		getShape: (id) => state.shapes.get(id),
 
 		addShape(shape: ShapeData) {
-			if (writeBlocked()) return;
+			if (writeBlocked() || permanentlyRemoved.has(shape.id)) return;
 			const now = Date.now();
 			const needsZIndex = typeof shape.zIndex !== "string";
 			// Fast path: use the tracked max-zIndex to append a tail key in O(1)
@@ -372,7 +397,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		},
 
 		updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>) {
-			if (writeBlocked()) return;
+			if (writeBlocked() || permanentlyRemoved.has(id)) return;
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
@@ -407,34 +432,45 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 
 		deleteShape(id: string) {
 			if (writeBlocked()) return;
-			const existed = state.shapes.has(id);
-			const wasSelected = state.selection.has(id);
-			if (!existed && !wasSelected) return;
-			if (existed) {
-				const removed = state.shapes.get(id);
-				state.shapes = new Map(state.shapes);
-				state.shapes.delete(id);
-				spatialIndex.remove(id);
-				// If we just deleted the shape holding the tracked max, recompute
-				if (removed && removed.zIndex === maxZIndex) {
-					recomputeMaxZIndex();
-				}
-				invalidateSort();
-			}
-			if (wasSelected) {
-				state.selection = new Set(state.selection);
-				state.selection.delete(id);
-			}
-			if (existed || wasSelected) {
-				notify();
-			}
-			if (existed) {
+			const { removed, wasSelected } = dropShape(id);
+			if (!removed && !wasSelected) return;
+			notify();
+			if (removed) {
 				notifyMutation({ type: "shape:removed", payload: { id, ids: [id] } });
 			}
 			if (wasSelected) {
 				notifyMutation({ type: "selection:changed" });
 			}
 		},
+
+		removeShapePermanently(id: string, opts?: { expectedType?: string }): boolean {
+			if (writeBlocked() || permanentlyRemoved.has(id)) return false;
+			const existing = state.shapes.get(id);
+			if (existing && opts?.expectedType !== undefined && existing.type !== opts.expectedType) {
+				return false;
+			}
+			permanentlyRemoved.add(id);
+			const { removed, wasSelected } = dropShape(id);
+			if (removed || wasSelected) notify();
+			// A record that arrived through sync for a shape this board never had tells no one
+			// anything. A local one without the shape still fires, so sync can share the record.
+			if (removed || externalDepth === 0) {
+				notifyMutation({
+					type: "shape:removed",
+					payload: removed
+						? { id, ids: [id], permanent: true, shape: removed }
+						: { id, ids: [id], permanent: true },
+				});
+			}
+			if (wasSelected) {
+				notifyMutation({ type: "selection:changed" });
+			}
+			return true;
+		},
+
+		isPermanentlyRemoved: (id: string) => permanentlyRemoved.has(id),
+
+		getPermanentlyRemovedIds: () => permanentlyRemoved,
 
 		ensureZIndex() {
 			if (writeBlocked()) return;
