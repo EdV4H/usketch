@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-tabletop
 
+## 0.6.0
+
+### Minor Changes
+
+- e4f71ec: Add game tables (`tabletop-table`) and seats (`tabletop-seat`). A table is rectangular, round or a regular polygon (3–8 sides); what is put on it becomes its child and moves with it. Seats are shapes of their own with a label; put on a table they snap onto its outline, facing it, and `seatViewRect` gives the camera rect that shows the whole table from that seat. New actions add a table (with two players), add a player, spread players evenly, and set the table's form, camera and a player's name.
+
+### Patch Changes
+
+- 5bff4d1: Seats already on a table's outline stay put when the table lays out again (a seat at a corner no longer jumps to the next edge, and seats on a round table no longer creep). Spreading players starts at the exact middle of the bottom. `createTableWithSeats`, `roomiestSeatPlacement` and `isSeated` are exported; a new player goes where there is the most room.
+
 ## 0.5.2
 
 ### Patch Changes
