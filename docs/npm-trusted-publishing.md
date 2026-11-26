@@ -146,6 +146,7 @@ the next 5 minutes"** so the rest of the bulk run proceeds without prompting.
 @edv4h/usketch-plugin-voice-notes
 @edv4h/usketch-plugin-voting
 @edv4h/usketch-plugin-whistle
+@edv4h/usketch-presence-motion
 @edv4h/usketch-server-core
 @edv4h/usketch-session-protocol
 @edv4h/usketch-session-voting

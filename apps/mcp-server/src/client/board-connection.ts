@@ -9,7 +9,7 @@ import {
 	type MotionStop,
 	motionDuration,
 	motionFinalCursor,
-} from "@edv4h/usketch-plugin-presence-activity/motion";
+} from "@edv4h/usketch-presence-motion";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
 	Awareness,

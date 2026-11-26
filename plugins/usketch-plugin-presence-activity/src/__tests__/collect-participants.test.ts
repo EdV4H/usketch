@@ -1,8 +1,8 @@
+import { createMotionClock } from "@edv4h/usketch-presence-motion";
 import type { BoardStore, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { describe, expect, it } from "vitest";
 import { collectParticipants } from "../activity-overlay.js";
-import { createMotionClock } from "../motion.js";
 
 type Awareness = WsProviderHandle["awareness"];
 

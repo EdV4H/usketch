@@ -9,11 +9,6 @@
 			"source": "./src/index.ts",
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
-		},
-		"./motion": {
-			"source": "./src/motion-entry.ts",
-			"types": "./dist/motion-entry.d.ts",
-			"import": "./dist/motion-entry.js"
 		}
 	},
 	"scripts": {
@@ -23,6 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@edv4h/usketch-presence-motion": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*"
 	},

@@ -1,7 +1,7 @@
-import type { BoundingBox } from "@edv4h/usketch-shared";
 import {
 	type ActivityKeyframe,
 	type ActivityMotion,
+	type BoundingBox,
 	MAX_MOTION_MS,
 	type MotionPoint,
 } from "./motion.js";
@@ -12,7 +12,7 @@ import {
  * `sampleMotion`; this is its counterpart for whoever publishes the motion (a bot,
  * a server-side agent, a scripted demo, a replay).
  *
- * Pure and React-free, so a server can use it through the `/motion` entry point.
+ * Pure and dependency-free, so a server can use it directly.
  */
 
 /**

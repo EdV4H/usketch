@@ -1,4 +1,13 @@
-import type { BoundingBox } from "@edv4h/usketch-shared";
+/**
+ * A world-space rectangle. Same shape as `BoundingBox` in `@edv4h/usketch-shared`,
+ * kept local so this package has no dependencies (servers can use it as is).
+ */
+export interface BoundingBox {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
 
 /** A world-space point (same shape as the awareness `cursor` field). */
 export interface MotionPoint {

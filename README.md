@@ -89,6 +89,7 @@ packages/
   css3d-renderer/ — 3D 表示の描画（層を CSS の 3D 変形で傾ける）
   gpu3d-renderer/ — 3D 表示の描画（WebGL2・実験中）
   server-core/    — サーバープラグイン基盤
+  presence-motion/  — presence activity の motion（カーソルが図形を回る動き）の形・再生・組み立て（依存なし）
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）
   session-gather/   — セッション型「集合」（全員を一つの場所に集める）
@@ -135,6 +136,7 @@ plugins/
 | [Third-Party Plugin Authoring](apps/docs/src/content/docs/guides/third-party-plugin.mdx) | 外部パッケージから uSketch を拡張する完全ガイド |
 | [`@edv4h/usketch-shape-utils`](packages/usketch-shape-utils/README.md) | shape プラグイン共通ユーティリティ（bounds / hit-test / resize / GPU） |
 | [`@edv4h/usketch-plugin-session`](plugins/usketch-plugin-session/README.md) | ライブ・セッション基盤（サーバー権限・投票・イベント型を足せる） |
+| [`@edv4h/usketch-presence-motion`](packages/usketch-presence-motion/README.md) | presence activity の motion の形・再生・組み立て（依存なし、サーバーからも使える） |
 | [`@edv4h/usketch-session-protocol`](packages/usketch-session-protocol/README.md) | セッションの client↔server ワイヤ契約（型のみ） |
 | [`@edv4h/usketch-session-voting`](packages/usketch-session-voting/README.md) | 最初のセッション型「投票」（server / client ペア） |
 | [`@edv4h/usketch-session-gather`](packages/usketch-session-gather/README.md) | セッション型「集合」（誰かが始めると全員がその場所に集まる） |

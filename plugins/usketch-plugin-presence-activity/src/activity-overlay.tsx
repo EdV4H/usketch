@@ -1,10 +1,15 @@
+import {
+	createMotionClock,
+	type MotionClock,
+	normalizeMotion,
+	sampleMotion,
+} from "@edv4h/usketch-presence-motion";
 import type { BoardStore, BoundingBox, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useReducer, useRef, useSyncExternalStore } from "react";
 import type { PresenceActivity, PresenceUser } from "./activity.js";
 import type { AiActivityStore } from "./ai-activity-store.js";
 import { fallbackColor, unionBounds, worldRectToScreen } from "./geometry.js";
-import { createMotionClock, type MotionClock, normalizeMotion, sampleMotion } from "./motion.js";
 import type { PresenceParticipant, ResolvedActivityStyle } from "./style.js";
 
 type Awareness = WsProviderHandle["awareness"];

@@ -5,7 +5,7 @@
  * Y.Doc を直接操作し、WebSocket 経由でリアルタイム同期する
  */
 
-import { visitShapes } from "@edv4h/usketch-plugin-presence-activity/motion";
+import { visitShapes } from "@edv4h/usketch-presence-motion";
 import { type BoundingBox, DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";

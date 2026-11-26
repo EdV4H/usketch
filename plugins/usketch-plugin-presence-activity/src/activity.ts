@@ -1,5 +1,5 @@
+import type { ActivityMotion } from "@edv4h/usketch-presence-motion";
 import type { BoundingBox } from "@edv4h/usketch-shared";
-import type { ActivityMotion } from "./motion.js";
 
 /**
  * A participant's live "activity" — what they are currently selecting / editing —
