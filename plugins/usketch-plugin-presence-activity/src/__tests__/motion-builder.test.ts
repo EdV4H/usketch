@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { motionDuration, sampleMotion } from "../motion.js";
 import {
-	aiMotionDuration,
-	buildAiMotion,
-	finalCursor,
-	HOP_MS,
-	MAX_MOTION_MS,
+	buildMotion,
+	DEFAULT_MOTION_TOUR_MS,
+	DEFAULT_MOTION_HOP_MS as HOP_MS,
+	motionFinalCursor,
+	motionStopTimes,
 	visitShapes,
-} from "../ai-motion.js";
+} from "../motion-builder.js";
 
 const box = (x: number, y: number) => ({ x, y, width: 20, height: 10 });
 
@@ -24,18 +25,18 @@ describe("visitShapes", () => {
 	});
 });
 
-describe("buildAiMotion", () => {
+describe("buildMotion", () => {
 	const stops = visitShapes([
 		{ id: "a", box: box(0, 0) },
 		{ id: "b", box: box(100, 0) },
 	]);
 
 	it("returns null with nothing to visit", () => {
-		expect(buildAiMotion({ id: "m", stops: [] })).toBeNull();
+		expect(buildMotion({ id: "m", stops: [] })).toBeNull();
 	});
 
 	it("starts from the previous cursor position and hops to each stop", () => {
-		const m = buildAiMotion({ id: "m", stops, from: { x: -50, y: -50 } });
+		const m = buildMotion({ id: "m", stops, from: { x: -50, y: -50 } });
 		expect(m?.keyframes).toEqual([
 			{ at: 0, cursor: { x: -50, y: -50 } },
 			{ at: HOP_MS, cursor: { x: 10, y: 5 }, shapeIds: ["a"], action: "edit" },
@@ -44,28 +45,28 @@ describe("buildAiMotion", () => {
 	});
 
 	it("starts at the first stop when the previous cursor is unknown", () => {
-		const m = buildAiMotion({ id: "m", stops, action: "select" });
+		const m = buildMotion({ id: "m", stops, action: "select" });
 		expect(m?.keyframes[0]).toEqual({
 			at: 0,
 			cursor: { x: 10, y: 5 },
 			shapeIds: ["a"],
 			action: "select",
 		});
-		expect(m && aiMotionDuration(m)).toBe(HOP_MS);
+		expect(m && motionDuration(m)).toBe(HOP_MS);
 	});
 
-	it("speeds up hops so a long tour stays within MAX_MOTION_MS", () => {
+	it("speeds up hops so a long tour stays within DEFAULT_MOTION_TOUR_MS", () => {
 		const many = visitShapes(
 			Array.from({ length: 50 }, (_, i) => ({ id: `s${i}`, box: box(i, 0) })),
 		);
-		const m = buildAiMotion({ id: "m", stops: many, from: { x: 0, y: 0 } });
-		expect(m && aiMotionDuration(m)).toBeLessThanOrEqual(MAX_MOTION_MS);
+		const m = buildMotion({ id: "m", stops: many, from: { x: 0, y: 0 } });
+		expect(m && motionDuration(m)).toBeLessThanOrEqual(DEFAULT_MOTION_TOUR_MS);
 	});
 
 	it("moves only the cursor for stops without shapes", () => {
-		const m = buildAiMotion({ id: "m", stops: [{ cursor: { x: 5, y: 5 } }], from: { x: 0, y: 0 } });
+		const m = buildMotion({ id: "m", stops: [{ cursor: { x: 5, y: 5 } }], from: { x: 0, y: 0 } });
 		expect(m?.keyframes[1]).toEqual({ at: HOP_MS, cursor: { x: 5, y: 5 } });
-		expect(m && finalCursor(m)).toEqual({ x: 5, y: 5 });
+		expect(m && motionFinalCursor(m)).toEqual({ x: 5, y: 5 });
 	});
 
 	it("drags a moved shape from its old box to its new one", () => {
@@ -74,7 +75,7 @@ describe("buildAiMotion", () => {
 		const moved = visitShapes([{ id: "a", box: after, from: before }]);
 		expect(moved[0].move).toEqual({ shapeId: "a", from: before, to: after });
 
-		const m = buildAiMotion({ id: "m", stops: moved, from: { x: -50, y: -50 } });
+		const m = buildMotion({ id: "m", stops: moved, from: { x: -50, y: -50 } });
 		expect(m?.keyframes).toEqual([
 			{ at: 0, cursor: { x: -50, y: -50 } },
 			{ at: HOP_MS, cursor: { x: 10, y: 5 }, moves: [{ shapeId: "a", box: before }] },
@@ -91,5 +92,38 @@ describe("buildAiMotion", () => {
 	it("does not drag a shape whose box did not change", () => {
 		const b = box(0, 0);
 		expect(visitShapes([{ id: "a", box: b, from: { ...b } }])[0].move).toBeUndefined();
+	});
+
+	it("takes custom hop and tour lengths", () => {
+		const m = buildMotion({ id: "m", stops, from: { x: 0, y: 0 }, hopMs: 100, maxDurationMs: 150 });
+		expect(m?.keyframes.map((k) => k.at)).toEqual([0, 75, 150]);
+	});
+
+	it("plays back through sampleMotion to the last stop", () => {
+		const m = buildMotion({ id: "m", stops, from: { x: -50, y: -50 } });
+		if (!m) throw new Error("expected a motion");
+		const end = sampleMotion(m, motionDuration(m));
+		expect(end).toMatchObject({ cursor: { x: 110, y: 5 }, shapeIds: ["a", "b"], done: true });
+	});
+});
+
+describe("motionStopTimes", () => {
+	const stops = visitShapes([
+		{ id: "a", box: box(0, 0) },
+		{ id: "b", box: box(100, 0), from: box(0, 100) },
+		{ id: "c", box: box(200, 0) },
+	]);
+
+	it.each([
+		["with a starting cursor", { x: -50, y: -50 }],
+		["without one", undefined],
+	])("matches the keyframe where each stop's outline appears (%s)", (_, from) => {
+		const m = buildMotion({ id: "m", stops, from });
+		const arrivals = m?.keyframes.filter((k) => k.shapeIds).map((k) => k.at);
+		expect(motionStopTimes(stops, { from })).toEqual(arrivals);
+	});
+
+	it("is empty without stops", () => {
+		expect(motionStopTimes([])).toEqual([]);
 	});
 });

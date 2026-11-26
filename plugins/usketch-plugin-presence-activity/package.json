@@ -9,6 +9,11 @@
 			"source": "./src/index.ts",
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./motion": {
+			"source": "./src/motion-entry.ts",
+			"types": "./dist/motion-entry.d.ts",
+			"import": "./dist/motion-entry.js"
 		}
 	},
 	"scripts": {

@@ -20,6 +20,18 @@ export {
 	type ShapeMove,
 	sampleMotion,
 } from "./motion.js";
+export {
+	type BuildMotionOptions,
+	boxCenter,
+	buildMotion,
+	DEFAULT_MOTION_HOP_MS,
+	DEFAULT_MOTION_TOUR_MS,
+	type MotionStop,
+	type MotionTiming,
+	motionFinalCursor,
+	motionStopTimes,
+	visitShapes,
+} from "./motion-builder.js";
 export { createPresenceActivityPlugin, type PresenceActivityOptions } from "./plugin.js";
 export {
 	DEFAULT_ACTIVITY_STYLE,
