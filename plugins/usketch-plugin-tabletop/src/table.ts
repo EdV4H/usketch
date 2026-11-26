@@ -6,7 +6,7 @@ import {
 	safeRotation,
 	wrapDeg,
 } from "@edv4h/usketch-shared";
-import { isSeat } from "./seat.js";
+import { createSeatShape, DEFAULT_SEAT_SIZE, isSeat } from "./seat.js";
 import { VIEW_CAMERAS, type ViewCamera } from "./view.js";
 import type { ViewRect } from "./view-camera.js";
 
@@ -231,11 +231,23 @@ export interface OutlinePoint extends Point {
 const turnFacing = (nx: number, ny: number): number =>
 	wrapDeg((Math.atan2(-nx, ny) * 180) / Math.PI);
 
-/** The nearest point on the outline to a board point, and the turn facing in from there. */
-export function nearestOnOutline(table: PlacedTable, point: Point): OutlinePoint {
+/** Where a point meets one stretch of the outline (box-local), and the outward normal there. */
+interface OutlineHit {
+	x: number;
+	y: number;
+	/** Squared distance from the point. */
+	d: number;
+	nx: number;
+	ny: number;
+}
+
+/** The nearest point of each stretch of the outline to a box-local point. */
+function outlineHits(table: PlacedTable, p: Point): OutlineHit[] {
 	const outline = tableOutlineLocal(table);
-	const p = toLocal(table, point);
-	let best = { x: 0, y: 0, d: Number.POSITIVE_INFINITY, nx: 0, ny: 1 };
+	const round = readTableMeta(table).form === "round";
+	const rx = table.width / 2;
+	const ry = table.height / 2;
+	const hits: OutlineHit[] = [];
 	for (let i = 0; i < outline.length; i++) {
 		const a = outline[i] as Point;
 		const b = outline[(i + 1) % outline.length] as Point;
@@ -244,30 +256,41 @@ export function nearestOnOutline(table: PlacedTable, point: Point): OutlinePoint
 		const len2 = ex * ex + ey * ey;
 		if (len2 === 0) continue;
 		const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / len2));
-		const qx = a.x + ex * t;
-		const qy = a.y + ey * t;
-		const d = (p.x - qx) ** 2 + (p.y - qy) ** 2;
-		if (d < best.d) {
-			const len = Math.sqrt(len2);
-			// A clockwise outline (y down) has the outside on the left of travel.
-			best = { x: qx, y: qy, d, nx: ey / len, ny: -ex / len };
+		const x = a.x + ex * t;
+		const y = a.y + ey * t;
+		const len = Math.sqrt(len2);
+		// A clockwise outline (y down) has the outside on the left of travel.
+		let nx = ey / len;
+		let ny = -ex / len;
+		if (round) {
+			// The ellipse's own normal, so a seat turns smoothly instead of segment by segment.
+			const gx = (x - rx) / (rx * rx);
+			const gy = (y - ry) / (ry * ry);
+			const g = Math.hypot(gx, gy);
+			if (g > 0) {
+				nx = gx / g;
+				ny = gy / g;
+			}
 		}
+		hits.push({ x, y, d: (p.x - x) ** 2 + (p.y - y) ** 2, nx, ny });
 	}
-	if (readTableMeta(table).form === "round") {
-		// The ellipse's own normal, so a seat turns smoothly instead of segment by segment.
-		const rx = table.width / 2;
-		const ry = table.height / 2;
-		const gx = (best.x - rx) / (rx * rx);
-		const gy = (best.y - ry) / (ry * ry);
-		const g = Math.hypot(gx, gy);
-		if (g > 0) best = { ...best, nx: gx / g, ny: gy / g };
-	}
-	const world = toWorld(table, best);
+	return hits;
+}
+
+const hitOnBoard = (table: PlacedTable, hit: OutlineHit): OutlinePoint => {
+	const world = toWorld(table, hit);
 	return {
 		x: world.x,
 		y: world.y,
-		rotation: wrapDeg(safeRotation(table.rotation) + turnFacing(best.nx, best.ny)),
+		rotation: wrapDeg(safeRotation(table.rotation) + turnFacing(hit.nx, hit.ny)),
 	};
+};
+
+/** The nearest point on the outline to a board point, and the turn facing in from there. */
+export function nearestOnOutline(table: PlacedTable, point: Point): OutlinePoint {
+	const hits = outlineHits(table, toLocal(table, point));
+	const best = hits.reduce<OutlineHit | undefined>((a, b) => (!a || b.d < a.d ? b : a), undefined);
+	return best ? hitOnBoard(table, best) : { ...point, rotation: safeRotation(table.rotation) };
 }
 
 /** The outline's length. */
@@ -327,11 +350,36 @@ const centerOf = (s: Pick<ShapeData, "x" | "y" | "width" | "height">): Point => 
 	y: s.y + s.height / 2,
 });
 
-const SAME = 1e-6;
+/** How far (board px) a seat may be off the outline, and its turn off (degrees), to count as seated. */
+const SEATED_PX = 0.5;
+const SEATED_DEG = 0.5;
+
+/**
+ * Whether a seat already sits on the outline as `seatPlacement` would put it: the
+ * middle of its bottom edge is on the outline and it faces the table from there. At a
+ * corner either edge's turn counts, so laying out again never moves a seated seat.
+ */
+export function isSeated(
+	table: PlacedTable,
+	seat: Pick<ShapeData, "x" | "y" | "width" | "height" | "rotation">,
+): boolean {
+	const turn = safeRotation(seat.rotation);
+	const rad = (turn * Math.PI) / 180;
+	const c = centerOf(seat);
+	// Back out from the centre by half its height, along the seat's "down".
+	const foot = {
+		x: c.x - Math.sin(rad) * (seat.height / 2),
+		y: c.y + Math.cos(rad) * (seat.height / 2),
+	};
+	return outlineHits(table, toLocal(table, foot))
+		.filter((hit) => hit.d <= SEATED_PX ** 2)
+		.some((hit) => Math.abs(wrapDeg(hitOnBoard(table, hit).rotation - turn)) <= SEATED_DEG);
+}
 
 /**
  * The table's `container.layout`: the seats among its children go on the outline
- * (nearest their center, facing the table). Its other children stay where they are.
+ * (nearest their center, facing the table). Seats already seated stay put, and so do
+ * its other children.
  */
 export function layoutTable({
 	container,
@@ -341,15 +389,46 @@ export function layoutTable({
 	children: readonly ShapeData[];
 }): { id: string; patch: Partial<ShapeData> }[] {
 	return children
-		.filter((child) => isSeat(child))
-		.map((seat) => ({ seat, to: seatPlacement(container, centerOf(seat), seat) }))
-		.filter(
-			({ seat, to }) =>
-				Math.abs(seat.x - to.x) > SAME ||
-				Math.abs(seat.y - to.y) > SAME ||
-				Math.abs(wrapDeg(safeRotation(seat.rotation) - to.rotation)) > SAME,
-		)
-		.map(({ seat, to }) => ({ id: seat.id, patch: { ...to } }));
+		.filter((child) => isSeat(child) && !isSeated(container, child))
+		.map((seat) => ({ id: seat.id, patch: { ...seatPlacement(container, centerOf(seat), seat) } }));
+}
+
+/**
+ * How far along the outline (from its first corner) a line straight down from the
+ * table's centre meets it: where spreading seats starts.
+ */
+function bottomMiddle(outline: readonly Point[], width: number): number {
+	const mid = width / 2;
+	let at = 0;
+	let lowest = Number.NEGATIVE_INFINITY;
+	let walked = 0;
+	for (let i = 0; i < outline.length; i++) {
+		const a = outline[i] as Point;
+		const b = outline[(i + 1) % outline.length] as Point;
+		const len = Math.hypot(b.x - a.x, b.y - a.y);
+		if (Math.min(a.x, b.x) <= mid && mid <= Math.max(a.x, b.x) && len > 0) {
+			// A stretch standing straight up: take its lower end.
+			const t = a.x === b.x ? (a.y >= b.y ? 0 : 1) : (mid - a.x) / (b.x - a.x);
+			const y = a.y + (b.y - a.y) * t;
+			if (y > lowest + 1e-9) {
+				lowest = y;
+				at = walked + len * t;
+			}
+		}
+		walked += len;
+	}
+	return at;
+}
+
+/** `count` points spread evenly round the outline (board), clockwise from the bottom middle. */
+function spreadPoints(table: PlacedTable, count: number): Point[] {
+	if (count <= 0) return [];
+	const local = tableOutlineLocal(table);
+	const total = perimeter(local);
+	const start = bottomMiddle(local, table.width);
+	return Array.from({ length: count }, (_, i) =>
+		toWorld(table, alongOutline(local, (start + (total * i) / count) % total)),
+	);
 }
 
 /**
@@ -361,27 +440,7 @@ export function spreadPlacements(
 	count: number,
 	size: { width: number; height: number },
 ): SeatPlacement[] {
-	if (count <= 0) return [];
-	const local = tableOutlineLocal(table);
-	const total = perimeter(local);
-	// Start where a line straight down from the centre meets the outline: walk the
-	// outline once and keep the lowest point nearest the middle.
-	const steps = 720;
-	let start = 0;
-	let best = Number.NEGATIVE_INFINITY;
-	for (let i = 0; i < steps; i++) {
-		const d = (total * i) / steps;
-		const q = alongOutline(local, d);
-		const score = q.y - Math.abs(q.x - table.width / 2) * 1e-3;
-		if (score > best + 1e-9) {
-			best = score;
-			start = d;
-		}
-	}
-	return Array.from({ length: count }, (_, i) => {
-		const q = alongOutline(local, (start + (total * i) / count) % total);
-		return seatPlacement(table, toWorld(table, q), size);
-	});
+	return spreadPoints(table, count).map((q) => seatPlacement(table, q, size));
 }
 
 // ── What a seat sees ─────────────────────────────────────────────────────────
@@ -488,12 +547,52 @@ export function spreadSeatUpdates(
 	const table = store.getShape(tableId);
 	if (!table || !isTable(table)) return [];
 	const seats = seatsAtTable(store, tableId);
-	return seats.map((seat, i) => {
-		const [to] = spreadPlacements(table, seats.length, seat).slice(i, i + 1);
-		return {
-			id: seat.id,
-			from: { x: seat.x, y: seat.y, rotation: seat.rotation },
-			to: to ? { ...to } : {},
-		};
-	});
+	const points = spreadPoints(table, seats.length);
+	return seats.map((seat, i) => ({
+		id: seat.id,
+		from: { x: seat.x, y: seat.y, rotation: seat.rotation },
+		to: { ...seatPlacement(table, points[i] as Point, seat) },
+	}));
+}
+
+/** Places tried round the outline for a new seat. */
+const ROOM_SAMPLES = 96;
+
+/**
+ * Where a new seat of `size` goes at a table: the place on the outline farthest from
+ * the seats already there (the bottom middle when there are none; of equal places, the
+ * first clockwise from the bottom). Null when it is not a table.
+ */
+export function roomiestSeatPlacement(
+	store: BoardStore,
+	tableId: string,
+	size: { width: number; height: number } = DEFAULT_SEAT_SIZE,
+): SeatPlacement | null {
+	const table = store.getShape(tableId);
+	if (!table || !isTable(table)) return null;
+	const taken = seatsAtTable(store, tableId).map(centerOf);
+	if (taken.length === 0) return spreadPlacements(table, 1, size)[0] ?? null;
+	const room = (at: SeatPlacement) =>
+		Math.min(
+			...taken.map((p) => Math.hypot(at.x + size.width / 2 - p.x, at.y + size.height / 2 - p.y)),
+		);
+	return spreadPlacements(table, ROOM_SAMPLES, size).reduce<SeatPlacement | null>(
+		(best, at) => (!best || room(at) > room(best) + 1e-6 ? at : best),
+		null,
+	);
+}
+
+/**
+ * A new table and `labels.length` seats spread round it, as shapes to add together
+ * (e.g. in one `createAddShapesCommand`, so undo takes the seats along).
+ */
+export function createTableWithSeats(
+	params: CreateTableShapeParams,
+	labels: readonly string[],
+): ShapeData[] {
+	const table = createTableShape(params);
+	const seats = spreadPlacements(table, labels.length, DEFAULT_SEAT_SIZE).map((at, i) =>
+		createSeatShape({ ...at, label: labels[i], parentId: table.id }),
+	);
+	return [table, ...seats];
 }

@@ -25,7 +25,6 @@ import { DefaultView, type TabletopViewRenderProps, VIEW_LABEL_HEIGHT } from "./
 import { DefaultZone, type TabletopZoneRenderProps, ZoneView } from "./render-zone.js";
 import {
 	createSeatShape,
-	DEFAULT_SEAT_SIZE,
 	isSeat,
 	listSeatShapes,
 	nextSeatLabel,
@@ -36,6 +35,7 @@ import {
 import { createTabletopApi, tabletopService } from "./service.js";
 import {
 	createTableShape,
+	createTableWithSeats,
 	DEFAULT_TABLE_SIZE,
 	isOnTable,
 	isTable,
@@ -43,10 +43,9 @@ import {
 	MAX_TABLE_SIDES,
 	MIN_TABLE_SIDES,
 	readTableMeta,
-	seatsAtTable,
+	roomiestSeatPlacement,
 	setTableCamera,
 	setTableForm,
-	spreadPlacements,
 	spreadSeatUpdates,
 	TABLE_FORMS,
 	TABLE_TYPE,
@@ -459,26 +458,6 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 				}
 				return undefined;
 			};
-			/** A new seat at a table, where it is farthest from the seats already there. */
-			const newSeatAt = (tableId: string, label: string): ShapeData | null => {
-				const table = ctx.store.getShape(tableId);
-				if (!table || !isTable(table)) return null;
-				const seats = seatsAtTable(ctx.store, tableId);
-				const centers = seats.map((s) => ({ x: s.x + s.width / 2, y: s.y + s.height / 2 }));
-				const candidates = spreadPlacements(table, seats.length + 1, DEFAULT_SEAT_SIZE);
-				const room = (c: { x: number; y: number }) =>
-					Math.min(
-						Number.POSITIVE_INFINITY,
-						...centers.map((p) =>
-							Math.hypot(
-								c.x + DEFAULT_SEAT_SIZE.width / 2 - p.x,
-								c.y + DEFAULT_SEAT_SIZE.height / 2 - p.y,
-							),
-						),
-					);
-				const best = candidates.reduce((a, b) => (room(b) > room(a) ? b : a));
-				return createSeatShape({ ...best, label, parentId: tableId });
-			};
 			const tableActions =
 				opts.tables === false
 					? []
@@ -494,18 +473,20 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 									// redo takes the players along.
 									const area = screenViewRect(ctx.store.getViewport(), getScreenSize());
 									const back = ctx.store.getShapesSorted().find((s) => !s.parentId)?.zIndex;
-									const table = createTableShape({
-										x: area.x + area.width / 2 - DEFAULT_TABLE_SIZE.width / 2,
-										y: area.y + area.height / 2 - DEFAULT_TABLE_SIZE.height / 2,
-										zIndex: zIndexBetween(null, back ?? null),
-									});
 									const taken = listSeatShapes(ctx.store);
-									const labels = [nextSeatLabel(taken, "Player")];
-									labels.push(nextSeatLabel([...taken, { meta: { label: labels[0] } }], "Player"));
-									const seats = spreadPlacements(table, 2, DEFAULT_SEAT_SIZE).map((at, i) =>
-										createSeatShape({ ...at, label: labels[i], parentId: table.id }),
+									const first = nextSeatLabel(taken, "Player");
+									const second = nextSeatLabel([...taken, { meta: { label: first } }], "Player");
+									const shapes = createTableWithSeats(
+										{
+											x: area.x + area.width / 2 - DEFAULT_TABLE_SIZE.width / 2,
+											y: area.y + area.height / 2 - DEFAULT_TABLE_SIZE.height / 2,
+											zIndex: zIndexBetween(null, back ?? null),
+										},
+										[first, second],
 									);
-									ctx.commands.execute(createAddShapesCommand(ctx.store, [table, ...seats]));
+									const [table] = shapes;
+									if (!table) return;
+									ctx.commands.execute(createAddShapesCommand(ctx.store, shapes));
 									ctx.store.setSelection([table.id]);
 								},
 							}),
@@ -518,8 +499,14 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 								run: () => {
 									const id = selectedTable();
 									if (!id) return;
-									const seat = newSeatAt(id, nextSeatLabel(listSeatShapes(ctx.store), "Player"));
-									if (seat) ctx.commands.execute(createAddShapeCommand(ctx.store, seat));
+									const at = roomiestSeatPlacement(ctx.store, id);
+									if (!at) return;
+									const seat = createSeatShape({
+										...at,
+										label: nextSeatLabel(listSeatShapes(ctx.store), "Player"),
+										parentId: id,
+									});
+									ctx.commands.execute(createAddShapeCommand(ctx.store, seat));
 								},
 							}),
 							ctx.actions.register({

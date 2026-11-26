@@ -11,14 +11,17 @@ import {
 } from "../seat.js";
 import {
 	createTableShape,
+	createTableWithSeats,
 	findSeat,
 	isOnTable,
+	isSeated,
 	isTable,
 	layoutTable,
 	listSeats,
 	listTables,
 	nearestOnOutline,
 	readTableMeta,
+	roomiestSeatPlacement,
 	seatPlacement,
 	seatsAtTable,
 	seatViewRect,
@@ -200,6 +203,50 @@ describe("table shape", () => {
 			[190, 100, -90],
 		]);
 		expect(spreadPlacements(square, 0, SEAT)).toEqual([]);
+	});
+
+	it("leaves seated seats where they are, even at a corner or on a round table", () => {
+		for (const form of ["polygon", "round", "rect"] as const) {
+			const t = createTableShape({ id: "t", x: 0, y: 0, form, sides: 6 });
+			const seats = spreadPlacements(t, 5, { width: 160, height: 64 }).map((at, i) =>
+				createSeatShape({ ...at, id: `s${i}`, parentId: "t" }),
+			);
+			expect(seats.every((seat) => isSeated(t, seat))).toBe(true);
+			expect(layoutTable({ container: t, children: seats })).toEqual([]);
+		}
+		// Dropped near the hexagon's bottom corner, it is laid out once and then stays.
+		const hex = createTableShape({ id: "t", x: 0, y: 0, form: "polygon", sides: 6 });
+		const dropped = createSeatShape({ id: "d", x: 700, y: 950, parentId: "t" });
+		const [first] = layoutTable({ container: hex, children: [dropped] });
+		expect(first?.id).toBe("d");
+		expect(layoutTable({ container: hex, children: [{ ...dropped, ...first?.patch }] })).toEqual(
+			[],
+		);
+	});
+
+	it("starts spreading at the exact middle of the bottom", () => {
+		const t = createTableShape({ x: 0, y: 0 });
+		const [at] = spreadPlacements(t, 3, { width: 160, height: 64 });
+		expect(at && [r(at.x + 80), r(at.y + 32), at.rotation]).toEqual([800, 968, 0]);
+	});
+
+	it("adds a table with its seats, and a new seat where there is most room", () => {
+		const shapes = createTableWithSeats({ id: "t", x: 100, y: 200, width: 400, height: 200 }, [
+			"A",
+			"B",
+		]);
+		expect(shapes.map((s) => [s.type, readSeatMeta(s).label, s.parentId])).toEqual([
+			[TABLE_TYPE, "", undefined],
+			[SEAT_TYPE, "A", "t"],
+			[SEAT_TYPE, "B", "t"],
+		]);
+		const store = createBoardStore();
+		for (const shape of shapes) store.addShape(shape);
+		// The bottom and the top are taken: a side is roomiest.
+		const at = roomiestSeatPlacement(store, "t", SEAT);
+		// The middle of the left side (the first clockwise from the bottom of the two sides).
+		expect(at && [r(at.x + 20), r(at.y + 10), at.rotation]).toEqual([110, 300, 90]);
+		expect(roomiestSeatPlacement(store, "nope")).toBeNull();
 	});
 
 	it("lists seats by table, clockwise from the bottom", () => {
