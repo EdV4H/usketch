@@ -9,14 +9,50 @@ import {
 	type ToolContext,
 	type UsketchPlugin,
 	withRotation,
+	zIndexBetween,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+	createAddShapeCommand,
+	createAddShapesCommand,
+	createBatchUpdateShapesCommand,
+} from "@edv4h/usketch-store";
 import type { ReactElement } from "react";
 import { arrangeZone, type ZoneArrangeOptions } from "./arrange.js";
 import { setupAttachWatch, type TurnFace, type ZoneAttachEvent } from "./attach-watch.js";
+import { DefaultSeat, type TabletopSeatRenderProps } from "./render-seat.js";
+import { DefaultTable, type TabletopTableRenderProps } from "./render-table.js";
 import { DefaultView, type TabletopViewRenderProps, VIEW_LABEL_HEIGHT } from "./render-view.js";
 import { DefaultZone, type TabletopZoneRenderProps, ZoneView } from "./render-zone.js";
+import {
+	createSeatShape,
+	DEFAULT_SEAT_SIZE,
+	isSeat,
+	listSeatShapes,
+	nextSeatLabel,
+	readSeatMeta,
+	SEAT_TYPE,
+	setSeatLabel,
+} from "./seat.js";
 import { createTabletopApi, tabletopService } from "./service.js";
+import {
+	createTableShape,
+	DEFAULT_TABLE_SIZE,
+	isOnTable,
+	isTable,
+	layoutTable,
+	MAX_TABLE_SIDES,
+	MIN_TABLE_SIDES,
+	readTableMeta,
+	seatsAtTable,
+	setTableCamera,
+	setTableForm,
+	spreadPlacements,
+	spreadSeatUpdates,
+	TABLE_FORMS,
+	TABLE_TYPE,
+	type TableForm,
+	tableOutlineLocal,
+} from "./table.js";
 import {
 	createViewShape,
 	isView,
@@ -81,6 +117,17 @@ export interface CreateTabletopPluginOptions {
 	views?: boolean;
 	/** A view's look. Default: a dashed frame with a camera mark and the label. */
 	renderView?: (props: TabletopViewRenderProps) => ReactElement;
+	/**
+	 * Register the game table (`tabletop-table`) and seat (`tabletop-seat`) shapes.
+	 * Default true. What is put on a table becomes its child and moves with it; seats
+	 * snap onto its outline. Bringing the camera to a seat is the host's call
+	 * (`seatViewRect` + `applyViewCamera`).
+	 */
+	tables?: boolean;
+	/** A table's look. Default: a green table with a wooden rim, in the table's form. */
+	renderTable?: (props: TabletopTableRenderProps) => ReactElement;
+	/** A seat's look. Default: a white tag with a person mark and the label. */
+	renderSeat?: (props: TabletopSeatRenderProps) => ReactElement;
 }
 
 function ZoneIcon(): ReactElement {
@@ -103,6 +150,11 @@ const ALIGN_LABELS: Record<ZoneAlign, string> = {
 	start: "Left",
 	center: "Center",
 	end: "Right",
+};
+const FORM_LABELS: Record<TableForm, string> = {
+	rect: "Rectangle",
+	round: "Round",
+	polygon: "Polygon",
 };
 const CAMERA_LABELS: Record<ViewCamera, string> = {
 	fixed: "Fixed",
@@ -130,6 +182,8 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 	const renderLook = opts.render ?? ((props) => <DefaultZone {...props} />);
 	const hostAccepts = opts.accepts ?? ((child) => child.type !== "connector");
 	const renderViewLook = opts.renderView ?? ((props) => <DefaultView {...props} />);
+	const renderTableLook = opts.renderTable ?? ((props) => <DefaultTable {...props} />);
+	const renderSeatLook = opts.renderSeat ?? ((props) => <DefaultSeat {...props} />);
 
 	return {
 		id: "usketch-plugin-tabletop",
@@ -164,6 +218,8 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					accepts: (child, zone) =>
 						!isZone(child) &&
 						!isView(child) &&
+						!isTable(child) &&
+						!isSeat(child) &&
 						!isShapeContainer(ctx.shapes.get(child.type), child) &&
 						hostAccepts(child, zone) &&
 						zoneAcceptsType(zone, child),
@@ -198,6 +254,70 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 					renderTarget: "html",
 					minSize: { width: 80, height: 60 },
 					debugFields: (shape) => ({ ...readViewMeta(shape) }),
+				});
+			}
+
+			if (opts.tables !== false) {
+				const boxHit = withRotation((data, point) => {
+					const b = getBounds(data);
+					return (
+						point.x >= b.x &&
+						point.x <= b.x + b.width &&
+						point.y >= b.y &&
+						point.y <= b.y + b.height
+					);
+				});
+				ctx.shapes.register(TABLE_TYPE, {
+					render: (table) =>
+						renderTableLook({
+							table,
+							meta: readTableMeta(table),
+							outline: tableOutlineLocal(table),
+						}),
+					getBounds,
+					// Inside the outline: it is what the zones and cards sit on. Those in front
+					// of it still win the click (they are hit first, and are its children).
+					hitTest: (data, point) => isOnTable(data, point),
+					resize,
+					createDefault: ({ id, x, y }) => createTableShape({ id, x, y }),
+					renderTarget: "html",
+					minSize: { width: 200, height: 200 },
+					// What is put on the table becomes its child, so moving the table takes the
+					// zones, cards and seats on it along (like a frame). A shape joins when its
+					// center is on the table (inside the outline), and stays selectable on its
+					// own. The layout puts the seats on the outline.
+					container: {
+						selectableChildren: true,
+						winsOverBackdrop: true,
+						autoAttach: true,
+						attachHit: "center",
+						accepts: (child, table) =>
+							!isTable(child) &&
+							!isView(child) &&
+							child.type !== "connector" &&
+							isOnTable(table, {
+								x: child.x + child.width / 2,
+								y: child.y + child.height / 2,
+							}),
+						layout: layoutTable,
+					},
+					debugFields: (shape) => ({ ...readTableMeta(shape) }),
+				});
+				ctx.shapes.register(SEAT_TYPE, {
+					render: (seat) => renderSeatLook({ seat, meta: readSeatMeta(seat) }),
+					getBounds,
+					hitTest: boxHit,
+					resize,
+					createDefault: ({ id, x, y }) =>
+						createSeatShape({
+							id,
+							x,
+							y,
+							label: nextSeatLabel(listSeatShapes(ctx.store), "Player"),
+						}),
+					renderTarget: "html",
+					minSize: { width: 40, height: 32 },
+					debugFields: (shape) => ({ ...readSeatMeta(shape) }),
 				});
 			}
 
@@ -327,8 +447,165 @@ export function createTabletopPlugin(opts: CreateTabletopPluginOptions = {}): Us
 								},
 							}),
 						];
+			const selectedTable = (): string | undefined => {
+				for (const id of ctx.store.getSelection()) {
+					if (isTable(ctx.store.getShape(id))) return id;
+				}
+				return undefined;
+			};
+			const selectedSeat = (): string | undefined => {
+				for (const id of ctx.store.getSelection()) {
+					if (isSeat(ctx.store.getShape(id))) return id;
+				}
+				return undefined;
+			};
+			/** A new seat at a table, where it is farthest from the seats already there. */
+			const newSeatAt = (tableId: string, label: string): ShapeData | null => {
+				const table = ctx.store.getShape(tableId);
+				if (!table || !isTable(table)) return null;
+				const seats = seatsAtTable(ctx.store, tableId);
+				const centers = seats.map((s) => ({ x: s.x + s.width / 2, y: s.y + s.height / 2 }));
+				const candidates = spreadPlacements(table, seats.length + 1, DEFAULT_SEAT_SIZE);
+				const room = (c: { x: number; y: number }) =>
+					Math.min(
+						Number.POSITIVE_INFINITY,
+						...centers.map((p) =>
+							Math.hypot(
+								c.x + DEFAULT_SEAT_SIZE.width / 2 - p.x,
+								c.y + DEFAULT_SEAT_SIZE.height / 2 - p.y,
+							),
+						),
+					);
+				const best = candidates.reduce((a, b) => (room(b) > room(a) ? b : a));
+				return createSeatShape({ ...best, label, parentId: tableId });
+			};
+			const tableActions =
+				opts.tables === false
+					? []
+					: [
+							ctx.actions.register({
+								id: "tabletop-table:add",
+								requires: PERMISSIONS.pageEdit,
+								label: "Add game table",
+								group: "Tabletop",
+								run: () => {
+									// In the middle of the screen, behind everything (it is what things are put
+									// on), with a player at each end facing the other. One command, so undo /
+									// redo takes the players along.
+									const area = screenViewRect(ctx.store.getViewport(), getScreenSize());
+									const back = ctx.store.getShapesSorted().find((s) => !s.parentId)?.zIndex;
+									const table = createTableShape({
+										x: area.x + area.width / 2 - DEFAULT_TABLE_SIZE.width / 2,
+										y: area.y + area.height / 2 - DEFAULT_TABLE_SIZE.height / 2,
+										zIndex: zIndexBetween(null, back ?? null),
+									});
+									const taken = listSeatShapes(ctx.store);
+									const labels = [nextSeatLabel(taken, "Player")];
+									labels.push(nextSeatLabel([...taken, { meta: { label: labels[0] } }], "Player"));
+									const seats = spreadPlacements(table, 2, DEFAULT_SEAT_SIZE).map((at, i) =>
+										createSeatShape({ ...at, label: labels[i], parentId: table.id }),
+									);
+									ctx.commands.execute(createAddShapesCommand(ctx.store, [table, ...seats]));
+									ctx.store.setSelection([table.id]);
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-table:add-seat",
+								requires: PERMISSIONS.pageEdit,
+								label: "Add player",
+								group: "Tabletop",
+								isEnabled: () => selectedTable() !== undefined,
+								run: () => {
+									const id = selectedTable();
+									if (!id) return;
+									const seat = newSeatAt(id, nextSeatLabel(listSeatShapes(ctx.store), "Player"));
+									if (seat) ctx.commands.execute(createAddShapeCommand(ctx.store, seat));
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-table:spread",
+								requires: PERMISSIONS.pageEdit,
+								label: "Spread players evenly",
+								group: "Tabletop",
+								isEnabled: () => selectedTable() !== undefined,
+								run: () => {
+									const id = selectedTable();
+									if (!id) return;
+									const updates = spreadSeatUpdates(ctx.store, id);
+									if (updates.length > 0) {
+										ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, updates));
+									}
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-table:form",
+								requires: PERMISSIONS.pageEdit,
+								label: "Table shape",
+								group: "Tabletop",
+								params: [
+									{
+										name: "form",
+										type: "enum",
+										// No default: confirming without a pick must not reset the form.
+										options: TABLE_FORMS.map((value) => ({ value, label: FORM_LABELS[value] })),
+									},
+									{
+										name: "sides",
+										type: "number",
+										min: MIN_TABLE_SIDES,
+										max: MAX_TABLE_SIDES,
+									},
+								],
+								isEnabled: () => selectedTable() !== undefined,
+								run: ({ form, sides }) => {
+									const id = selectedTable();
+									if (id && TABLE_FORMS.includes(form as TableForm)) {
+										setTableForm(
+											ctx.store,
+											id,
+											form as TableForm,
+											typeof sides === "number" ? sides : undefined,
+										);
+									}
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-table:camera",
+								requires: PERMISSIONS.pageEdit,
+								label: "Table camera",
+								group: "Tabletop",
+								params: [
+									{
+										name: "camera",
+										type: "enum",
+										// No default: confirming without a pick must not reset the table's camera.
+										options: VIEW_CAMERAS.map((value) => ({ value, label: CAMERA_LABELS[value] })),
+									},
+								],
+								isEnabled: () => selectedTable() !== undefined,
+								run: ({ camera }) => {
+									const id = selectedTable();
+									if (id && VIEW_CAMERAS.includes(camera as ViewCamera)) {
+										setTableCamera(ctx.store, id, camera as ViewCamera);
+									}
+								},
+							}),
+							ctx.actions.register({
+								id: "tabletop-seat:label",
+								requires: PERMISSIONS.pageEdit,
+								label: "Player name",
+								group: "Tabletop",
+								params: [{ name: "label", type: "string" }],
+								isEnabled: () => selectedSeat() !== undefined,
+								run: ({ label }) => {
+									const id = selectedSeat();
+									if (id && typeof label === "string") setSeatLabel(ctx.store, id, label);
+								},
+							}),
+						];
 			const offActions = [
 				...viewActions,
+				...tableActions,
 				ctx.actions.register({
 					id: "tabletop-zone:arrange",
 					requires: PERMISSIONS.pageEdit,

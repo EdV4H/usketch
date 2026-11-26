@@ -1,7 +1,7 @@
 # @edv4h/usketch-plugin-tabletop
 
-Tabletop parts for playing games on a uSketch board. For now: **zones**
-(`tabletop-zone`), places that hold cards or pieces — a deck, a discard pile,
+Tabletop parts for playing games on a uSketch board: **game tables** and
+**seats** (see below), and **zones** (`tabletop-zone`), places that hold cards or pieces — a deck, a discard pile,
 a player's row. A shape dropped with its center on a zone snaps into it and is
 laid out by the zone's `arrange`.
 
@@ -115,6 +115,51 @@ Zones never take views. The pieces are exported too: `fitViewToScreen`,
 `stayInViewConstraint`, `pinToViewConstraint`, `isAtView`, `viewRectOf`,
 `viewCameraRotation`.
 
+## Game tables and seats
+
+A **game table** (`tabletop-table`) is what a game is played on. Its form is
+`rect`, `round` (the ellipse in its box) or `polygon` (a regular polygon of 3–8
+`sides`, one corner at the top, stretched to fill the box). What is put on the
+table, with its center inside the outline, becomes its child, so zones, cards and
+seats move with it (needs `createContainerPlugin`).
+
+A **seat** (`tabletop-seat`) is a player's place, a shape of its own with a
+`label` ("Player 1", "Dealer"). Put on a table, it snaps onto the outline nearest
+where it was dropped, turned to face the table. Off a table it is just a marker.
+
+```ts
+import { applyViewCamera, findSeat, readTableMeta, seatViewRect } from "@edv4h/usketch-plugin-tabletop";
+
+// Sit at a seat: the whole table, turned so that seat is at the bottom. Read the
+// seat again each time, so the camera follows a table that is moved.
+const getRect = () => {
+	const at = findSeat(app.store, seatId);
+	return at ? seatViewRect(at.table, at.seat, 40) : null;
+};
+const at = findSeat(app.store, seatId);
+if (at) {
+	const camera = applyViewCamera(app.store, getRect, readTableMeta(at.table).camera, {
+		getSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+	});
+}
+```
+
+| Table meta | Values                                 | Default |
+| ---------- | -------------------------------------- | ------- |
+| `form`     | `rect` \| `round` \| `polygon`          | `rect`  |
+| `sides`    | 3–8 (for `polygon`)                    | `6`     |
+| `camera`   | `fixed` \| `zoom` \| `free` (like a view) | `zoom`  |
+
+Actions: `tabletop-table:add` (a table in the middle of the screen, behind
+everything, with two players), `tabletop-table:add-seat`, `tabletop-table:spread`
+(players evenly round the table, keeping their order), `tabletop-table:form`,
+`tabletop-table:camera`, `tabletop-seat:label`.
+
+The pieces are exported as plain functions: `tableOutline`, `isOnTable`,
+`nearestOnOutline`, `seatPlacement`, `spreadPlacements`, `layoutTable` (the
+table's container layout), `seatsAtTable` (clockwise from the bottom),
+`listSeats`, `findSeat`, `spreadSeatUpdates`, `tableViewRect`, `seatViewRect`.
+
 ## Plugin options
 
 | Option        | What it does |
@@ -128,6 +173,9 @@ Zones never take views. The pieces are exported too: `fitViewToScreen`,
 | `tool`        | Register the drawing tool. Default `true`. |
 | `views`       | Register the player view shape and its actions. Default `true`. |
 | `renderView`  | A view's look, from `{ view, meta }`. Default: a dashed frame with a camera mark and the label. |
+| `tables`      | Register the game table and seat shapes and their actions. Default `true`. |
+| `renderTable` | A table's look, from `{ table, meta, outline }` (`outline` in the table's own box; `outlinePoints` makes SVG `points`). Default: a green table with a wooden rim. |
+| `renderSeat`  | A seat's look, from `{ seat, meta }`. Default: a white tag with a person mark and the label. |
 
 Turning and raising a dropped shape run only for the user who dropped it and
 are not part of undo (like flipping a card).
