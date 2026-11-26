@@ -16,6 +16,11 @@ export {
 	type PageDocPersistence,
 } from "./page-doc-manager.js";
 export {
+	broadcastPageOf,
+	type ParsedAwarenessUpdate,
+	parseAwarenessUpdate,
+} from "./page-filter.js";
+export {
 	checkPagesMigration,
 	copyRootShapesToPage,
 	countRootShapes,

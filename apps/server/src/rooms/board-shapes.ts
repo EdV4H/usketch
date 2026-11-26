@@ -41,24 +41,36 @@ export interface BoardShapesDeps {
 
 export function createBoardShapes(deps: BoardShapesDeps) {
 	/**
+	 * どのページの shapes を使うか。ページを使わないボードは null、`pageId` を省略すると先頭ページ。
+	 * 指定したページが無ければ {@link PageNotFoundError}。
+	 */
+	async function resolve(pageId?: string | null): Promise<string | null> {
+		const { doc: root } = await deps.getRootDoc();
+		if (!isPagedBoard(root)) {
+			if (pageId) throw new PageNotFoundError(pageId);
+			return null;
+		}
+		const pages = listPages(root);
+		if (!pageId) {
+			const first = pages[0];
+			if (!first) throw new PageNotFoundError("");
+			return first.id;
+		}
+		if (!isValidDocId(pageId) || !pages.some((p) => p.id === pageId)) {
+			throw new PageNotFoundError(pageId);
+		}
+		return pageId;
+	}
+
+	/**
 	 * シェイプを読み書きする doc を開く。`pageId` を省略するとページを使うボードでは先頭ページ。
 	 * 指定したページが無ければ {@link PageNotFoundError}。
 	 */
 	async function open(pageId?: string | null): Promise<ShapesTarget> {
-		const { doc: root } = await deps.getRootDoc();
-		if (!isPagedBoard(root)) {
-			if (pageId) throw new PageNotFoundError(pageId);
+		const target = await resolve(pageId);
+		if (target === null) {
+			const { doc: root } = await deps.getRootDoc();
 			return { pageId: null, doc: root, publish: deps.publishRoot, release: () => {} };
-		}
-		const pages = listPages(root);
-		let target: string;
-		if (pageId) {
-			if (!isValidDocId(pageId) || !pages.some((p) => p.id === pageId)) {
-				throw new PageNotFoundError(pageId);
-			}
-			target = pageId;
-		} else {
-			target = pages[0].id;
 		}
 		const sync = await deps.pageDocs.load(target);
 		const { doc } = await sync.getOrCreateDoc();
@@ -70,7 +82,7 @@ export function createBoardShapes(deps: BoardShapesDeps) {
 		};
 	}
 
-	return { open };
+	return { open, resolve };
 }
 
 export type BoardShapes = ReturnType<typeof createBoardShapes>;

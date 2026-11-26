@@ -2,8 +2,11 @@ import {
 	centerOnWorld,
 	generateId,
 	type PluginContext,
+	screenCenterWorld,
 	type TransientObject,
 	type UsketchPlugin,
+	type Viewport,
+	worldToScreen,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
@@ -103,7 +106,7 @@ interface WhistleIndicatorData {
 function computeIndicatorPosition(
 	worldX: number,
 	worldY: number,
-	vp: { x: number; y: number; zoom: number },
+	vp: Viewport,
 ): {
 	screenX: number;
 	screenY: number;
@@ -111,8 +114,7 @@ function computeIndicatorPosition(
 	indicatorX: number;
 	indicatorY: number;
 } {
-	const screenX = worldX * vp.zoom + vp.x;
-	const screenY = worldY * vp.zoom + vp.y;
+	const { x: screenX, y: screenY } = worldToScreen(worldX, worldY, vp);
 
 	const isOnScreen =
 		screenX >= 0 && screenX <= window.innerWidth && screenY >= 0 && screenY <= window.innerHeight;
@@ -314,9 +316,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				if (now - lastWhistleTime < COOLDOWN_MS) return;
 				lastWhistleTime = now;
 
-				const vp = ctx.store.getViewport();
-				const worldX = (window.innerWidth / 2 - vp.x) / vp.zoom;
-				const worldY = (window.innerHeight / 2 - vp.y) / vp.zoom;
+				const { x: worldX, y: worldY } = screenCenterWorld(ctx.store);
 				const id = generateId();
 				const name = getLocalUserName();
 

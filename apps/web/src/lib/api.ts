@@ -1,4 +1,8 @@
-import type { DemoBoardRole, DemoPageAccess } from "@edv4h/usketch-demo-permissions";
+import type {
+	DemoBoardRole,
+	DemoPageAccess,
+	PageMemberRole,
+} from "@edv4h/usketch-demo-permissions";
 import { getDevUser, isDevMode } from "./dev-auth.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
@@ -46,8 +50,12 @@ export interface BoardPageAccess {
 	viewer: { userId: string; boardRole: DemoBoardRole | null; boardPublic: boolean };
 	/** 公開範囲を決めたページ（見られるものだけ）。無いページは既定の扱い。 */
 	pages: Record<string, DemoPageAccess>;
+	/** 非公開ページの本当の名前（ルート doc では伏せている。見られるページだけ）。 */
+	names: Record<string, string>;
 	/** 公開範囲があって、この人が見られないページ。 */
 	hidden: string[];
+	/** 招いた人の名前とメール（管理できるページに招いた人だけ）。 */
+	people?: Record<string, { name: string; email: string }>;
 }
 
 export interface DiscoverBoard {
@@ -94,6 +102,8 @@ export const api = {
 				method: "DELETE",
 			}),
 		pageAccess: (id: string) => fetchApi<BoardPageAccess>(`/api/boards/${id}/page-access`),
+		/** ログインしていない人の分（公開ボードだけ）。 */
+		guestPageAccess: (id: string) => fetchApi<BoardPageAccess>(`/public/boards/${id}/page-access`),
 		setPageAccess: (
 			boardId: string,
 			pageId: string,
@@ -102,6 +112,25 @@ export const api = {
 			fetchApi<DemoPageAccess>(`/api/boards/${boardId}/pages/${pageId}/access`, {
 				method: "PUT",
 				body: JSON.stringify(access),
+			}),
+		invitePageMember: (
+			boardId: string,
+			pageId: string,
+			invite: { email: string; role: PageMemberRole },
+		) =>
+			fetchApi<{ userId: string; role: PageMemberRole }>(
+				`/api/boards/${boardId}/pages/${pageId}/members`,
+				{ method: "POST", body: JSON.stringify(invite) },
+			),
+		removePageMember: (boardId: string, pageId: string, userId: string) =>
+			fetchApi<{ ok: true }>(
+				`/api/boards/${boardId}/pages/${pageId}/members/${encodeURIComponent(userId)}`,
+				{ method: "DELETE" },
+			),
+		renamePrivatePage: (boardId: string, pageId: string, name: string) =>
+			fetchApi<{ pageId: string; name: string }>(`/api/boards/${boardId}/pages/${pageId}/name`, {
+				method: "PUT",
+				body: JSON.stringify({ name }),
 			}),
 		toggleShare: (id: string) =>
 			fetchApi<{ isPublic: boolean }>(`/api/boards/${id}/share`, {

@@ -9,6 +9,7 @@ import { createAuth } from "./auth.js";
 import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { loadPageViewFilter } from "./page-access/judge.js";
 import { createPageAccessPlugin } from "./page-access/routes.js";
 import type { Env } from "./types.js";
 
@@ -27,17 +28,25 @@ const app = await createServerApp({
 			activityLog: schema.activityLog,
 			communityBoards: schema.communityBoards,
 		}),
-		createCommentsPlugin({
-			boards: schema.boards,
-			boardMembers: schema.boardMembers,
-			comments: schema.comments,
-			commentMessages: schema.commentMessages,
-		}),
-		createChatPlugin({
-			boards: schema.boards,
-			boardMembers: schema.boardMembers,
-			chatMessages: schema.chatMessages,
-		}),
+		createCommentsPlugin(
+			{
+				boards: schema.boards,
+				boardMembers: schema.boardMembers,
+				comments: schema.comments,
+				commentMessages: schema.commentMessages,
+			},
+			// デモの権限: 見られないページのコメントは見せない
+			{ pageFilter: ({ db, boardId, userId }) => loadPageViewFilter(db, boardId, userId) },
+		),
+		createChatPlugin(
+			{
+				boards: schema.boards,
+				boardMembers: schema.boardMembers,
+				chatMessages: schema.chatMessages,
+			},
+			// デモの権限: 見られないページのチャットは読めない・書けない
+			{ pageFilter: ({ db, boardId, userId }) => loadPageViewFilter(db, boardId, userId) },
+		),
 		createAiPlugin({
 			boards: schema.boards,
 			boardMembers: schema.boardMembers,

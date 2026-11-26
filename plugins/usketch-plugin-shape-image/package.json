@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-image",
-	"version": "3.3.17",
+	"version": "3.3.18",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
 		"react": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"jsdom": "31.0.1",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"

@@ -1,5 +1,19 @@
 # @edv4h/usketch-plugin-map
 
+## 0.17.9
+
+### Patch Changes
+
+- b6a987f: 画面中央のワールド座標を共通の `screenCenterWorld` で求めるようにした。ビューポートが回転しているとき、map の拠点入場バナー・whistle の笛の位置と画面外インジケーター・ai-copilot に送る viewportCenter が画面中央からずれていたのを直す。
+
+## 0.17.8
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-store@3.15.1
+
 ## 0.17.7
 
 ### Patch Changes

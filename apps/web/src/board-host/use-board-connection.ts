@@ -23,8 +23,13 @@ export interface BoardSource {
 	boardId: string;
 	/** ルート doc を保存する IndexedDB の名前。 */
 	persistName: string;
-	/** サーバーにつなぐか（ローカルボード・未ログインの地域はつながない）。 */
+	/** サーバーにつなぐか（ローカルボードはつながない）。 */
 	connect: boolean;
+	/**
+	 * ログインしていない人としてつなぐ（公開ボードを見るだけ。`/public/boards/:id/ws`）。
+	 * サーバーは公開ページだけを見せ、書き込みは戻す。
+	 */
+	guest?: boolean;
 	/** 手元のボードをページ形式へ移す（ローカルボードだけ。クラウドはサーバーが移す）。 */
 	migrateLocal?: boolean;
 }
@@ -45,6 +50,7 @@ export function useBoardConnection(
 	const boardId = source?.boardId ?? null;
 	const persistName = source?.persistName ?? null;
 	const connect = source?.connect ?? false;
+	const guest = source?.guest ?? false;
 	const migrateLocal = source?.migrateLocal ?? false;
 
 	useEffect(() => {
@@ -62,9 +68,12 @@ export function useBoardConnection(
 		let offPresence: (() => void) | null = null;
 
 		if (connect) {
-			let wsUrl = `${API_URL.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			const base = API_URL.replace(/^http/, "ws");
+			let wsUrl = guest
+				? `${base}/public/boards/${boardId}/ws`
+				: `${base}/api/boards/${boardId}/ws`;
 			// 開発中: WebSocket はヘッダーを送れないのでクエリで誰かを伝える
-			if (import.meta.env.DEV) {
+			if (import.meta.env.DEV && !guest) {
 				const devUser = getDevUser();
 				if (devUser) wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
 			}
@@ -129,5 +138,5 @@ export function useBoardConnection(
 			setBoard(null);
 			setPagesState(null);
 		};
-	}, [boardId, persistName, connect, migrateLocal, switchPageRef, setBoard, setPagesState]);
+	}, [boardId, persistName, connect, guest, migrateLocal, switchPageRef, setBoard, setPagesState]);
 }

@@ -528,6 +528,16 @@ export interface ShapeDefinition {
 		 */
 		selectableChildren?: boolean | ((data: ShapeData) => boolean);
 		/**
+		 * Whether a click picks this container over its **backdrop**: a shape drawn
+		 * behind it whose bounds wholly enclose it (a board picture under a card
+		 * slot). Default: `false` — a container with {@link selectableChildren} (a
+		 * frame) is picked only where no other shape is hit, so a slot laid on a
+		 * picture could never be clicked. Shapes that do not enclose it (a card
+		 * lying partly under it) still win as before. Evaluate via
+		 * {@link containerWinsOverBackdrop}.
+		 */
+		winsOverBackdrop?: boolean | ((data: ShapeData) => boolean);
+		/**
 		 * Whether a shape dropped/dragged fully inside this container is
 		 * automatically attached as its child (`parentId` set), and detached when
 		 * moved out. Default: `false` — containers like `group` (explicit) and

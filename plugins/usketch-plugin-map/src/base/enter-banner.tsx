@@ -4,7 +4,7 @@
 // tracking (current base + entry transitions) and hands an `EnterBannerState` to
 // the host's `enterBanner.render` — the host owns the look. No sync — presentation
 // only. Not registered at all unless a render hook is provided (see plugin.tsx).
-import type { BoardStore } from "@edv4h/usketch-shared";
+import { type BoardStore, screenCenterWorld } from "@edv4h/usketch-shared";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
@@ -15,16 +15,6 @@ import { computeTerritory } from "./territory.js";
 import type { EnterBannerState } from "./territory-style.js";
 
 const BANNER_MS = 2600;
-
-/** World point the local user is "standing on" — the viewport centre. */
-function viewportCenterWorld(store: BoardStore): { x: number; y: number } | null {
-	if (typeof window === "undefined") return null;
-	const vp = store.getViewport();
-	return {
-		x: (window.innerWidth / 2 - vp.x) / vp.zoom,
-		y: (window.innerHeight / 2 - vp.y) / vp.zoom,
-	};
-}
 
 export function EnterBanner({
 	store,
@@ -63,8 +53,9 @@ export function EnterBanner({
 			rafRef.current = requestAnimationFrame(() => {
 				const base = getBaseMap(store);
 				let id: string | null = null;
-				const center = viewportCenterWorld(store);
-				if (base && center) {
+				if (base) {
+					// The local user "stands on" the world point at the screen centre.
+					const center = screenCenterWorld(store);
 					const territory = computeTerritory(
 						store,
 						tile,

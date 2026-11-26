@@ -1,5 +1,26 @@
 # @edv4h/usketch-plugin-pages
 
+## 0.3.0
+
+### Minor Changes
+
+- d909112: Let the host change how pages appear (`pageView` option, `PageView` type).
+  
+  - `isVisible(pageId)`: hide pages the viewer may not see from the panel, the page list and next/previous navigation.
+  - `displayName(page)`: show another name, such as the real name of a private page whose name is masked in the root doc.
+  - `rename(pageId, name)`: return `true` to take over a rename (for example, a server stores the name), so it is not written to the root doc.
+  - `subscribe(listener)`: tell the panel when any of these changed.
+  
+  "Duplicate this page" now requires `page.create`, like "Add page".
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+- Updated dependencies [bf7d536]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-sync@1.7.0
+  - @edv4h/usketch-store@3.15.1
+
 ## 0.2.0
 
 ### Minor Changes

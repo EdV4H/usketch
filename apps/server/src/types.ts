@@ -13,6 +13,8 @@ export interface Env extends ServerBindings {
 	OPENAI_API_KEY?: string;
 	/** "true" でマルチページ移行を行う（ボードを開いたときにルートの shapes を 1 枚目のページへ移す）。 */
 	PAGES_MIGRATION?: string;
+	/** "true" でデモボード（community-lobby）を開いたときに地域のページを作る（#1558 R6）。 */
+	DEMO_PAGES?: string;
 }
 
 export type AppDb = DrizzleD1Database<typeof schema>;

@@ -2,6 +2,7 @@ export type {
 	AltBehavior,
 	GapSegment,
 	GuideStyle,
+	SizeGuide,
 	SnapLine,
 	SnapResult,
 	SnapSettings,

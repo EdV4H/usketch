@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-croupier",
-	"version": "0.1.15",
+	"version": "0.1.16",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -28,7 +28,7 @@
 	"devDependencies": {
 		"@edv4h/croupier-plugin-values-card": "0.1.0",
 		"@edv4h/usketch-core": "workspace:*",
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"
 	},

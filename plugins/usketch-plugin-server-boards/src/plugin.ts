@@ -15,6 +15,20 @@ export interface BoardsPluginSchema {
 	communityBoards: SQLiteTableWithColumns<any>;
 }
 
+/**
+ * BoardRoom（Durable Object）に、ボードの役割・公開ボードかが変わったことを知らせる。BoardRoom は
+ * つながっている人の役割を読み直し、見られなくなった人の接続を閉じる。失敗しても REST の結果は
+ * 変えない（次につなぎ直したときに正しい役割になる）。
+ */
+async function notifyAccessChanged(c: Context<HonoEnv>, boardId: string): Promise<void> {
+	try {
+		const room = c.env.BOARD_ROOM.get(c.env.BOARD_ROOM.idFromName(boardId));
+		await room.fetch("https://internal/access-changed", { method: "POST" });
+	} catch (e) {
+		console.error("[server-boards] Failed to notify the board room:", e);
+	}
+}
+
 export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 	const { users, boards, boardMembers, activityLog, communityBoards } = schema;
 
@@ -223,6 +237,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.where(eq(boards.id, boardId));
 
+				if (body.isPublic !== undefined) await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -257,6 +272,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 				await db.delete(boards).where(eq(boards.id, boardId));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -347,6 +363,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.onConflictDoNothing();
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true }, 201);
 			});
 
@@ -380,6 +397,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.delete(boardMembers)
 					.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, targetUserId)));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ ok: true });
 			});
 
@@ -409,6 +427,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.set({ isPublic: newIsPublic, updatedAt: new Date().toISOString() })
 					.where(eq(boards.id, boardId));
 
+				await notifyAccessChanged(c, boardId);
 				return c.json({ isPublic: newIsPublic });
 			});
 
@@ -605,6 +624,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const url = new URL(c.req.url);
 				url.pathname = url.pathname.replace(`/api/boards/${boardId}`, "");
 				url.searchParams.set("userId", userId);
+				// DO がページごとに見られるかを確かめるため（クライアントの値は使わない）
+				url.searchParams.set("boardId", boardId);
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			}
 
@@ -612,158 +633,6 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			boardsApp.all("/:boardId/history", proxyToDurableObject);
 
 			ctx.routes.register({ path: "/api/boards", app: boardsApp });
-
-			// ── コミュニティボード（ワールドマップ地域）API ──
-			const communityApp = new Hono<HonoEnv>();
-
-			// 初期地域データ（テーブルが空の場合に自動シード）
-			const SEED_REGIONS = [
-				{
-					boardId: "community-lobby",
-					slug: "lobby",
-					displayName: "Lobby",
-					description: "メインロビー",
-					themeColor: "#6366f1",
-					icon: "🏠",
-					gridX: 0,
-					gridY: 0,
-					sortOrder: 0,
-				},
-				{
-					boardId: "community-workshop",
-					slug: "workshop",
-					displayName: "Workshop",
-					description: "作業スペース",
-					themeColor: "#f59e0b",
-					icon: "🔨",
-					gridX: 1,
-					gridY: 0,
-					sortOrder: 1,
-				},
-				{
-					boardId: "community-gallery",
-					slug: "gallery",
-					displayName: "Gallery",
-					description: "ギャラリー",
-					themeColor: "#ec4899",
-					icon: "🎨",
-					gridX: 0,
-					gridY: 1,
-					sortOrder: 2,
-				},
-				{
-					boardId: "community-playground",
-					slug: "playground",
-					displayName: "Playground",
-					description: "実験場",
-					themeColor: "#10b981",
-					icon: "🎮",
-					gridX: 1,
-					gridY: 1,
-					sortOrder: 3,
-				},
-			];
-
-			// DB取得ヘルパー（public route では dbMiddleware が効かないため）
-			async function getDb(c: Context<HonoEnv>) {
-				let db = c.get("db");
-				if (!db && c.env.DB) {
-					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
-					db = makeDrizzle(c.env.DB);
-				}
-				return db;
-			}
-
-			// テーブルが空なら初期地域データを自動シード
-			async function ensureSeed(db: any) {
-				const count = await db
-					.select({ boardId: communityBoards.boardId })
-					.from(communityBoards)
-					.limit(1);
-				if (count.length > 0) return;
-
-				const now = new Date().toISOString();
-				await db
-					.insert(users)
-					.values({
-						id: "system",
-						name: "System",
-						email: "system@usketch.local",
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					})
-					.onConflictDoNothing();
-				for (const seed of SEED_REGIONS) {
-					await db
-						.insert(boards)
-						.values({
-							id: seed.boardId,
-							title: seed.displayName,
-							ownerId: "system",
-							createdAt: now,
-							updatedAt: now,
-							isPublic: true,
-						})
-						.onConflictDoNothing();
-					await db.insert(communityBoards).values(seed).onConflictDoNothing();
-				}
-			}
-
-			// GET /api/community-boards — 全地域一覧（認証不要）
-			communityApp.get("/", async (c) => {
-				const db = await getDb(c);
-				if (!db) return c.json({ error: "Internal error" }, 500);
-
-				await ensureSeed(db);
-
-				const result = await db
-					.select({
-						boardId: communityBoards.boardId,
-						slug: communityBoards.slug,
-						displayName: communityBoards.displayName,
-						description: communityBoards.description,
-						themeColor: communityBoards.themeColor,
-						icon: communityBoards.icon,
-						gridX: communityBoards.gridX,
-						gridY: communityBoards.gridY,
-					})
-					.from(communityBoards)
-					.orderBy(communityBoards.sortOrder);
-
-				return c.json(result);
-			});
-
-			// GET /api/community-boards/:slug — slug → boardId 解決（認証不要）
-			communityApp.get("/:slug", async (c) => {
-				const db = await getDb(c);
-				if (!db) return c.json({ error: "Internal error" }, 500);
-
-				await ensureSeed(db);
-
-				const slug = c.req.param("slug");
-				const result = await db
-					.select({
-						boardId: communityBoards.boardId,
-						slug: communityBoards.slug,
-						displayName: communityBoards.displayName,
-						description: communityBoards.description,
-						themeColor: communityBoards.themeColor,
-						icon: communityBoards.icon,
-						gridX: communityBoards.gridX,
-						gridY: communityBoards.gridY,
-					})
-					.from(communityBoards)
-					.where(eq(communityBoards.slug, slug))
-					.limit(1);
-
-				if (result.length === 0) {
-					return c.json({ error: "Community board not found" }, 404);
-				}
-
-				return c.json(result[0]);
-			});
-
-			ctx.routes.register({ path: "/api/community-boards", app: communityApp, public: true });
 
 			// サムネイル（認証不要の public route — img タグから直接アクセスされるため）
 			const thumbnailApp = new Hono<HonoEnv>();
@@ -798,6 +667,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				// ログインしていない人として、見られるページだけ描いてもらう
+				thumbnailUrl.searchParams.set("boardId", boardId);
 				// ページを使うボードは ?page= のページ（省略時は先頭ページ）
 				const page = c.req.query("page");
 				if (page) thumbnailUrl.searchParams.set("page", page);
@@ -806,6 +677,34 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					status: res.status,
 					headers: res.headers,
 				});
+			});
+
+			// WebSocket（ログインしていない人）: 公開ボードを見るだけ。DO は役割の無い閲覧者として
+			// 扱い、公開ページだけを見せて書き込みは戻す。
+			thumbnailApp.get("/:boardId/ws", async (c) => {
+				let db = c.get("db");
+				if (!db && c.env.DB) {
+					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
+					db = makeDrizzle(c.env.DB);
+				}
+				if (!db) return c.json({ error: "Internal error" }, 500);
+				const boardId = c.req.param("boardId");
+				const [board] = await db
+					.select({ isPublic: boards.isPublic })
+					.from(boards)
+					.where(eq(boards.id, boardId))
+					.limit(1);
+				if (!board?.isPublic) return c.json({ error: "Board not found" }, 404);
+
+				const room = c.env.BOARD_ROOM.get(c.env.BOARD_ROOM.idFromName(boardId));
+				const url = new URL(c.req.url);
+				url.pathname = "/ws";
+				// クライアントが付けた値は使わない（必ず付け直す・消す）
+				url.searchParams.set("userId", "anonymous");
+				url.searchParams.set("boardId", boardId);
+				url.searchParams.delete("role");
+				url.searchParams.set("boardPublic", "1");
+				return room.fetch(new Request(url.toString(), c.req.raw));
 			});
 
 			ctx.routes.register({ path: "/public/boards", app: thumbnailApp, public: true });

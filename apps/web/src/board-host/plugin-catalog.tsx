@@ -45,7 +45,7 @@ import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMapPlugin } from "@edv4h/usketch-plugin-map";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
-import { createPagesPlugin, neighborPage } from "@edv4h/usketch-plugin-pages";
+import { createPagesPlugin } from "@edv4h/usketch-plugin-pages";
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
@@ -102,7 +102,13 @@ import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import { createWindowSystemPlugin } from "@edv4h/usketch-plugin-window-system";
 import { votingClientType } from "@edv4h/usketch-session-voting/client";
 import type { ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
-import { getLegacyPageId, getPage, listPages, PAGE_SHAPES_MAP_KEY } from "@edv4h/usketch-sync";
+import {
+	getLegacyPageId,
+	getPage,
+	listPages,
+	PAGE_SHAPES_MAP_KEY,
+	type PageMeta,
+} from "@edv4h/usketch-sync";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { api } from "../lib/api.js";
 import {
@@ -112,13 +118,14 @@ import {
 } from "../lib/character-renderer.js";
 import { getDevUser } from "../lib/dev-auth.js";
 import { loadViewportCull, loadViewportLod } from "../lib/render-settings.js";
-import { stockTerritoryStyle } from "../pages/community/map-territory-style.js";
 import { createBoardMetaPanelPlugin } from "../plugins/board-meta-panel.js";
 import { createMarkdownAdaptersPlugin } from "../plugins/markdown-adapters.js";
 import { createPresencePanelPlugin } from "../plugins/presence-panel.js";
 import { createSyncStatusPanelPlugin } from "../plugins/sync-status-panel.js";
 import { createViewportLodControlPlugin } from "../plugins/viewport-lod-control.js";
 import { type HostWiring, localUserId, localUserName } from "./host-wiring.js";
+import { stockTerritoryStyle } from "./map-territory-style.js";
+import { createPageAccessPlugin } from "./page-access-plugin.js";
 import { PAGE_PRESETS, PRESET_IDS, pagePlugins } from "./page-presets.js";
 
 type Created = UsketchPlugin | UsketchPlugin[] | null;
@@ -151,6 +158,26 @@ const currentSearch = () => (typeof window !== "undefined" ? window.location.sea
  * start-position → deep-link は最後のほう、HUD は最後）。ページに入れるものはプリセット
  * （`page-presets.ts`）で選ぶ。
  */
+/** ホストの見え方（権限で隠す・本当の名前）を当てたページ一覧。 */
+function visiblePages(w: HostWiring): PageMeta[] {
+	const view = w.host.pageView;
+	const pages = listPages(w.board.rootDoc);
+	if (!view) return pages;
+	return pages
+		.filter((p) => p.id === w.pageId || !view.isVisible || view.isVisible(p.id))
+		.map((p) => {
+			const name = view.displayName?.(p);
+			return name === undefined ? p : { ...p, name };
+		});
+}
+
+/** 見えるページの中で、`pageId` の次・前。 */
+function visibleNeighbor(w: HostWiring, pageId: string, step: 1 | -1): PageMeta | null {
+	const pages = visiblePages(w);
+	const index = pages.findIndex((p) => p.id === pageId);
+	return index < 0 ? null : (pages[index + step] ?? null);
+}
+
 export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 	{ id: "bg-grid", label: "方眼の背景", base: true, create: () => createGridBgPlugin() },
 	{ id: "bg-dots", label: "点の背景", base: true, create: () => createDotsBgPlugin() },
@@ -343,7 +370,7 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			// 「全ページ」の書き出しは、開いていないページの doc も読んで並べる。
 			return createExportPlugin({
 				pages: {
-					list: () => listPages(board.rootDoc).map((p) => ({ id: p.id, name: p.name })),
+					list: () => visiblePages(w).map((p) => ({ id: p.id, name: p.name })),
 					loadShapes: async (id) => {
 						const handle = board.pageDocs.open(id);
 						try {
@@ -413,6 +440,8 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 				pageId: w.pageId,
 				switchPage: w.switchPage,
 				openPageDoc: (id) => w.board.pageDocs.open(id),
+				// 権限で見られないページを隠し、伏せた名前の代わりに本当の名前を出す
+				pageView: w.host.pageView,
 				pagePlugins: {
 					presets: PRESET_IDS.map((id) => ({ id, label: PAGE_PRESETS[id].label })),
 					defaultPreset: fallback,
@@ -424,6 +453,16 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 				},
 			});
 		},
+	},
+	// デモの権限: 今のページの公開範囲（見られる人・編集できる人・招いた人）
+	{
+		id: "page-access",
+		label: "公開範囲",
+		base: true,
+		create: (w) =>
+			w.pageId && w.host.pageAccess
+				? createPageAccessPlugin({ pageId: w.pageId, control: w.host.pageAccess })
+				: null,
 	},
 	{
 		id: "laser",
@@ -608,7 +647,11 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			createBoardInfoPanelPlugin({
 				apiUrl: w.apiUrl,
 				extraHeaders: Object.keys(w.extraHeaders).length > 0 ? w.extraHeaders : undefined,
-				onOpenBoard: (id: string) => w.host.navigate?.(`/boards/${id}`),
+				// このボードのページを指すゲート（地域のページなど）はページを移る
+				onOpenBoard: (id, pageId) => {
+					if (pageId) w.switchPage(pageId);
+					else w.host.navigate?.(`/boards/${id}`);
+				},
 			}),
 	},
 	{
@@ -624,6 +667,15 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 				wsProvider: w.wsProvider,
 				userId,
 				userName: w.user().name ?? "Anonymous",
+				// ページごとのチャット。移行した 1 枚目は、ページを使う前のメッセージも出す。
+				...(w.pageId
+					? {
+							page: {
+								id: w.pageId,
+								includeUnpaged: getLegacyPageId(w.board.rootDoc) === w.pageId,
+							},
+						}
+					: {}),
 			});
 		},
 	},
@@ -775,18 +827,17 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 			const presentation = w.host.presentation;
 			if (!presentation) return null;
 			const { pageId } = w;
-			const rootDoc = w.board.rootDoc;
 			return createPresentationPlugin({
 				...presentation,
 				pages: pageId
 					? {
-							hasPage: (step) => neighborPage(rootDoc, pageId, step) !== null,
+							hasPage: (step) => visibleNeighbor(w, pageId, step) !== null,
 							goToPage: (step) => {
-								const target = neighborPage(rootDoc, pageId, step);
+								const target = visibleNeighbor(w, pageId, step);
 								if (target) w.switchPage(target.id);
 							},
 							pageLabel: () => {
-								const pages = listPages(rootDoc);
+								const pages = visiblePages(w);
 								const index = pages.findIndex((p) => p.id === pageId);
 								if (pages.length < 2 || index < 0) return null;
 								return `${pages[index]?.name}（${index + 1}/${pages.length}）`;
@@ -804,7 +855,13 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
 		create: () => createStartPositionPlugin(),
 	},
 	// URL ⇄ 選択・視点（Figma の ?node-id 相当）。最後のほうに置く。
-	{ id: "deep-link", label: "URL で場所を共有", base: true, create: () => createDeepLinkPlugin() },
+	{
+		id: "deep-link",
+		label: "URL で場所を共有",
+		base: true,
+		// 発表の編集モードでは Canvas が stage に縮むので、その大きさで ?cx&cy を中心に合わせる。
+		create: (w) => createDeepLinkPlugin({ getViewportSize: w.host.presentation?.getViewportSize }),
+	},
 	// Control HUD（プラグインの操作をまとめる画面）。分割読み込みのまま、最後に足す。
 	{
 		id: "debug-hud",

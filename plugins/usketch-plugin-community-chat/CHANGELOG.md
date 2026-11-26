@@ -1,5 +1,24 @@
 # @edv4h/usketch-plugin-community-chat
 
+## 3.1.0
+
+### Minor Changes
+
+- d1208fc: チャットをページごとに分けられるようにした。
+  
+  - server-chat: `chat_messages` に `page_id` 列があれば、一覧の `?pageId=`（と `&includeUnpaged=1`）と投稿の `pageId` でページごとに分ける。`createChatPlugin(schema, { pageFilter })` を渡すと、見られないページのチャットは読めず書けない（404）。列が無いスキーマはこれまでどおり。
+  - community-chat: `createCommunityChatPlugin({ page: { id, includeUnpaged } })` で今のページのチャットだけを読み書きする。`page` を渡さなければこれまでどおりボードで 1 つ。
+
+## 3.0.39
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+- Updated dependencies [bf7d536]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-sync@1.7.0
+  - @edv4h/usketch-store@3.15.1
+
 ## 3.0.38
 
 ### Patch Changes

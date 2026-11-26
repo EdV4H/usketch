@@ -8,6 +8,7 @@ import {
 	API_URL,
 	type BoardSource,
 	devHeaders,
+	type PagePermissions,
 	readRenderer3d,
 	useBoardHost,
 	useBoardPermissions,
@@ -21,6 +22,7 @@ import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
+import { useGuestTry } from "./lib/use-guest-try.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createCompare3dPlugin, readCompare3dScene } from "./plugins/compare-3d.js";
 
@@ -48,14 +50,35 @@ function readDesktopTemplate(search: string): boolean {
 	return new URLSearchParams(search).get("desktop") === "1";
 }
 
-/** `/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。プリセットは whiteboard。 */
-export function App() {
-	const { boardId } = useParams<{ boardId: string }>();
+/** 見る権限の無いページを除く（開くページを選ぶとき）。 */
+function visibleOnly<T extends { id: string }>(
+	pages: T[],
+	permissions: PagePermissions | null,
+): T[] {
+	const isVisible = permissions?.view.isVisible;
+	return isVisible ? pages.filter((p) => isVisible(p.id)) : pages;
+}
+
+/**
+ * `/`（デモボード）、`/boards/:boardId`（クラウド）と `/local/:boardId`（手元）のボード。
+ * プリセットの無いページは whiteboard。
+ */
+export function App({
+	boardId: fixedBoardId,
+}: {
+	/** URL によらず開くボード（`/` のデモボード）。 */ boardId?: string;
+} = {}) {
+	const params = useParams<{ boardId: string }>();
+	const boardId = fixedBoardId ?? params.boardId;
 	const location = useLocation();
 	const navigate = useNavigate();
-	const isCloudBoard = location.pathname.startsWith("/boards/");
+	// デモボード（`/`）はクラウドのボード
+	const isCloudBoard = fixedBoardId !== undefined || location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
-	const { user: authUser } = useAuth();
+	const { user: authUser, isPending: authPending } = useAuth();
+	// ログインしていない人はクラウドのボードを見るだけ（公開ボードの公開ページ）。セッションを
+	// 読み終えるまでは、どちらでつなぐか決めない。
+	const guest = isCloudBoard && !authPending && !authUser;
 
 	// 最新の presentation mode を App の外から読むための ref。App を作る effect の依存に
 	// 入れると ?present=1 の切替のたびに App が作り直され、undo 履歴や接続が消える。
@@ -92,17 +115,19 @@ export function App() {
 			: null,
 	);
 
+	const waitingForAuth = isCloudBoard && authPending && !authUser;
 	const source = useMemo<BoardSource | null>(
 		() =>
-			boardId
+			boardId && !waitingForAuth
 				? {
 						boardId,
 						persistName: `usketch-board-${boardId}`,
 						connect: isCloudBoard,
+						guest,
 						migrateLocal: !isCloudBoard,
 					}
 				: null,
-		[boardId, isCloudBoard],
+		[boardId, isCloudBoard, guest, waitingForAuth],
 	);
 
 	// クラウドのボードはボードの役割でできることを決める（デモのルール）。手元のボードは何でもできる。
@@ -110,6 +135,7 @@ export function App() {
 		boardId: boardId ?? null,
 		cloud: isCloudBoard,
 		userId: authUser?.id ?? null,
+		guest,
 	});
 
 	const {
@@ -125,7 +151,7 @@ export function App() {
 		// 開くページ: URL の ?page= → 前回開いたページ → 先頭ページ。ページ無しのボードは null。
 		pickPage: (state) =>
 			state.paged && boardId
-				? (resolvePageId(state.pages, {
+				? (resolvePageId(visibleOnly(state.pages, permissions), {
 						requested: readRequestedPage(location.search),
 						lastOpened: readLastPage(boardId),
 					}) ?? undefined)
@@ -133,11 +159,14 @@ export function App() {
 		defaultPreset: "whiteboard",
 		host: {
 			pagesPanel: true,
+			pageView: permissions?.view,
+			pageAccess: permissions?.access,
 			navigate,
 			presentation: {
 				getMode: () => modeRef.current,
 				navigateToBoard: () => {
-					if (boardId) navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
+					if (fixedBoardId) navigate("/");
+					else if (boardId) navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
 				},
 				getViewportSize: () => {
 					const stage = stageRectRef.current;
@@ -231,7 +260,8 @@ export function App() {
 	// ページを離れるときに視点を保存する（不在の人のアバター用）
 	const wsProvider = board?.wsProvider ?? null;
 	useEffect(() => {
-		if (!wsProvider || !boardId) return;
+		// ログインしていない人は残さない（見るだけ）
+		if (!wsProvider || !boardId || guest) return;
 		const saveViewport = () => {
 			const local = wsProvider.awareness.getLocalState();
 			const vc = local?.viewportCenter as { x: number; y: number } | undefined;
@@ -246,7 +276,7 @@ export function App() {
 		};
 		window.addEventListener("beforeunload", saveViewport);
 		return () => window.removeEventListener("beforeunload", saveViewport);
-	}, [wsProvider, boardId]);
+	}, [wsProvider, boardId, guest]);
 
 	// ログインが分かったら awareness の名前を入れる
 	const authUserId = authUser?.id;
@@ -268,6 +298,9 @@ export function App() {
 	// 検索が単一ソースとして参照する。
 	useAppActions(app, boardId, isCloudBoard, openShare);
 
+	// ログインしていない人には「見るだけ」と「手元で試す」（今のページをお試しボードへ写す）を出す。
+	useGuestTry({ app, guest, board, pageId: activePageId, navigate });
+
 	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
 	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
 	// 残り続けないよう select に戻す。
@@ -281,7 +314,7 @@ export function App() {
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
-		if (!app || !isCloudBoard || !boardId) return;
+		if (!app || !isCloudBoard || !boardId || guest) return;
 		const apiUrl = API_URL;
 		app.events.emit("side-panel:register-tab", {
 			tab: {
@@ -310,7 +343,7 @@ export function App() {
 		return () => {
 			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
 		};
-	}, [app, boardId, isCloudBoard]);
+	}, [app, boardId, isCloudBoard, guest]);
 
 	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
 	stageRectRef.current = stageRect;
