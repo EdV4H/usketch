@@ -15,7 +15,9 @@ import type {
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { createTabletopPlugin, ZONE_TOOL_ID } from "../plugin.js";
+import { readSeatMeta, SEAT_TYPE } from "../seat.js";
 import { getTabletopApi } from "../service.js";
+import { createTableShape, readTableMeta, TABLE_TYPE } from "../table.js";
 import { readViewMeta, VIEW_TYPE } from "../view.js";
 import { createZoneShape, readZoneMeta, ZONE_TYPE } from "../zone.js";
 
@@ -181,6 +183,85 @@ describe("createTabletopPlugin", () => {
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
 		action?.run({ align: "bogus" });
 		expect(readZoneMeta(store.getShape(zone.id) as ShapeData).align).toBe("end");
+	});
+
+	it("registers the game table as a container for what is put on it, and the seat", () => {
+		const { ctx } = harness();
+		const container = ctx.shapes.get(TABLE_TYPE)?.container;
+		expect(container).toMatchObject({
+			selectableChildren: true,
+			autoAttach: true,
+			attachHit: "center",
+			winsOverBackdrop: true,
+		});
+		expect(container?.layout).toBeDefined();
+		const table = createTableShape({ id: "t", x: 0, y: 0, width: 400, height: 400, form: "round" });
+		const on = (type: string, x = 190, y = 190) =>
+			shape(type, { id: `${type}-${x}`, x, y, width: 20, height: 20 });
+		expect(container?.accepts?.(createZoneShape({ x: 150, y: 150 }), table)).toBe(true);
+		expect(container?.accepts?.(on("card"), table)).toBe(true);
+		expect(container?.accepts?.(on(SEAT_TYPE), table)).toBe(true);
+		// Off the round table (its box's corner).
+		expect(container?.accepts?.(on("card", 0, 0), table)).toBe(false);
+		expect(container?.accepts?.(on(TABLE_TYPE), table)).toBe(false);
+		expect(container?.accepts?.(on(VIEW_TYPE), table)).toBe(false);
+		expect(container?.accepts?.(on("connector"), table)).toBe(false);
+		// A zone never takes a table or a seat.
+		const zone = ctx.shapes.get(ZONE_TYPE)?.container;
+		expect(zone?.accepts?.(table, shape(ZONE_TYPE))).toBe(false);
+		expect(zone?.accepts?.(on(SEAT_TYPE), shape(ZONE_TYPE))).toBe(false);
+		// The table is hit inside its outline only.
+		expect(ctx.shapes.get(TABLE_TYPE)?.hitTest?.(table, { x: 5, y: 5 })).toBe(false);
+		expect(ctx.shapes.get(TABLE_TYPE)?.hitTest?.(table, { x: 200, y: 200 })).toBe(true);
+		expect(ctx.shapes.get(SEAT_TYPE)).toBeDefined();
+		const off = harness({ tables: false }).ctx.shapes;
+		expect(off.get(TABLE_TYPE)).toBeUndefined();
+		expect(off.get(SEAT_TYPE)).toBeUndefined();
+	});
+
+	it("adds a table behind everything with two players, in one undoable step", () => {
+		const { ctx, api, store } = harness();
+		store.addShape(createZoneShape({ id: "z", x: 0, y: 0 }));
+		ctx.actions.get("tabletop-table:add")?.run({});
+		const [table] = api.tables();
+		if (!table) throw new Error("no table");
+		expect(store.getSelection()).toEqual(new Set([table.id]));
+		expect(store.getShapesSorted()[0]?.id).toBe(table.id);
+		const seats = api.seats().map((s) => readSeatMeta(s.seat).label);
+		expect(seats).toEqual(["Player 1", "Player 2"]);
+		ctx.commands.undo();
+		expect(api.tables()).toEqual([]);
+		expect(store.getShapesSorted().map((s) => s.id)).toEqual(["z"]);
+		ctx.commands.redo();
+		expect(api.seats()).toHaveLength(2);
+	});
+
+	it("adds a player where there is room, spreads them, and sets the form, camera and name", () => {
+		const { ctx, api, store } = harness();
+		ctx.actions.get("tabletop-table:add")?.run({});
+		const [table] = api.tables();
+		if (!table) throw new Error("no table");
+		ctx.actions.get("tabletop-table:add-seat")?.run({});
+		const seats = api.seats();
+		expect(seats.map((s) => readSeatMeta(s.seat).label)).toEqual([
+			"Player 1",
+			"Player 3",
+			"Player 2",
+		]);
+		ctx.actions.get("tabletop-table:spread")?.run({});
+		ctx.actions.get("tabletop-table:form")?.run({ form: "polygon", sides: 5 });
+		ctx.actions.get("tabletop-table:form")?.run({});
+		ctx.actions.get("tabletop-table:camera")?.run({ camera: "free" });
+		expect(readTableMeta(store.getShape(table.id) ?? {})).toEqual({
+			form: "polygon",
+			sides: 5,
+			camera: "free",
+		});
+		const seatId = seats[0]?.seat.id ?? "";
+		store.setSelection([seatId]);
+		expect(ctx.actions.get("tabletop-table:add-seat")?.isEnabled?.()).toBe(false);
+		ctx.actions.get("tabletop-seat:label")?.run({ label: "Dealer" });
+		expect(readSeatMeta(store.getShape(seatId) ?? {}).label).toBe("Dealer");
 	});
 
 	it("teardown removes the service", () => {

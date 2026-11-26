@@ -8,13 +8,61 @@ export {
 	type ZoneAttachEvent,
 } from "./attach-watch.js";
 export { type CreateTabletopPluginOptions, createTabletopPlugin, ZONE_TOOL_ID } from "./plugin.js";
+export { DefaultSeat, type TabletopSeatRenderProps } from "./render-seat.js";
+export { DefaultTable, outlinePoints, type TabletopTableRenderProps } from "./render-table.js";
 export {
 	DefaultView,
 	type TabletopViewRenderProps,
 	VIEW_LABEL_HEIGHT,
 } from "./render-view.js";
 export { DefaultZone, type TabletopZoneRenderProps } from "./render-zone.js";
+export {
+	type CreateSeatShapeParams,
+	createSeatShape,
+	DEFAULT_SEAT_SIZE,
+	isSeat,
+	listSeatShapes,
+	nextSeatLabel,
+	readSeatMeta,
+	SEAT_TYPE,
+	setSeatLabel,
+	type TabletopSeatMeta,
+} from "./seat.js";
 export { createTabletopApi, getTabletopApi, type TabletopApi, tabletopService } from "./service.js";
+export {
+	type CreateTableShapeParams,
+	createTableShape,
+	DEFAULT_TABLE_SIZE,
+	findSeat,
+	isOnTable,
+	isTable,
+	layoutTable,
+	listSeats,
+	listTables,
+	MAX_TABLE_SIDES,
+	MIN_TABLE_SIDES,
+	nearestOnOutline,
+	type OutlinePoint,
+	type Point,
+	readTableMeta,
+	type SeatAtTable,
+	type SeatPlacement,
+	seatPlacement,
+	seatsAtTable,
+	seatViewRect,
+	setTableCamera,
+	setTableForm,
+	spreadPlacements,
+	spreadSeatUpdates,
+	TABLE_FORMS,
+	TABLE_TYPE,
+	type TableForm,
+	type TabletopTableMeta,
+	tableOutline,
+	tableOutlineLocal,
+	tableViewRect,
+	updateTableMeta,
+} from "./table.js";
 export {
 	type CreateViewShapeParams,
 	createViewShape,
