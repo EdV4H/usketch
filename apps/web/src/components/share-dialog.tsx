@@ -1,4 +1,4 @@
-import { encodeDeepLink } from "@edv4h/usketch-plugin-deep-link";
+import { captureView, encodeDeepLink } from "@edv4h/usketch-plugin-deep-link";
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api.js";
@@ -84,16 +84,17 @@ export function ShareDialog({
 		}
 	};
 
-	// Snapshot the current selection AND camera (pan/zoom) into the link, so the
-	// recipient lands on exactly this view. Selection alone is already live in the
-	// address bar; this adds the precise viewport.
+	// Snapshot the current selection AND view (the world point at the screen
+	// centre + zoom) into the link, so the recipient lands on this view on any
+	// screen size. Selection alone is already live in the address bar.
 	const handleCopyViewLink = async () => {
 		if (!store) return;
 		try {
 			const selection = [...store.getSelection()].filter((id) => store.getShape(id));
 			const search = encodeDeepLink(window.location.search, {
 				shapeIds: selection,
-				camera: store.getViewport(),
+				camera: null,
+				view: captureView(store),
 			});
 			const url = `${window.location.origin}${window.location.pathname}${search}${window.location.hash}`;
 			await navigator.clipboard.writeText(url);

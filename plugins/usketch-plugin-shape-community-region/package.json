@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-community-region",
-	"version": "3.0.33",
+	"version": "3.0.35",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
 		"react": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"
 	},

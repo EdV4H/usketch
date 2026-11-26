@@ -1,5 +1,21 @@
 # @edv4h/usketch-plugin-free-position
 
+## 0.1.33
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-shape-utils@2.4.15
+
+## 0.1.32
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-shape-utils@2.4.14
+
 ## 0.1.31
 
 ### Patch Changes

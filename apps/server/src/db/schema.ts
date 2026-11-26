@@ -119,6 +119,11 @@ export const pageAccess = sqliteTable(
 		ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
 		visibility: text("visibility", { enum: ["public", "members", "private"] }).notNull(),
 		edit: text("edit", { enum: ["owner-only", "invited", "members"] }).notNull(),
+		/**
+		 * 非公開ページの本当の名前。ルート doc は全員に配るので、非公開ページの名前はそこでは
+		 * 伏せ（空にし）、見られる人にだけ REST で返す。非公開でなければ null。
+		 */
+		title: text("title"),
 		updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 	},
 	(table) => [primaryKey({ columns: [table.boardId, table.pageId] })],
@@ -243,6 +248,8 @@ export const chatMessages = sqliteTable(
 			.notNull()
 			.references(() => boards.id, { onDelete: "cascade" }),
 		threadId: text("thread_id").notNull().default("default"),
+		/** 書いたページ（ページを使う前のメッセージは null）。 */
+		pageId: text("page_id"),
 		authorId: text("author_id").notNull(),
 		authorName: text("author_name").notNull(),
 		text: text("text").notNull(),
@@ -251,5 +258,11 @@ export const chatMessages = sqliteTable(
 	(table) => [
 		index("idx_chat_messages_board").on(table.boardId),
 		index("idx_chat_messages_thread").on(table.boardId, table.threadId, table.createdAt),
+		index("idx_chat_messages_page").on(
+			table.boardId,
+			table.pageId,
+			table.threadId,
+			table.createdAt,
+		),
 	],
 );

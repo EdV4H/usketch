@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-permissions-casl",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"description": "Connect CASL to uSketch's permission port (PermissionProvider / ServerPermissionResolver).",
 	"type": "module",
 	"main": "./dist/index.js",

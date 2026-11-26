@@ -1,5 +1,25 @@
 # @edv4h/usketch-shared
 
+## 4.34.0
+
+### Minor Changes
+
+- 546c8b8: 図形の永久削除を追加した。`store.removeShapePermanently(id, { expectedType })`（`removeShapePermanently(store, id)` で呼ぶ）で消した図形は id が記録され、古いコマンドの Undo・版の復元・同期で届いた古い更新や相手の Yjs Undo、後からの参加・再読込で戻らない。消去そのものは Undo に積まれない。
+  
+  - shared: `BoardStore.removeShapePermanently` / `isPermanentlyRemoved` / `getPermanentlyRemovedIds`（次のメジャーまで省略可）と、`removeShapePermanently` / `isPermanentlyRemoved` ヘルパー。`shape:removed` に `permanent?: true` と消える直前の `shape` を追加
+  - store: 記録済み id への `addShape` / `updateShape` を `applyExternal` の中でも捨てる
+  - sync: `bindPermanentRemovals(store, doc)` と `DEFAULT_PERMANENT_REMOVALS_MAP_KEY` / `PERMANENT_REMOVAL_ORIGIN`。記録は Y.Doc の `permanentlyRemovedShapes` マップで共有する
+  - sync-ywebsocket / sync-localstorage-yjs: `bindPermanentRemovals` を張り、永久削除は自分では `shapes.delete` しない
+
+## 4.33.0
+
+### Minor Changes
+
+- 1b665c3: Let a container be clicked when it is laid on a picture.
+  
+  - `container.winsOverBackdrop` (default `false`): a container with selectable children (a frame) is picked only where no other shape is hit, so a card slot laid on a board picture could never be clicked. With `true`, a click on the container picks it over its backdrop: a shape drawn behind it whose bounds wholly enclose it. Other shapes (a card lying partly under it, a shape drawn on top) still win as before. `containerWinsOverBackdrop(def, shape)` reads it.
+  - Tabletop zones set `winsOverBackdrop: true`, so a zone laid on a board picture can be clicked and selected.
+
 ## 4.32.0
 
 ### Minor Changes

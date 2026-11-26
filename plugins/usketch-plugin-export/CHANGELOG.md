@@ -1,5 +1,27 @@
 # @edv4h/usketch-plugin-export
 
+## 2.4.10
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-core@2.9.2
+
+## 2.4.9
+
+### Patch Changes
+
+- 5e48452: 全体・全ページの書き出しを範囲の書き出しと同じ描き方にそろえる。画面と同じ zIndex 順で重ね、回転を反映し、`renderForExport` を使い、`hidden` のシェイプは描かない（外接矩形にも含めない）。
+
+## 2.4.8
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-core@2.9.1
+
 ## 2.4.7
 
 ### Patch Changes

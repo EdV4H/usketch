@@ -6,6 +6,8 @@ import type { ShapeData } from "@edv4h/usketch-shared";
  */
 export interface BoardPortalShapeData extends ShapeData {
 	boardId?: string;
+	/** このボードのページへ行くゲートなら、行き先のページ（`boardId` より優先）。 */
+	pageId?: string;
 	boardTitle?: string;
 	ownerName?: string;
 	ownerImage?: string;

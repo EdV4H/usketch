@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-dom-renderer",
-	"version": "2.4.7",
+	"version": "2.4.9",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -25,7 +25,7 @@
 		"react-dom": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"@types/react-dom": "19.3.0",
 		"jsdom": "31.0.1",
 		"typescript": "7.0.2",

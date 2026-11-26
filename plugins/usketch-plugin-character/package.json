@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-character",
-	"version": "0.12.7",
+	"version": "0.12.9",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -42,7 +42,7 @@
 	},
 	"devDependencies": {
 		"@edv4h/usketch-core": "workspace:*",
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"@types/react-dom": "19.3.0",
 		"react-dom": "19.3.1",
 		"typescript": "7.0.2",

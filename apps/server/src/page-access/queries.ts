@@ -56,21 +56,28 @@ export async function loadBoardViewer(
 	return { boardRole, boardPublic: !!row.isPublic };
 }
 
+/** D1 に置いたページの公開範囲（と、非公開ページの本当の名前）。 */
+export interface StoredPageAccess extends DemoPageAccess {
+	/** 非公開ページの本当の名前（ルート doc では伏せている）。 */
+	title?: string | null;
+}
+
 /** ボードの全ページの公開範囲（行の無いページは入らない = 既定の扱い）。 */
 export async function loadPageAccess(
 	db: Db,
 	boardId: string,
-): Promise<Map<string, DemoPageAccess>> {
+): Promise<Map<string, StoredPageAccess>> {
 	const [rows, members] = await Promise.all([
 		db.select().from(pageAccess).where(eq(pageAccess.boardId, boardId)),
 		db.select().from(pageMembers).where(eq(pageMembers.boardId, boardId)),
 	]);
-	const result = new Map<string, DemoPageAccess>();
+	const result = new Map<string, StoredPageAccess>();
 	for (const row of rows) {
 		result.set(row.pageId, {
 			ownerId: row.ownerId ?? null,
 			visibility: row.visibility,
 			edit: row.edit,
+			title: row.title,
 		});
 	}
 	for (const member of members) {

@@ -1,5 +1,30 @@
 # @edv4h/usketch-sync
 
+## 1.8.0
+
+### Minor Changes
+
+- 546c8b8: 図形の永久削除を追加した。`store.removeShapePermanently(id, { expectedType })`（`removeShapePermanently(store, id)` で呼ぶ）で消した図形は id が記録され、古いコマンドの Undo・版の復元・同期で届いた古い更新や相手の Yjs Undo、後からの参加・再読込で戻らない。消去そのものは Undo に積まれない。
+  
+  - shared: `BoardStore.removeShapePermanently` / `isPermanentlyRemoved` / `getPermanentlyRemovedIds`（次のメジャーまで省略可）と、`removeShapePermanently` / `isPermanentlyRemoved` ヘルパー。`shape:removed` に `permanent?: true` と消える直前の `shape` を追加
+  - store: 記録済み id への `addShape` / `updateShape` を `applyExternal` の中でも捨てる
+  - sync: `bindPermanentRemovals(store, doc)` と `DEFAULT_PERMANENT_REMOVALS_MAP_KEY` / `PERMANENT_REMOVAL_ORIGIN`。記録は Y.Doc の `permanentlyRemovedShapes` マップで共有する
+  - sync-ywebsocket / sync-localstorage-yjs: `bindPermanentRemovals` を張り、永久削除は自分では `shapes.delete` しない
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+
+## 1.7.0
+
+### Minor Changes
+
+- bf7d536: Add helpers for servers that relay awareness and broadcasts only to people who may view a page.
+  
+  - `parseAwarenessUpdate(update)` reads an awareness update. `forViewer(canView)` returns an update where people on pages the receiver may not view are sent as gone (`null`), so a cursor or name on a private page does not reach them. It returns the original update when nothing changes.
+  - `broadcastPageOf(payload)` reads the sender's page (`__page`) from a broadcast.
+
 ## 1.6.0
 
 ### Minor Changes

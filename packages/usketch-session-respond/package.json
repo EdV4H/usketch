@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-session-respond",
-	"version": "0.2.5",
+	"version": "0.2.7",
 	"type": "module",
 	"exports": {
 		"./server": {

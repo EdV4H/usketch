@@ -1,5 +1,28 @@
 # @edv4h/usketch-plugin-whistle
 
+## 2.0.38
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-sync@1.8.0
+
+## 2.0.37
+
+### Patch Changes
+
+- b6a987f: 画面中央のワールド座標を共通の `screenCenterWorld` で求めるようにした。ビューポートが回転しているとき、map の拠点入場バナー・whistle の笛の位置と画面外インジケーター・ai-copilot に送る viewportCenter が画面中央からずれていたのを直す。
+
+## 2.0.36
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+- Updated dependencies [bf7d536]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-sync@1.7.0
+
 ## 2.0.35
 
 ### Patch Changes

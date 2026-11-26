@@ -1,5 +1,29 @@
 # @edv4h/usketch-plugin-shape-board-portal
 
+## 2.1.0
+
+### Minor Changes
+
+- 4f0260c: デモの地域（ワールドマップ）をデモボードのページにした（#1558 R6）。
+  
+  - server-boards: **破壊的変更**。ワールドマップの地域の API（`GET /api/community-boards`・`GET /api/community-boards/:slug`）と、地域のボードを作る処理を削除した。`community_boards` 表（ログインした人を編集者にするボードの印）はこれまでどおり使う。
+  - shape-board-portal: ゲートのデータに `pageId`（このボードのページへ行くゲート）を足した。
+  - board-info-panel: 選んだゲートに `pageId` があれば、`onOpenBoard(boardId, pageId)` で渡す。
+
+### Patch Changes
+
+- Updated dependencies [546c8b8]
+  - @edv4h/usketch-shared@4.34.0
+  - @edv4h/usketch-store@3.16.0
+
+## 2.0.38
+
+### Patch Changes
+
+- Updated dependencies [1b665c3]
+  - @edv4h/usketch-shared@4.33.0
+  - @edv4h/usketch-store@3.15.1
+
 ## 2.0.37
 
 ### Patch Changes

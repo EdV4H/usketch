@@ -75,6 +75,8 @@ export {
 	isEmptyRestorePlan,
 	planRestore,
 } from "./history/restore.js";
+// Permanent removal (ids that never come back through undo, restore or sync)
+export { isPermanentlyRemoved, removeShapePermanently } from "./permanent-removal.js";
 // Permissions (the port any permission system plugs into)
 export {
 	allowAllPermissions,
@@ -304,6 +306,7 @@ export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
 // Container
 export {
 	containerAccepts,
+	containerWinsOverBackdrop,
 	getContainerAttachHit,
 	getContainerLayout,
 	hasSelectableChildren,

@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-sync",
-	"version": "1.6.0",
+	"version": "1.8.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,11 +18,13 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@edv4h/usketch-shared": "workspace:*",
 		"fractional-indexing": "4.0.0",
 		"y-protocols": "1.0.7",
 		"yjs": "^13.6.0"
 	},
 	"devDependencies": {
+		"@edv4h/usketch-store": "workspace:*",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"
 	},

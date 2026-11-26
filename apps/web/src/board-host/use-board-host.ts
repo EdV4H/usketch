@@ -30,8 +30,8 @@ export interface BoardHost {
 
 /**
  * ボードを開くホスト。ボードの接続（ルート doc・保存・WebSocket・ページ doc）と、開いた
- * ページの App（カタログから選んだプラグイン）を持つ。ボード（/boards・/local）も地域
- * （/community）もこれで開く。
+ * ページの App（カタログから選んだプラグイン）を持つ。デモボード（/）もボード（/boards・/local）も
+ * これで開く。
  */
 export function useBoardHost(options: BoardHostOptions): BoardHost {
 	const [board, setBoard] = useState<BoardRuntime | null>(null);

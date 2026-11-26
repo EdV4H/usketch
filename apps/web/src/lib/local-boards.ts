@@ -1,6 +1,8 @@
 const STORAGE_KEY = "usketch-local-boards";
 /** お試しボード（`/try`）として開くローカルボードの id。 */
 const TRY_BOARD_KEY = "usketch-try-board";
+/** 前からあるローカルボードを、お試しボードへ取り込み終えたか。 */
+const TRY_IMPORTED_KEY = "usketch-try-imported";
 
 export interface LocalBoard {
 	id: string;
@@ -62,5 +64,27 @@ export const localBoards = {
 			localStorage.setItem(TRY_BOARD_KEY, board.id);
 		} catch {}
 		return board;
+	},
+
+	/**
+	 * お試しボードへ取り込むローカルボード（お試しボード以外）。取り込み終えた後は空（後から
+	 * 作ったデスクトップなどは取り込まない）。
+	 */
+	pendingTryImports: (tryBoardId: string): LocalBoard[] => {
+		try {
+			if (localStorage.getItem(TRY_IMPORTED_KEY)) return [];
+		} catch {
+			return [];
+		}
+		return load().filter((b) => b.id !== tryBoardId);
+	},
+
+	/** 取り込み終えた。取り込んだボードを一覧から外す（中身は IndexedDB に残る）。 */
+	finishTryImports: (importedIds: readonly string[]) => {
+		const imported = new Set(importedIds);
+		save(load().filter((b) => !imported.has(b.id)));
+		try {
+			localStorage.setItem(TRY_IMPORTED_KEY, new Date().toISOString());
+		} catch {}
 	},
 };
