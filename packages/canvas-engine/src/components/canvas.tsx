@@ -130,6 +130,11 @@ function toCanvasEvent(
  *  Below this, a lone touch stays "pending" so a starting pinch never draws. */
 const TOUCH_DRAG_THRESHOLD = 4;
 
+/** Pixels per line for a `deltaMode: 1` wheel event (a notched mouse wheel in Firefox). */
+const WHEEL_LINE_PX = 40;
+/** Pixels per page for a `deltaMode: 2` wheel event, when the canvas height is unknown. */
+const WHEEL_PAGE_PX = 800;
+
 export interface CanvasProps {
 	/**
 	 * Enable native touch gestures — pinch-to-zoom + two-finger pan, with tool
@@ -605,14 +610,25 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				x: e.clientX - rect.left,
 				y: e.clientY - rect.top,
 			};
+			// Read `deltaMode` before the deltas: Firefox reports a mouse wheel in lines only
+			// when the page looks at `deltaMode` first (otherwise it converts to pixels and the
+			// line mode, our best hint that it was a mouse, is lost). Convert back to pixels
+			// here so listeners always get pixel deltas.
+			const deltaMode = e.deltaMode;
+			const unit =
+				deltaMode === 1 ? WHEEL_LINE_PX : deltaMode === 2 ? el.clientHeight || WHEEL_PAGE_PX : 1;
+			const legacy = e as WheelEvent & { wheelDeltaX?: number; wheelDeltaY?: number };
 			app.events.emit("canvas:wheel", {
 				screenPoint,
 				worldPoint: screenToWorld(screenPoint, app.store.getViewport()),
-				deltaX: e.deltaX,
-				deltaY: e.deltaY,
+				deltaX: e.deltaX * unit,
+				deltaY: e.deltaY * unit,
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
 				shiftKey: e.shiftKey,
+				deltaMode,
+				wheelDeltaX: typeof legacy.wheelDeltaX === "number" ? legacy.wheelDeltaX : undefined,
+				wheelDeltaY: typeof legacy.wheelDeltaY === "number" ? legacy.wheelDeltaY : undefined,
 			});
 		};
 

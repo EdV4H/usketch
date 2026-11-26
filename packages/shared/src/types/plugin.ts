@@ -767,11 +767,26 @@ export interface CanvasPointerEvent {
 export interface CanvasWheelEvent {
 	screenPoint: Point;
 	worldPoint: Point;
+	/** Scroll amount in CSS pixels (line / page deltas are converted to pixels). */
 	deltaX: number;
+	/** Scroll amount in CSS pixels (line / page deltas are converted to pixels). */
 	deltaY: number;
 	ctrlKey: boolean;
 	metaKey: boolean;
 	shiftKey: boolean;
+	/**
+	 * The DOM event's original `deltaMode` (0 = pixel, 1 = line, 2 = page), before the
+	 * deltas were converted to pixels. A line / page mode means a notched mouse wheel.
+	 * Optional so hand-built events (tests, synthetic input) can leave it out.
+	 */
+	deltaMode?: number;
+	/**
+	 * The non-standard `WheelEvent.wheelDeltaX` / `wheelDeltaY` (Chrome, Safari, Edge),
+	 * when the browser has them. A precise device (trackpad) reports `-3 × delta`; a
+	 * mouse wheel reports multiples of 120. Used to tell a mouse from a trackpad.
+	 */
+	wheelDeltaX?: number;
+	wheelDeltaY?: number;
 }
 
 export interface ToolRegistry {

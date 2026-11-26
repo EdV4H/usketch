@@ -1,13 +1,36 @@
-import type { CanvasWheelEvent, PluginContext, Point } from "@edv4h/usketch-shared";
+import type {
+	CanvasWheelEvent,
+	HudSettingsDescriptor,
+	PluginContext,
+	Point,
+} from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { createViewportNavPlugin, type ViewportNavOptions } from "../plugin.js";
+import { getViewportNavApi } from "../viewport-nav-service.js";
+import type { ViewportNavStorage } from "../viewport-nav-settings.js";
 
 /** zoomTo / panBy の呼び出しを記録する最小限の PluginContext スタブ。 */
 function makeCtx(initialZoom = 1) {
 	const handlers = new Map<string, ((data: unknown) => void)[]>();
 	const zoomCalls: { zoom: number; center: Point }[] = [];
 	const panCalls: { dx: number; dy: number }[] = [];
+	const hudSettings: HudSettingsDescriptor[] = [];
+	const services = new Map<string, unknown>();
 	const ctx = {
+		hud: {
+			registerSettings: (d: HudSettingsDescriptor) => {
+				hudSettings.push(d);
+				return () => hudSettings.splice(hudSettings.indexOf(d), 1);
+			},
+		},
+		services: {
+			provide: (key: string, api: unknown) => {
+				services.set(key, api);
+				return () => services.delete(key);
+			},
+			get: (key: string) => services.get(key),
+			has: (key: string) => services.has(key),
+		},
 		store: {
 			getViewport: () => ({ x: 0, y: 0, zoom: initialZoom }),
 			zoomTo: (zoom: number, center: Point) => {
@@ -43,14 +66,30 @@ function makeCtx(initialZoom = 1) {
 			metaKey: false,
 			...partial,
 		});
-	return { ctx, wheel, zoomCalls, panCalls };
+	return { ctx, wheel, zoomCalls, panCalls, hudSettings, services };
 }
 
 function setup(options?: ViewportNavOptions, initialZoom = 1) {
 	const h = makeCtx(initialZoom);
-	createViewportNavPlugin(options).setup(h.ctx);
-	return h;
+	// 既定では localStorage に保存しないテストにする（テスト間で設定が漏れないように）。
+	createViewportNavPlugin({ storage: false, ...options }).setup(h.ctx);
+	const api = getViewportNavApi(h.ctx.services);
+	if (!api) throw new Error("service not provided");
+	return { ...h, api };
 }
+
+/** トラックパッドらしいイベント（Chrome: wheelDelta = -3 × delta）。 */
+const trackpad = (deltaY: number, extra: Partial<CanvasWheelEvent> = {}) => ({
+	deltaY,
+	wheelDeltaY: -3 * deltaY,
+	...extra,
+});
+/** マウスホイールらしいイベント（Chrome: wheelDelta = ±120 刻み）。 */
+const mouse = (deltaY: number, extra: Partial<CanvasWheelEvent> = {}) => ({
+	deltaY,
+	wheelDeltaY: deltaY > 0 ? -120 : 120,
+	...extra,
+});
 
 describe("createViewportNavPlugin — wheel zoom", () => {
 	it("既定感度: deltaY の大きさに比例し、従来の 0.9/1.1 相当になる（後方互換）", () => {
@@ -151,5 +190,131 @@ describe("createViewportNavPlugin — wheel zoom", () => {
 		wheel({ deltaX: 30, deltaY: 20 });
 		expect(zoomCalls).toHaveLength(0);
 		expect(panCalls[0]).toEqual({ dx: -30, dy: -20 });
+	});
+});
+
+describe("createViewportNavPlugin — mouse / trackpad sensitivity", () => {
+	it("既定ではマウスもトラックパッドも従来どおり（感度 1）", () => {
+		const { wheel, panCalls, zoomCalls } = setup();
+		wheel(mouse(100));
+		wheel(trackpad(-2.5, { deltaX: 0 }));
+		expect(panCalls[0]).toEqual({ dx: -0, dy: -100 });
+		expect(panCalls[1]).toEqual({ dx: -0, dy: 2.5 });
+		expect(zoomCalls).toHaveLength(0);
+	});
+
+	it("マウスとトラックパッドで別々のスクロール速度を使う", () => {
+		let t = 0;
+		const h = setup({ mouse: { panSensitivity: 2 }, trackpad: { panSensitivity: 0.5 } });
+		// 判定は時間で区切るので、別の操作として十分空ける
+		const realNow = performance.now;
+		performance.now = () => t;
+		try {
+			h.wheel(mouse(100));
+			t += 1000;
+			h.wheel(trackpad(10));
+		} finally {
+			performance.now = realNow;
+		}
+		expect(h.panCalls[0].dy).toBe(-200);
+		expect(h.panCalls[1].dy).toBe(-5);
+	});
+
+	it("マウスとトラックパッドで別々のズーム速度を使う", () => {
+		let t = 0;
+		const realNow = performance.now;
+		performance.now = () => t;
+		try {
+			const h = setup({ mouse: { zoomSensitivity: 0.5 }, trackpad: { zoomSensitivity: 3 } });
+			h.wheel(mouse(-100, { ctrlKey: true }));
+			t += 1000;
+			h.wheel(trackpad(-10, { ctrlKey: true }));
+			expect(h.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 0.5), 5);
+			expect(h.zoomCalls[1].zoom).toBeCloseTo(Math.exp(0.01 * 3), 5);
+		} finally {
+			performance.now = realNow;
+		}
+	});
+
+	it("デバイス別の指定が無い項目は共通の zoomSensitivity / panSensitivity を使う", () => {
+		const h = setup({ zoomSensitivity: 2, panSensitivity: 3, trackpad: { panSensitivity: 1 } });
+		expect(h.api.getSettings().mouse).toEqual({ pan: 3, zoom: 2 });
+		expect(h.api.getSettings().trackpad).toEqual({ pan: 1, zoom: 2 });
+	});
+
+	it("panSensitivity は既定 0.1〜5 にクランプ、panSensitivityRange で上書きできる", () => {
+		expect(setup({ panSensitivity: 99 }).api.getSettings().mouse.pan).toBe(5);
+		expect(setup({ panSensitivity: 0 }).api.getSettings().mouse.pan).toBe(0.1);
+		expect(
+			setup({ panSensitivity: 99, panSensitivityRange: { max: 8 } }).api.getSettings().mouse.pan,
+		).toBe(8);
+	});
+
+	it("deviceMode で判定を固定できる", () => {
+		const h = setup({ deviceMode: "trackpad", trackpad: { panSensitivity: 0.5 } });
+		h.wheel(mouse(100));
+		expect(h.panCalls[0].dy).toBe(-50);
+		expect(h.api.getLastDevice()).toBe("trackpad");
+	});
+
+	it("利用者の上書き（サービス / HUD）は options より優先し、reset で戻る", () => {
+		const h = setup({ mouse: { panSensitivity: 2 } });
+		h.api.setSettings({ mouse: { pan: 4 } });
+		h.wheel(mouse(100));
+		expect(h.panCalls[0].dy).toBe(-400);
+		h.api.resetSettings();
+		expect(h.api.getSettings().mouse.pan).toBe(2);
+	});
+
+	it("HUD に入力デバイス・マウス・トラックパッドの設定を登録し、get / set が設定に繋がる", () => {
+		const h = setup();
+		expect(h.hudSettings.map((d) => [d.label, d.fields.map((f) => f.name)])).toEqual([
+			["スクロールとズームの感度", ["deviceMode"]],
+			["マウス", ["mousePan", "mouseZoom"]],
+			["トラックパッド", ["trackpadPan", "trackpadZoom"]],
+		]);
+		const [device, mouseHud, trackpadHud] = h.hudSettings;
+		let notified = 0;
+		trackpadHud.subscribe(() => notified++);
+		trackpadHud.set("trackpadZoom", "2.5");
+		device.set("deviceMode", "mouse");
+		mouseHud.set("mousePan", "abc"); // 不正値は無視
+		expect(trackpadHud.get("trackpadZoom")).toBe(2.5);
+		expect(device.get("deviceMode")).toBe("mouse");
+		expect(mouseHud.get("mousePan")).toBe(1);
+		expect(notified).toBe(2);
+	});
+
+	it("hud: false なら HUD に登録しない（サービスは使える）", () => {
+		const h = setup({ hud: false });
+		expect(h.hudSettings).toHaveLength(0);
+		expect(h.api.getSettings().deviceMode).toBe("auto");
+	});
+
+	it("上書きは storage に保存され、次の setup で読み戻される（壊れた値は捨てる）", () => {
+		let saved: unknown = { mouse: { pan: 3, zoom: "x" }, deviceMode: "nope" };
+		const storage: ViewportNavStorage = {
+			load: () => saved,
+			save: (patch) => {
+				saved = patch;
+			},
+		};
+		const first = setup({ storage });
+		expect(first.api.getSettings().mouse).toEqual({ pan: 3, zoom: 1 });
+		expect(first.api.getSettings().deviceMode).toBe("auto");
+		first.api.setSettings({ trackpad: { zoom: 2 } });
+		expect(saved).toEqual({ mouse: { pan: 3 }, trackpad: { zoom: 2 } });
+		const second = setup({ storage });
+		expect(second.api.getSettings().trackpad.zoom).toBe(2);
+	});
+
+	it("teardown でサービスと HUD を外す", () => {
+		const h = makeCtx();
+		const teardown = createViewportNavPlugin({ storage: false }).setup(h.ctx);
+		expect(h.services.size).toBe(1);
+		expect(h.hudSettings).toHaveLength(3);
+		if (typeof teardown === "function") teardown();
+		expect(h.services.size).toBe(0);
+		expect(h.hudSettings).toHaveLength(0);
 	});
 });
