@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-presence-activity
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [d167557]
+  - @edv4h/usketch-presence-motion@0.1.1
+
 ## 0.5.0
 
 ### Minor Changes

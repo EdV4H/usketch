@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-presence-motion",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Presence activity motion (#960): the awareness value for a cursor tour across shapes, its receiver-side playback and its sender-side builders. No dependencies.",
 	"type": "module",
 	"main": "./dist/index.js",
