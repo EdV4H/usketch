@@ -70,7 +70,17 @@ function FrameIcon() {
 	);
 }
 
-export function createFramePlugin(): UsketchPlugin {
+export interface FramePluginOptions {
+	/**
+	 * When true, a click without a drag places a default-size frame centered
+	 * on the click point. Default false: a click without a drag creates
+	 * nothing (only a drag creates a frame).
+	 */
+	clickToPlace?: boolean;
+}
+
+export function createFramePlugin(options: FramePluginOptions = {}): UsketchPlugin {
+	const { clickToPlace = false } = options;
 	return {
 		id: "usketch-plugin-shape-frame",
 		name: "フレーム",
@@ -126,6 +136,25 @@ export function createFramePlugin(): UsketchPlugin {
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				} else {
 					toolCtx.store.deleteShape(drawState.shapeId);
+					// A click (no real drag on either axis) places the default size.
+					// A thin drag (e.g. along one axis) still creates nothing.
+					const isClick = !shape || (shape.width <= 10 && shape.height <= 10);
+					if (clickToPlace && isClick) {
+						// Click point = center of the default-size frame.
+						const placed = createDefaultFrame({
+							id: drawState.shapeId,
+							x: drawState.startX,
+							y: drawState.startY,
+						});
+						placed.x -= placed.width / 2;
+						placed.y -= placed.height / 2;
+						placed.style = {
+							...placed.style,
+							stroke: toolCtx.store.getStyleSettings().stroke,
+						};
+						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
+						toolCtx.store.setSelection([placed.id]);
+					}
 				}
 				drawState = null;
 				toolCtx.store.resetToDefaultTool();

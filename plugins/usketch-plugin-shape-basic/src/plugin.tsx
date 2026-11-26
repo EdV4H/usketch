@@ -118,7 +118,17 @@ function BasicShapeIcon() {
 	);
 }
 
-export function createBasicShapePlugin(): UsketchPlugin {
+export interface BasicShapePluginOptions {
+	/**
+	 * When true, a click without a drag places the selected subtype at its
+	 * default size, centered on the click point. Default false: a click
+	 * without a drag creates nothing (only a drag creates a shape).
+	 */
+	clickToPlace?: boolean;
+}
+
+export function createBasicShapePlugin(options: BasicShapePluginOptions = {}): UsketchPlugin {
+	const { clickToPlace = false } = options;
 	return {
 		id: "usketch-plugin-shape-basic",
 		name: "基本シェイプ",
@@ -222,12 +232,30 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 			function onPointerUp(toolCtx: ToolContext) {
 				if (!drawState) return;
-				const shape = toolCtx.store.getShape(drawState.shapeId);
+				const draw = drawState;
+				const shape = toolCtx.store.getShape(draw.shapeId);
 				if (shape && shape.width > 2 && shape.height > 2) {
-					toolCtx.store.deleteShape(drawState.shapeId);
+					toolCtx.store.deleteShape(draw.shapeId);
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				} else {
-					toolCtx.store.deleteShape(drawState.shapeId);
+					toolCtx.store.deleteShape(draw.shapeId);
+					const subtype = BASIC_SHAPE_SUBTYPES.find((s) => s.type === draw.type);
+					// A click (no real drag on either axis) places the default size.
+					// A thin drag (e.g. along one axis) still creates nothing.
+					const isClick = !shape || (shape.width <= 2 && shape.height <= 2);
+					if (clickToPlace && isClick && subtype) {
+						// Click point = center of the default-size shape.
+						const placed = subtype.createDefault({
+							id: draw.shapeId,
+							x: draw.startX,
+							y: draw.startY,
+						});
+						placed.x -= placed.width / 2;
+						placed.y -= placed.height / 2;
+						placed.style = { ...toolCtx.store.getStyleSettings() };
+						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
+						toolCtx.store.setSelection([placed.id]);
+					}
 				}
 				drawState = null;
 				toolCtx.store.resetToDefaultTool();
