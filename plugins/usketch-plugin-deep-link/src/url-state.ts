@@ -42,6 +42,11 @@ function roundTo(n: number, dp: number): number {
 	return Math.round(n * f) / f;
 }
 
+/** Decimal places for a world coordinate at `zoom` (0 at zoom ≤ 1). */
+function worldDecimals(zoom: number): number {
+	return Number.isFinite(zoom) && zoom > 1 ? Math.min(6, Math.ceil(Math.log10(zoom))) : 0;
+}
+
 /** Parse a query string (`location.search`) into a {@link DeepLinkState}. */
 export function decodeDeepLink(search: string): DeepLinkState {
 	const params = new URLSearchParams(search);
@@ -83,7 +88,9 @@ function parsePoint(
  * present in `state` are touched, so unrelated params (e.g. tracking tokens)
  * are preserved. Passing `shapeIds: []` / `camera: null` / `view: null` removes
  * those params. `camera` and `view` share the `zoom` param: it is written from
- * `camera` when both are given, and removed only once neither remains.
+ * `camera` when both are given, and removed only once neither remains. Setting
+ * only one of them drops the other's stale x/y (or cx/cy), since it would no
+ * longer match the shared zoom.
  */
 export function encodeDeepLink(search: string, state: Partial<DeepLinkState>): string {
 	const params = new URLSearchParams(search);
@@ -95,9 +102,16 @@ export function encodeDeepLink(search: string, state: Partial<DeepLinkState>): s
 
 	if (state.view !== undefined) {
 		if (state.view) {
-			params.set(CX_PARAM, String(Math.round(state.view.x)));
-			params.set(CY_PARAM, String(Math.round(state.view.y)));
+			// World units: keep enough decimals that rounding stays under ~0.5 screen px.
+			const dp = worldDecimals(state.view.zoom);
+			params.set(CX_PARAM, String(roundTo(state.view.x, dp)));
+			params.set(CY_PARAM, String(roundTo(state.view.y, dp)));
 			params.set(ZOOM_PARAM, String(roundTo(state.view.zoom, 3)));
+			// A stale exact camera would win on decode and pick up this zoom.
+			if (state.camera === undefined) {
+				params.delete(X_PARAM);
+				params.delete(Y_PARAM);
+			}
 		} else {
 			params.delete(CX_PARAM);
 			params.delete(CY_PARAM);
@@ -109,6 +123,11 @@ export function encodeDeepLink(search: string, state: Partial<DeepLinkState>): s
 			params.set(X_PARAM, String(Math.round(state.camera.x)));
 			params.set(Y_PARAM, String(Math.round(state.camera.y)));
 			params.set(ZOOM_PARAM, String(roundTo(state.camera.zoom, 3)));
+			// A stale view would be left with this camera's zoom; drop it.
+			if (state.view === undefined) {
+				params.delete(CX_PARAM);
+				params.delete(CY_PARAM);
+			}
 		} else {
 			params.delete(X_PARAM);
 			params.delete(Y_PARAM);

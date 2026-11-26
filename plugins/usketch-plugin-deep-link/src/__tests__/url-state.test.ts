@@ -108,7 +108,7 @@ describe("encodeDeepLink", () => {
 
 	it("writes a centre-anchored view (cx/cy integer, zoom 3dp)", () => {
 		expect(encodeDeepLink("?page=p1", { view: { x: 10.7, y: -3.2, zoom: 1.23456 } })).toBe(
-			"?page=p1&cx=11&cy=-3&zoom=1.235",
+			"?page=p1&cx=10.7&cy=-3.2&zoom=1.235",
 		);
 	});
 
@@ -119,6 +119,15 @@ describe("encodeDeepLink", () => {
 	it("keeps the shared zoom while the other anchor remains", () => {
 		expect(encodeDeepLink("?x=1&y=2&cx=3&cy=4&zoom=2", { view: null })).toBe("?x=1&y=2&zoom=2");
 		expect(encodeDeepLink("?x=1&y=2&cx=3&cy=4&zoom=2", { camera: null })).toBe("?cx=3&cy=4&zoom=2");
+	});
+
+	it("drops a stale exact camera when only a view is set", () => {
+		const search = encodeDeepLink("?x=1&y=2&zoom=3", { view: { x: 5, y: 6, zoom: 0.5 } });
+		expect(decodeDeepLink(search)).toEqual({
+			shapeIds: [],
+			camera: null,
+			view: { x: 5, y: 6, zoom: 0.5 },
+		});
 	});
 
 	it("replaces an exact camera with a view", () => {

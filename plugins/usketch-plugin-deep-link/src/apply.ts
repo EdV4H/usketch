@@ -27,7 +27,13 @@ export function applyDeepLink(
 	const { shapeIds, camera: exactCamera, view } = decodeDeepLink(search);
 	// An exact camera wins over a centre-anchored view. The view is resolved
 	// against the canvas size when applied (shapes may still be syncing).
-	const resolveCamera = () => exactCamera ?? (view ? viewportForView(store, view, opts) : null);
+	const resolveCamera = () => {
+		if (exactCamera) return exactCamera;
+		if (!view) return null;
+		const vp = viewportForView(store, view, opts);
+		// A huge zoom/coordinate can overflow to ±Infinity; never apply that.
+		return Number.isFinite(vp.x) && Number.isFinite(vp.y) ? vp : null;
+	};
 	const hasCamera = exactCamera !== null || view !== null;
 
 	let done = false;
