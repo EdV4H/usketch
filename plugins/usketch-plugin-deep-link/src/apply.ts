@@ -1,13 +1,15 @@
 import type { BoardStore, StoreEvent } from "@edv4h/usketch-shared";
 import { frameShapes } from "./frame.js";
 import { decodeDeepLink } from "./url-state.js";
+import { type ViewOptions, viewportForView } from "./view.js";
 
 /** How long to wait for deep-linked shapes to arrive via CRDT sync before giving up. */
 const SYNC_TIMEOUT_MS = 5000;
 
 /**
  * Apply the deep link encoded in `search` to the board: select the referenced
- * shapes and move the viewport onto them (or to an explicit camera).
+ * shapes and move the viewport onto them (or to an explicit camera, or to a
+ * centre-anchored view).
  *
  * Shapes referenced by the URL may not be in the store yet — they stream in via
  * Yjs sync after mount — so when any are missing we subscribe to `shape:added`
@@ -16,8 +18,23 @@ const SYNC_TIMEOUT_MS = 5000;
  * `onDone` fires exactly once, when application settles (immediately if there is
  * no anchor to apply). Returns a disposer that cancels any pending wait.
  */
-export function applyDeepLink(store: BoardStore, search: string, onDone?: () => void): () => void {
-	const { shapeIds, camera } = decodeDeepLink(search);
+export function applyDeepLink(
+	store: BoardStore,
+	search: string,
+	onDone?: () => void,
+	opts: ViewOptions = {},
+): () => void {
+	const { shapeIds, camera: exactCamera, view } = decodeDeepLink(search);
+	// An exact camera wins over a centre-anchored view. The view is resolved
+	// against the canvas size when applied (shapes may still be syncing).
+	const resolveCamera = () => {
+		if (exactCamera) return exactCamera;
+		if (!view) return null;
+		const vp = viewportForView(store, view, opts);
+		// A huge zoom/coordinate can overflow to ±Infinity; never apply that.
+		return Number.isFinite(vp.x) && Number.isFinite(vp.y) ? vp : null;
+	};
+	const hasCamera = exactCamera !== null || view !== null;
 
 	let done = false;
 	let timer: ReturnType<typeof setTimeout> | null = null;
@@ -38,7 +55,7 @@ export function applyDeepLink(store: BoardStore, search: string, onDone?: () => 
 	};
 
 	// Nothing to anchor — settle synchronously.
-	if (shapeIds.length === 0 && !camera) {
+	if (shapeIds.length === 0 && !hasCamera) {
 		finish();
 		return finish;
 	}
@@ -49,10 +66,11 @@ export function applyDeepLink(store: BoardStore, search: string, onDone?: () => 
 		if (ids.length > 0) {
 			store.setSelection(ids);
 			// An explicit camera wins over shape-derived framing.
-			if (!camera) frameShapes(store, ids);
+			if (!hasCamera) frameShapes(store, ids);
 		}
 		// Instant, not animated: the deep link should land already at its target,
 		// and the animated path can no-op when its rAF loop isn't ticking on load.
+		const camera = resolveCamera();
 		if (camera) store.animateViewportTo(camera, { animate: false });
 		finish();
 	};
