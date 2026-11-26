@@ -24,7 +24,7 @@
 		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-store": "workspace:*",
-		"@openuidev/react-lang": "1.1.1"
+		"@openuidev/react-lang": "1.2.0"
 	},
 	"peerDependencies": {
 		"@modelcontextprotocol/sdk": ">=1.0.0",
@@ -37,7 +37,7 @@
 		}
 	},
 	"devDependencies": {
-		"@types/react": "19.3.0",
+		"@types/react": "19.3.1",
 		"typescript": "7.0.2",
 		"vitest": "5.1.1"
 	},
