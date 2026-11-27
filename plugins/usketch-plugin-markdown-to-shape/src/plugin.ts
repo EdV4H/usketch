@@ -1,18 +1,10 @@
-import type { Command, PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { PERMISSIONS } from "@edv4h/usketch-shared";
 import {
 	createMarkdownConverterRegistry,
 	MARKDOWN_CONVERTERS_SERVICE,
 } from "./converter-registry.js";
-import { convertMarkdownToShapes } from "./orchestrator.js";
-
-const MARKDOWN_TYPE = "markdown";
-
-/** Read the markdown source off a shape's meta (no dependency on the md plugin). */
-function readSource(shape: ShapeData): string {
-	const meta = shape.meta as { source?: unknown } | undefined;
-	return typeof meta?.source === "string" ? meta.source : "";
-}
+import { explodeMarkdownShape, selectedMarkdownShapeId } from "./orchestrator.js";
 
 /**
  * Decomposes a selected `markdown` shape into native shapes. This plugin owns
@@ -33,49 +25,19 @@ export function createMarkdownToShapePlugin(): UsketchPlugin {
 			const registry = createMarkdownConverterRegistry();
 			const offService = ctx.services.provide(MARKDOWN_CONVERTERS_SERVICE, registry);
 
-			const selectedMarkdownId = (): string | null => {
-				const sel = ctx.store.getSelection();
-				if (sel.size !== 1) return null;
-				const id = [...sel][0] as string;
-				return ctx.store.getShape(id)?.type === MARKDOWN_TYPE ? id : null;
-			};
-
 			const off = ctx.actions.register({
 				id: "markdown:explode",
 				requires: PERMISSIONS.pageEdit,
 				label: "🧩 Markdown を図形に分解",
 				group: "Markdown",
-				isEnabled: () => selectedMarkdownId() !== null,
+				isEnabled: () => selectedMarkdownShapeId(ctx.store) !== null,
 				run: () => {
-					const id = selectedMarkdownId();
+					const id = selectedMarkdownShapeId(ctx.store);
 					if (!id) return;
-					const original = ctx.store.getShape(id);
-					if (!original) return;
-					const source = readSource(original);
-					if (source.trim() === "") return;
-
-					const shapes = convertMarkdownToShapes({
-						source,
-						origin: { x: original.x, y: original.y, width: original.width },
-						registry,
-						shapes: ctx.shapes,
-					});
-					if (shapes.length === 0) return;
-
-					// One undoable step: replace the markdown shape with the decomposition.
-					const command: Command = {
-						execute: () => {
-							ctx.store.deleteShape(id);
-							for (const s of shapes) ctx.store.addShape(s);
-							ctx.store.setSelection(shapes.map((s) => s.id));
-						},
-						undo: () => {
-							for (const s of shapes) ctx.store.deleteShape(s.id);
-							ctx.store.addShape(original);
-							ctx.store.setSelection([id]);
-						},
-					};
-					ctx.commands.execute(command);
+					explodeMarkdownShape(
+						{ store: ctx.store, registry, shapes: ctx.shapes, commands: ctx.commands },
+						id,
+					);
 				},
 			});
 
