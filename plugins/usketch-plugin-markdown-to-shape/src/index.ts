@@ -17,5 +17,10 @@ export {
 	type SeqParticipant,
 	type Sequence,
 } from "./mermaid-sequence.js";
-export { convertMarkdownToShapes } from "./orchestrator.js";
+export {
+	convertMarkdownToShapes,
+	type ExplodeMarkdownDeps,
+	explodeMarkdownShape,
+	selectedMarkdownShapeId,
+} from "./orchestrator.js";
 export { createMarkdownToShapePlugin } from "./plugin.js";

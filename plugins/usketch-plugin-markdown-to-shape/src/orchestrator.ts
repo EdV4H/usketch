@@ -1,4 +1,7 @@
 import {
+	type BoardStore,
+	type Command,
+	type CommandRegistry,
 	DEFAULT_STYLE,
 	generateId,
 	type MarkdownConverterContext,
@@ -95,4 +98,67 @@ export function convertMarkdownToShapes(opts: ConvertOptions): ShapeData[] {
 		y = slotBottom + gap;
 	}
 	return result;
+}
+
+const MARKDOWN_TYPE = "markdown";
+
+/** Read the markdown source off a shape's meta (no dependency on the md plugin). */
+function readSource(shape: ShapeData): string {
+	const meta = shape.meta as { source?: unknown } | undefined;
+	return typeof meta?.source === "string" ? meta.source : "";
+}
+
+/** The id of the selected `markdown` shape when it is the only selected shape, else `null`. */
+export function selectedMarkdownShapeId(store: BoardStore): string | null {
+	const sel = store.getSelection();
+	if (sel.size !== 1) return null;
+	const [id] = sel;
+	return id !== undefined && store.getShape(id)?.type === MARKDOWN_TYPE ? id : null;
+}
+
+export interface ExplodeMarkdownDeps {
+	store: BoardStore;
+	registry: MarkdownConverterRegistry;
+	shapes: ShapeRegistry;
+	/** Run the change as one undoable command. Omitted: applied directly. */
+	commands?: CommandRegistry;
+}
+
+/**
+ * Replace the `markdown` shape `id` with the shapes its source decomposes into
+ * ({@link convertMarkdownToShapes}, placed at the shape's position and width) and
+ * select them, as one undoable step (undo puts the markdown shape back, selected).
+ * Returns the new shapes; empty (nothing changed) when `id` isn't a markdown shape,
+ * its source is blank, or nothing converts.
+ */
+export function explodeMarkdownShape(deps: ExplodeMarkdownDeps, id: string): ShapeData[] {
+	const { store } = deps;
+	const original = store.getShape(id);
+	if (!original || original.type !== MARKDOWN_TYPE) return [];
+	const source = readSource(original);
+	if (source.trim() === "") return [];
+
+	const shapes = convertMarkdownToShapes({
+		source,
+		origin: { x: original.x, y: original.y, width: original.width },
+		registry: deps.registry,
+		shapes: deps.shapes,
+	});
+	if (shapes.length === 0) return [];
+
+	const command: Command = {
+		execute: () => {
+			store.deleteShape(id);
+			for (const s of shapes) store.addShape(s);
+			store.setSelection(shapes.map((s) => s.id));
+		},
+		undo: () => {
+			for (const s of shapes) store.deleteShape(s.id);
+			store.addShape(original);
+			store.setSelection([id]);
+		},
+	};
+	if (deps.commands) deps.commands.execute(command);
+	else command.execute();
+	return shapes;
 }
