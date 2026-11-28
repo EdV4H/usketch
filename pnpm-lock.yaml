@@ -196,8 +196,8 @@ importers:
         specifier: 3.0.3
         version: 3.0.3
       '@j178/prek':
-        specifier: 0.5.11
-        version: 0.5.11
+        specifier: 0.5.12
+        version: 0.5.12
       turbo:
         specifier: 2.11.13
         version: 2.11.13
@@ -4793,66 +4793,66 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@j178/prek-android-arm64@0.5.11':
-    resolution: {integrity: sha512-o1s6bBrkMEMbVoJNJorqtsabV0yOFD1gkCcAJNJ8UBMdiQvbKjy1Gukj9O9En0q7SSTBHxFD8XXGJfzY4kLbAA==}
+  '@j178/prek-android-arm64@0.5.12':
+    resolution: {integrity: sha512-A1nHm0PLUaJbFhXfIvyZDSJb8YvaO0xhGcQ3CaxtP+UJpGgngImoyvR7KCwZChr57hg9+rpBSzHOLLft9y1nUQ==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [android]
 
-  '@j178/prek-darwin-arm64@0.5.11':
-    resolution: {integrity: sha512-MoBhd2HIMMvcHFxh6dvBFmSf0zATSxS/LYlxXSwEpYkJcddYT84NmxdfpATM9mxZARg0Iz6BzQXDVTxg0Enp+w==}
+  '@j178/prek-darwin-arm64@0.5.12':
+    resolution: {integrity: sha512-pM08i6N8C25g7hL5LVA9oEtOO073FRdMnEgm07bfH7dP1e1W6/CchQXCTdTMzOEXYNGwZwVQZl26TNn0bTBdkw==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [darwin]
 
-  '@j178/prek-darwin-x64@0.5.11':
-    resolution: {integrity: sha512-v1d/TUkQCnIpt6pVq+/4fENNZEgon4GRjO660+CBpuH9bukZKXg6I3AjVpdPvO0JcZbCoSS+O3Szy4SxoO8w6g==}
+  '@j178/prek-darwin-x64@0.5.12':
+    resolution: {integrity: sha512-Dh0mB5qh98b6YskVFvLWRZPWF3pFhstvPNSVoUW9n+Wr6T3qGi+OPq/94K7HylqCKNMIhXKUMoyNkKqlYaGPrg==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [darwin]
 
-  '@j178/prek-linux-arm64-gnu@0.5.11':
-    resolution: {integrity: sha512-1tZrC8RxOh375bxOH9yft2Yx2XwkucW9Hrbf3KD4hLLDoFuBmzwz3oAavlZr2BJgzzQzTr0csjztrgCJno1ApQ==}
+  '@j178/prek-linux-arm64-gnu@0.5.12':
+    resolution: {integrity: sha512-GEurT3NKTJOPozN8Bu4U2Kh/IG/ID7nnot4LrYhELybA9QVoH3aVj0H8LOErjofI+nBQGNZrco0flw7o4i8/kA==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@j178/prek-linux-arm64-musl@0.5.11':
-    resolution: {integrity: sha512-yftBxlDBY2FB7lNjjLSj/QPPvSdvIyGNF0XLsz9+t7zIh1PGyFjCIqYnEoOjZPmEq9rTv4VSB4StuGN4XqBykQ==}
+  '@j178/prek-linux-arm64-musl@0.5.12':
+    resolution: {integrity: sha512-7MaDlxO+dbNLhjjghOoz8ISEMTce2sX9/Fw4x+WMaoaRFK9YoMnb9dYN887xesONXru9q2rGrxilrI/PxSUpYw==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@j178/prek-linux-x64-gnu@0.5.11':
-    resolution: {integrity: sha512-OftS/5gmANwEb1tcGNtHpt7Pj6RXfWG198QewtudW9ImMBaYJRepdmwpM/B4+sof+JwVzOvtYQv3HGAssQYaNw==}
+  '@j178/prek-linux-x64-gnu@0.5.12':
+    resolution: {integrity: sha512-ZK81cLc07s9OvJmZf7heCAqNkUJGt+VfuxNfAWCWWXxJy4wpjfF0MV0FREI83xD589AfWrIOmMXB/O8CjFXNOA==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@j178/prek-linux-x64-musl@0.5.11':
-    resolution: {integrity: sha512-+Z6HVrqEItxwE0Zmi2At7BF72bdc/PhIzXCXDdBdaX9j8ju7c7qSnfSF9zqn2MloGxPvkN002oV+0MvWRREW2Q==}
+  '@j178/prek-linux-x64-musl@0.5.12':
+    resolution: {integrity: sha512-duAYKMdf9U4hCnEItn2cxpOtuaAfrKusmmsNQz04F74766L8vF8URbCAZV+aZ4Wyw4ICP9jaDze33bhO0Jj52w==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@j178/prek-win32-arm64-msvc@0.5.11':
-    resolution: {integrity: sha512-lSj/jTtiKwE2sEjRAZHP6G1Fe1wdd3UvyhqG8AeJNjPDLndLOEITpS2bFqpx3lJjFFAwwhiL52xJHjMfLwhWMA==}
+  '@j178/prek-win32-arm64-msvc@0.5.12':
+    resolution: {integrity: sha512-QjOHMri3EcKOnHUEHBNltl8wqZ7EX6JWyrZq+SEIjDdrItmHI04ACX3NjrPEjMpWmHomL5by+DpCNjFvgzBKaw==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [win32]
 
-  '@j178/prek-win32-x64-msvc@0.5.11':
-    resolution: {integrity: sha512-4zuWCa+5WOrZEq76z9jc7LWJqsDPLQX7synKiUqvYg+jb0BjhE4foXPosOVbgqWGqhkt0EcP681Bzqe1rwRfMQ==}
+  '@j178/prek-win32-x64-msvc@0.5.12':
+    resolution: {integrity: sha512-1sKGM1GhPPVSjHUBr485nIfOIgCF12zCvXshHtWlzMeJNv9COyPxrjyn94+Ep7MIYsohNervUB/PxLS9D/Po4Q==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
 
-  '@j178/prek@0.5.11':
-    resolution: {integrity: sha512-zekSLMed8SqmAnno5eBYp901gONW9kAAlIzz45KUlgkqNOqyDLfGUuZoTmdR0ioHpSuwz9plu0vfmQMQg27QKg==}
+  '@j178/prek@0.5.12':
+    resolution: {integrity: sha512-N6T+IKvtSLK6VmIWPTZGQDlSjwlCQ2cnoefgmqp4z22Cxhl6LR1fNw5ZBw92FHrhHMkbAS+ZCRQbCYHrsTUlIg==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -10218,44 +10218,44 @@ snapshots:
   '@img/sharp-win32-x64@0.35.5':
     optional: true
 
-  '@j178/prek-android-arm64@0.5.11':
+  '@j178/prek-android-arm64@0.5.12':
     optional: true
 
-  '@j178/prek-darwin-arm64@0.5.11':
+  '@j178/prek-darwin-arm64@0.5.12':
     optional: true
 
-  '@j178/prek-darwin-x64@0.5.11':
+  '@j178/prek-darwin-x64@0.5.12':
     optional: true
 
-  '@j178/prek-linux-arm64-gnu@0.5.11':
+  '@j178/prek-linux-arm64-gnu@0.5.12':
     optional: true
 
-  '@j178/prek-linux-arm64-musl@0.5.11':
+  '@j178/prek-linux-arm64-musl@0.5.12':
     optional: true
 
-  '@j178/prek-linux-x64-gnu@0.5.11':
+  '@j178/prek-linux-x64-gnu@0.5.12':
     optional: true
 
-  '@j178/prek-linux-x64-musl@0.5.11':
+  '@j178/prek-linux-x64-musl@0.5.12':
     optional: true
 
-  '@j178/prek-win32-arm64-msvc@0.5.11':
+  '@j178/prek-win32-arm64-msvc@0.5.12':
     optional: true
 
-  '@j178/prek-win32-x64-msvc@0.5.11':
+  '@j178/prek-win32-x64-msvc@0.5.12':
     optional: true
 
-  '@j178/prek@0.5.11':
+  '@j178/prek@0.5.12':
     optionalDependencies:
-      '@j178/prek-android-arm64': 0.5.11
-      '@j178/prek-darwin-arm64': 0.5.11
-      '@j178/prek-darwin-x64': 0.5.11
-      '@j178/prek-linux-arm64-gnu': 0.5.11
-      '@j178/prek-linux-arm64-musl': 0.5.11
-      '@j178/prek-linux-x64-gnu': 0.5.11
-      '@j178/prek-linux-x64-musl': 0.5.11
-      '@j178/prek-win32-arm64-msvc': 0.5.11
-      '@j178/prek-win32-x64-msvc': 0.5.11
+      '@j178/prek-android-arm64': 0.5.12
+      '@j178/prek-darwin-arm64': 0.5.12
+      '@j178/prek-darwin-x64': 0.5.12
+      '@j178/prek-linux-arm64-gnu': 0.5.12
+      '@j178/prek-linux-arm64-musl': 0.5.12
+      '@j178/prek-linux-x64-gnu': 0.5.12
+      '@j178/prek-linux-x64-musl': 0.5.12
+      '@j178/prek-win32-arm64-msvc': 0.5.12
+      '@j178/prek-win32-x64-msvc': 0.5.12
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
